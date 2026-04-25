@@ -1,0 +1,27 @@
+# LILO — Dependências consolidadas (raiz)
+# Instalar: pip install -r requirements.txt
+
+# Core
+python-dotenv>=1.0.0
+requests>=2.31.0
+httpx>=0.26.0
+
+# LLM
+anthropic>=0.40.0
+ollama>=0.1.6
+
+# Dashboard
+streamlit>=1.30.0
+pandas>=2.1.0
+
+# PDF processing
+PyMuPDF>=1.23.0
+pdfminer.six>=20221105
+
+# sqlite3 já vem com Python — nenhum pacote extra necessário
+
+# MCP (Model Context Protocol — PyCharm + Claude Desktop)
+mcp>=1.0.0
+
+# Logging
+structlog>=24.1.0

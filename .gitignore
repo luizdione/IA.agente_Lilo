@@ -1,0 +1,87 @@
+# ============================================================
+# LILO v7.0 — .gitignore
+# ============================================================
+
+# ── Segurança (NUNCA versionar) ──────────────────────────────
+.env
+.env.*
+!.env.example
+config/claude_api.yaml
+*.key
+*.pem
+
+# ── Python ───────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.installed.cfg
+PIPFILE.lock
+
+# ── Virtual Environments ────────────────────────────────────
+.venv/
+venv/
+ENV/
+env/
+Analise_SQL/.venv/
+
+# ── IDEs ─────────────────────────────────────────────────────
+.idea/
+.vscode/
+.cursor/
+.codex/
+.junie/
+.continue/
+*.swp
+*.swo
+*~
+*.iml
+
+# ── OS ───────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+nul
+*.lnk
+desktop.ini
+
+# ── Logs e DBs locais ───────────────────────────────────────
+logs/
+*.log
+*.db
+!memory/Dockerfile
+
+# ── Temporários ──────────────────────────────────────────────
+*.tmp
+*.bak
+*.cache
+temp_plot_*.png
+
+# ── Docker volumes (dados locais) ───────────────────────────
+.ollama/
+ollama_models/
+chroma_data/
+
+# ── Análises geradas ────────────────────────────────────────
+.claude_analysis.json
+.mcp.json
+
+# ── Subagentes: artefatos locais ─────────────────────────────
+Analise_SQL/graficos/
+Analise_SQL/.installed
+scholaragent/uploads/
+scholaragent/{static,templates,uploads}/
+PDFs_library/data/*.pdf
+PDFs_library/models/
+llm-gateway/logs/
+memory/embeddings/
+memory/agent_memory.db
+memory/user_preferences.json
+
+# ── Build artifacts ──────────────────────────────────────────
+build/
+dist/
+node_modules/
+frontend/build/
