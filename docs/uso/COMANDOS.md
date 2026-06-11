@@ -23,7 +23,7 @@
 
 ---
 
-## MCP Tools (23 no profile desktop / 17 no pycharm)
+## MCP Tools (conjunto varia por profile — ver `_PROFILE_TOOLS` em `lilo_mcp.py`; `desktop`/`http` = todas)
 
 ### Núcleo LILO (6)
 

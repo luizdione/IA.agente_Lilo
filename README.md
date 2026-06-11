@@ -1,7 +1,7 @@
-# LILO v10.0 — Agente Pessoal de IA com Subagentes Especializados
+# LILO v10.5 — Agente Pessoal de IA com Subagentes Especializados
 
 ![Status](https://img.shields.io/badge/status-ativo-brightgreen)
-![Version](https://img.shields.io/badge/version-10.0.0-blue)
+![Version](https://img.shields.io/badge/version-10.5.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![Arch](https://img.shields.io/badge/arch-v10-purple)
 
@@ -22,7 +22,7 @@
 |---|---|---|
 | **SQL** (`agents/Analise_SQL/`) | Queries SQLite, análise estatística (ANOVA, t-test, regressão, correlação) | `lilo_sql` |
 | **PDFs** (`agents/PDFs_library/`) | Sumarização de PDFs científicos (PyMuPDF), busca por DOI/ISSN | `lilo_pdf` |
-| **Scholar** (`agents/scholaragent/`) | Busca acadêmica PubMed + arXiv com síntese de literatura | `lilo_scholar` |
+| **Scholar** (`agents/scholaragent/`) | Busca acadêmica (PubMed, arXiv + ClinicalTrials, Open Targets, NPI, CrossRef, Semantic Scholar) com síntese de literatura | `lilo_scholar` |
 | **Prism AI** (`agents/prism_ai/`) | Análise estatística completa (.xlsx/.csv), gráficos publication-grade | `prism_analyze`, `prism_classify`, `prism_audit` |
 | **Villa-Lobos** (`agents/villa_lobos/`) | Pipeline multi-estágio: Orchestrator → Planner → Reader → Worker → Reporter | `villa_pipeline`, `villa_quick_ask` |
 | **Gateway** (`agents/gateway/`) | Fallback genérico via LiteLLM proxy ou Ollama direto | `lilo_chat`, `lilo_models` |
@@ -63,13 +63,19 @@ python lilo.py health
 O servidor expõe diferentes conjuntos de tools por **profile**, escolhido via
 `--profile`. Default no Claude Desktop é **`opus`** (ver tabela abaixo).
 
-| Profile   | # tools | Quando usar |
-|-----------|---------|-------------|
-| `opus`    | 18      | **Claude Desktop com Opus 4.x** — só tools que AGREGAM capacidade ao Opus (internet, filesystem, exec local, memória persistente, prism, scholar). Tools redundantes (`lilo_chat`, `lilo_pdf`, `villa_*`, `prism_audit`...) ficam ocultas mas continuam acessíveis no dashboard via slash command (`/lilo_chat`...). |
-| `bio`     | 27      | Setup biomolecular sem `run_shell` (segurança). |
-| `pycharm` | ~17     | PyCharm AI Assistant — foco em refactoring (`fs_*`, `run_*`, `villa_*`). |
-| `desktop` | 35      | Todas as tools (legado / Cowork / OpenClaw). |
-| `http`    | 35      | Reservado para `lilo_api.py`. |
+A contagem exata por profile evolui conforme tools são adicionadas — a **fonte
+de verdade** é `_PROFILE_TOOLS` em [`lilo_mcp.py`](lilo_mcp.py); o servidor loga
+`profile=<nome> (<N> tools)` ao subir. Conjuntos atuais:
+
+| Profile   | Conjunto de tools | Quando usar |
+|-----------|-------------------|-------------|
+| `opus`    | curado: internet, filesystem, exec local, memória, `lilo_scholar`, `prism_*`, ollama, composed (`fs_batch_read`/`grep_and_read`/`fs_codemod`) | **Claude Desktop com Opus 4.x** — só tools que AGREGAM ao Opus. Redundantes (`lilo_chat`, `lilo_pdf`, `villa_*`...) ficam ocultas mas acessíveis no dashboard via slash (`/lilo_chat`...). |
+| `bio`     | pesquisa biomolecular: scholar, pdf, sql, prism, villa, web, fs **só leitura** (sem `run_shell`/`run_python`) | Setup biomolecular (segurança). |
+| `pycharm` | dev/refactor: `fs_*`, `run_*`, `villa_*`, prism, memória, composed | PyCharm AI Assistant. |
+| `claude_code` | complementar ao Claude Code CLI: `villa_*`, `prism_*`, scholar, pdf, memória, ollama (sem `fs_*`/`run_*`, que o CC já tem nativos) | Claude Code CLI. |
+| `cowork`  | espelha `bio` (local-only, sem exec) | Automação Cowork sem supervisão. |
+| `desktop` | **todas** | Legado / OpenClaw. |
+| `http`    | **todas** | `lilo_api.py`. |
 
 ```cmd
 python lilo_mcp.py --profile opus       # recomendado p/ Claude Desktop

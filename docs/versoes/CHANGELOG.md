@@ -1,5 +1,32 @@
 # LILO — Changelog
 
+## v10.5 — 2026-06-11 (plataforma híbrida, dashboard Claude Desktop, Villa V11.2)
+
+### Arquitetura híbrida (v10)
+- Subprojetos antigos consolidados em `agents/`; legado movido para `_ARCHIVE_v10/`.
+- **API HTTP** (`lilo_api.py`, FastAPI :8088) e **multiplexer** `lilo_serve.py`
+  (`--transport stdio/http/sse`). `lilo_server.py` e `lilo_pycharm_mcp.py`
+  **arquivados** (o MCP do PyCharm hoje é `lilo_mcp.py --profile pycharm`).
+- Profiles MCP `claude_code` e `cowork` adicionados a `_PROFILE_TOOLS`.
+
+### Dashboard
+- Reformulação visual estilo **Claude Desktop** (marfim/coral, headings
+  serifados, composer arredondado) — `dashboard.py` + `dashboard_cowork.py`.
+
+### Villa Lobos — V11.2 (roteamento e robustez)
+- **Guarda anti-fast-path unificada** (`_block_fast_path`): explicação/profundidade
+  deixam de cair em fast-path raso (antes só demonstração/prova era protegida).
+- **Retry/fallback**: HTTP 400 (payload) agora é fail-fast; demais 4xx pulam
+  retry mas permitem fallback de modelo; 5xx/timeout seguem com retry.
+- **`keep_alive`** normalizado (corrige 400 do Ollama com `OLLAMA_KEEP_ALIVE=-1`).
+- **De-viés de domínio** no `EXPERT_SYSTEM`/worker prompt (não impõe mais
+  "mecanismos moleculares" a história/geografia/matemática).
+
+### Avaliação de qualidade
+- **`shared/quality_judge.py`**: juiz LLM por domínio (rubrica 4×0-25),
+  modelo distinto do avaliado para mitigar auto-viés.
+- `scripts/bench_semantic_domains.py`: flags `--judge` e `--repeat N`.
+
 ## v10.4 — 2026-05-08 (profile MCP `opus` + descriptions reescritas)
 
 ### Profile `opus` em `lilo_mcp.py`

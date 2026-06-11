@@ -54,7 +54,7 @@ Indicadores de complexidade alta incluem termos de DM (`openmm`, `nvt`, `npt`, `
 | **stdio transport** | Comunicação MCP via stdin/stdout do subprocess. Usado por Claude Desktop. |
 | **Streamlit** | Framework Python para dashboards web. Roda em `localhost:8100` (LILO) e `localhost:8101` (PDFs library). |
 | **PyMuPDF** | Biblioteca de extração de texto/metadados de PDFs. |
-| **Profile flag** | `--profile {desktop\|pycharm\|http}` no `lilo_mcp.py` filtra quais tools são expostas. |
+| **Profile flag** | `--profile {desktop\|pycharm\|bio\|opus\|claude_code\|cowork\|http}` no `lilo_mcp.py` filtra quais tools são expostas (conjuntos em `_PROFILE_TOOLS`; `desktop`/`http` = todas). |
 | **Allow-list** | Lista de paths permitidos em `LILO_DESKTOP_ALLOW`. Tools `fs_*` e `run_shell` rejeitam paths fora dessa lista. |
 | **VRAM** | Video RAM da GPU (12 GB na RTX 3060). Modelos quantizados (Q4/Q8) ocupam de ~5 a ~10 GB. |
 | **keep_alive** | Tempo que o Ollama mantém um modelo carregado em VRAM após uso. Default Ollama: 5min. LILO: 2h (`OLLAMA_KEEP_ALIVE=2h` no `.env`). |

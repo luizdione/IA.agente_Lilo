@@ -1,8 +1,23 @@
 # Villa-Lobos — Pipeline Multi-Estágio
 
 **Path:** `agents/villa_lobos/agent.py`
-**Tools MCP:** `villa_pipeline`, `villa_quick_ask`
-**Smart routing:** v10.1 (2026-05-07)
+**Tools MCP:** `villa_pipeline`, `villa_quick_ask`, `villa_explain_routing`
+**Smart routing:** v10.1 (2026-05-07) · **roteamento atual: V11.2 (2026-06-11)**
+
+> **Melhorias V10.9–V11.2** (além do descrito abaixo, que cobre a v10.1):
+> - **`_block_fast_path` (V11.2):** guarda anti-fast-path unificada nos ramos
+>   LLM e heurístico — queries explicativas/profundas ("Explique … e suas
+>   implicações") não caem mais no fast-path raso; demonstração/prova escala
+>   para ≥2 iterações.
+> - **Modelo do Worker por intenção (V10.9):** coder (`qwen2.5-coder`) só quando
+>   a query tem intenção de código; senão instruct geral (`_is_code_intent`).
+> - **Cobertura multi-parte (V11.1):** `_is_multipart_query` adiciona diretriz
+>   de cobertura a perguntas com várias sub-perguntas.
+> - **`EXPERT_SYSTEM` adaptativo por domínio (V11.2):** vocabulário técnico
+>   enumerado por área (exatas, química, biologia, humanas) — sem viés bio.
+> - **Retry/fallback:** HTTP 400 fail-fast; demais 4xx sem retry (com fallback
+>   de modelo); 5xx/timeout com retry. Decision cache LRU; `explain_routing`
+>   para depurar roteamento sem executar o pipeline.
 
 ---
 

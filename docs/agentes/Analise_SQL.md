@@ -1,116 +1,52 @@
-# 🧬 Analisador Estatístico de Dados SQL
+# SQLAgent — Análise SQL e estatística (LILO)
 
-Sistema autônomo de análise estatística para dados biológicos em bancos SQL.
+Subagente do LILO (`agents/Analise_SQL/agent.py`, classe `SQLAgent`,
+`name = "sql"`) que **gera/explica SQL** e **sugere análises estatísticas** para
+dados tabulares biológicos, via LLM local. É um agente `BaseAgent` — roda dentro
+do LILO (orquestrador ou pipeline Villa Lobos), **não** é um app GUI standalone.
 
-## 🚀 Execução Rápida
+> Nota: a antiga GUI autônoma (`sql_analyzer_gui.py` + `sql_statistical_analyzer.py`,
+> em customtkinter, com presets de servidor) foi arquivada em `_ARCHIVE_v10/`.
+> Esta página documenta o **agente** atual.
 
-```bash
-# Windows
-run_sql_analyzer.bat
+## Tools expostas (`get_tools`)
+
+| Tool | Função |
+|------|--------|
+| `sql_query` | Gera ou explica queries SQL a partir de linguagem natural. Params: `query` (obrigatório), `db_path`, `table`. |
+| `sql_stats` | Sugere análises estatísticas + queries para dados tabulares. Params: `query` (obrigatório), `table`. |
+
+## Comportamento (`run`)
+
+O método detecta o **modo** automaticamente a partir da query (`_detect_mode`):
+
+- `generate` — gera a query SQL (query completa + explicação linha a linha + exemplo de resultado);
+- `explain` — explica uma query existente (propósito, cláusulas, performance, melhorias);
+- `stats` — sugere testes (normalidade, comparativos), as queries de cada análise e a interpretação;
+- *default* — chat livre com contexto SQL.
+
+A geração assume **SQLite** por padrão (MySQL se especificado) e sempre devolve
+código executável e comentado, em português.
+
+## Características de roteamento
+
+- `cost_tier = "ollama"` (100% local — SQLite/duckdb), `local_only = True`,
+  `latency_class = "fast"`.
+- `KEYWORDS` (sql, query, select, tabela, banco, estatística, anova, t-test,
+  shapiro, …) alimentam o roteamento do Villa Lobos / `_detect_domain` para o
+  domínio `sql`.
+
+## Uso
+
+```python
+from lilo import handle_tool_call
+print(handle_tool_call("sql_query",
+                       {"query": "média de expressão por grupo na tabela amostras"}))
 ```
 
-**Na primeira execução**, o sistema instalará automaticamente todas as dependências necessárias.
+Ou pela aba **SQL** do dashboard (`dashboard.py`, porta 8100), ou via MCP
+(`lilo_sql`).
 
-## 📋 Requisitos
-
-- Python 3.8+
-- Conexão com internet (para instalar dependências na primeira vez)
-
-## 🔗 Conexão com Banco de Dados
-
-### Servidores Pré-configurados:
-
-1. **Servidor Hostinger**
-   - Host: `auth-db887.hstgr.io`
-   - Banco: `u112348440_ifrj_crj_lgm`
-   - Usuário: `u112348440_Desenvolvedor`
-
-2. **Servidor Local/Remoto**
-   - Host: `127.0.0.1`
-   - Banco: `u112348440_cx120`
-   - Usuário: `u112348440_Darwin`
-
-**Senhas já estão pré-configuradas.**
-
-## 📊 Funcionalidades
-
-### 🔍 **Camada 1: Inspeção de Dados**
-- Análise automática da estrutura
-- Identificação de tipos de variáveis
-- Estatísticas descritivas completas
-- Testes de normalidade e homogeneidade
-
-### 💡 **Camada 2: Decisão Estatística**
-- Recomendação automática de testes apropriados
-- Árvore de decisão estatística
-- Justificativa completa das escolhas
-
-### 📈 **Camada 3: Execução e Visualização**
-- Execução dos testes recomendados
-- Geração automática de gráficos
-- Relatórios completos formatados
-
-## 🧪 Testes Suportados
-
-- **Paramétricos:** Teste t, ANOVA, Teste t de Welch, ANOVA de Welch
-- **Não-Paramétricos:** Mann-Whitney U, Kruskal-Wallis
-- **Post-hoc:** Tukey HSD, Games-Howell, Dunn
-
-## 📁 Estrutura de Arquivos
-
-```
-Analise_SQL/
-├── sql_statistical_analyzer.py  # Módulo de análise (3 camadas)
-├── sql_analyzer_gui.py           # Interface gráfica
-├── run_sql_analyzer.bat          # Script de execução
-├── requirements.txt              # Dependências
-├── sql_analyzer_icon.ico         # Ícone do sistema
-└── README.md                     # Esta documentação
-```
-
-## 🎯 Fluxo de Uso
-
-1. **Executar** `run_sql_analyzer.bat`
-2. **Selecionar** servidor preset (Hostinger ou Local)
-3. **Conectar** ao banco de dados
-4. **Carregar** dados (tabela ou query SQL)
-5. **Selecionar** variáveis para análise
-6. **Executar** análises (inspecionar/recomendar/executar)
-7. **Visualizar** resultados na coluna direita
-
-## 🔧 Dependências Principais
-
-- `pandas` - Manipulação de dados
-- `scipy` - Testes estatísticos
-- `statsmodels` - Modelos avançados
-- `matplotlib` / `seaborn` - Visualizações
-- `customtkinter` - Interface gráfica moderna
-- `mysql-connector-python` - Conexão MySQL
-
-## 📝 Notas
-
-- Sistema **100% autônomo** - não depende de LILO
-- Senhas pré-configuradas para conveniência
-- Interface em **2 colunas**: Controles (esquerda) + Resultados (direita)
-- Barras de rolagem automáticas
-- Instalação automática de dependências na primeira execução
-
-## 🐛 Solução de Problemas
-
-### "Python não encontrado"
-- Instale Python 3.8+ de python.org
-- Adicione Python ao PATH do Windows
-
-### "Erro ao conectar ao banco"
-- Verifique conexão com internet
-- Confirme credenciais do servidor
-- Teste com ferramenta externa (MySQL Workbench)
-
-### "Falha ao instalar dependências"
-- Execute: `python -m pip install --upgrade pip`
-- Execute: `pip install -r requirements.txt`
-- Verifique permissões de administrador
-
----
-
-**Desenvolvido como consultor estatístico automatizado para pesquisa biológica**
+> Segurança: o agente não embute credenciais de banco. Conexões reais a um SGBD
+> devem usar variáveis de ambiente/segredos do seu lado — nunca versionar
+> host/usuário/senha em documentação ou código.

@@ -1,7 +1,7 @@
 # LILO MCP — Profile `opus` (padrão Claude Desktop)
 
 **Data:** 2026-05-14  
-**Motivo da mudança:** O profile `desktop` registra todas as ~220 tools (incluindo 199 skills do Conda), sobrecarregando o contexto do modelo e causando erros de inicialização no Opus 4.7.
+**Motivo da mudança:** O profile `desktop` registra **todas** as tools MCP do LILO (sem filtro de profile), sobrecarregando o contexto do modelo e causando erros de inicialização no Opus 4.7. (As ~199 skills geradas do Conda são acessíveis via `/skill` no dashboard, mas **não** são tools MCP expostas — a contagem real de tools MCP é da ordem de algumas dezenas, definida em `_PROFILE_TOOLS`.)
 
 ---
 
@@ -57,13 +57,15 @@ Agora: `--profile opus` (~20 tools curadas).
 
 ## Profiles disponíveis (referência)
 
-| Profile | Contexto | Tools |
+Contagem viva em `_PROFILE_TOOLS` (`lilo_mcp.py`); valores abaixo são aproximados:
+
+| Profile | Contexto | Tools MCP |
 |---------|----------|-------|
-| `desktop` | Todas as tools | ~220 (inclui 199 skills Conda) |
-| `opus` | Claude Desktop com Opus | ~20 (curadas, sem redundância) |
-| `claude_code` | Claude Code CLI | ~20 (sem fs/exec, CC já tem nativos) |
-| `pycharm` | PyCharm IDE | ~30 (foco refactoring) |
-| `bio` | Pesquisa biomolecular | ~25 (sem exec, segurança) |
+| `desktop` | Todas as tools MCP (sem filtro) | todas (~dezenas; skills Conda ficam no `/skill`, não são tools MCP) |
+| `opus` | Claude Desktop com Opus | ~21 (curadas, sem redundância) |
+| `claude_code` | Claude Code CLI | ~22 (sem fs/exec, CC já tem nativos) |
+| `pycharm` | PyCharm IDE | ~33 (foco refactoring) |
+| `bio` / `cowork` | Pesquisa biomolecular / automação | ~30 (sem exec, segurança) |
 
 ---
 

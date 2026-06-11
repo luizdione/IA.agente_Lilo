@@ -97,7 +97,12 @@ Para perfil customizado, copie `config/mcp/claude_code.json` para `~/.claude.jso
 
 ## Tools disponíveis por profile
 
-### `desktop` (29 tools)
+> A contagem por profile evolui; a fonte de verdade é `_PROFILE_TOOLS` em
+> `lilo_mcp.py` (o servidor loga `profile=<nome> (<N> tools)` ao subir). Há
+> ainda os profiles `opus` (~21, curado p/ Claude Desktop), `claude_code` (~22)
+> e `cowork` (espelha `bio`). A lista abaixo enumera o núcleo do `desktop`.
+
+### `desktop` (todas as tools — sem filtro)
 
 **Núcleo (6):** `lilo_chat`, `lilo_sql`, `lilo_pdf`, `lilo_scholar`, `lilo_health`, `lilo_models`
 
@@ -113,9 +118,13 @@ Para perfil customizado, copie `config/mcp/claude_code.json` para `~/.claude.jso
 
 **Skills (3):** `lilo_list_skills`, `lilo_run_skill`, `lilo_skill_info`
 
-### `pycharm` (23 tools)
+### `pycharm` (~33 tools)
 
-Igual desktop mas **sem**: `lilo_models`, `lilo_web_search`, `lilo_web_fetch`, `lilo_list_skills`, `lilo_run_skill`, `lilo_skill_info`.
+Foco em desenvolvimento/refactoring: inclui `fs_*`, `run_shell`, `run_python`,
+`villa_*`, `prism_*`, memória (incl. avançada), cost, ollama manager e as
+*composed tools* (`fs_batch_read`, `fs_codemod`, `grep_and_read`). Sem
+`lilo_web_*` e sem as meta-skills (`lilo_list_skills`/`run_skill`/`skill_info`).
+Conjunto exato em `_PROFILE_TOOLS["pycharm"]`.
 
 ---
 

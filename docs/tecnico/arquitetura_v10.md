@@ -1,7 +1,15 @@
-# Arquitetura LILO v10.3
+# Arquitetura LILO v10.x
 
-**Última atualização:** 2026-05-07 (sprint memória robusta)
+**Última atualização:** 2026-06-11 (v10.5)
 **Status:** Em produção, MCP validado via stdio handshake.
+
+> **Evolução desde a v10.3** (ver [CHANGELOG](../versoes/CHANGELOG.md) para o detalhe):
+> v10.4 trouxe o profile MCP `opus`; v10.5 trouxe a plataforma híbrida
+> (`lilo_api.py` :8088 + multiplexer `lilo_serve.py`; `lilo_server.py` arquivado),
+> o dashboard estilo Claude Desktop, o Villa **V11.2** (guarda fast-path
+> unificada `_block_fast_path`, retry 4xx fail-fast, de-viés de domínio no
+> prompt) e o juiz LLM de qualidade (`shared/quality_judge.py`). O roadmap S1
+> (multiplexer de transporte) abaixo já está **implementado**.
 
 ## Sumário das mudanças v10.3
 

@@ -4,6 +4,12 @@
 > (Desktop) tenha acesso apenas as tools que **agregam capacidade real** ao
 > modelo, evitando redundancia e desperdicio de tokens.
 
+> **Atualização (2026-06-11):** o conjunto do profile `opus` cresceu de 18 para
+> **21 tools** — foram somadas as 3 *composed tools* (`fs_batch_read`,
+> `grep_and_read`, `fs_codemod`), que reduzem round-trips MCP. Os números "18"
+> citados abaixo refletem a versão original; a **fonte de verdade** é
+> `_PROFILE_TOOLS["opus"]` em `lilo_mcp.py` (o servidor loga a contagem ao subir).
+
 ---
 
 ## TL;DR

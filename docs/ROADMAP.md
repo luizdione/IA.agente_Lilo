@@ -1,11 +1,11 @@
 # LILO — Roadmap de desenvolvimento
 
-**Última atualização:** 2026-05-07 (final da sprint v10.3)
-**Versão atual:** v10.3
+**Última atualização:** 2026-06-11
+**Versão atual:** v10.5
 
 ---
 
-## Onde estamos (v10.0 → v10.3)
+## Onde estamos (v10.0 → v10.5)
 
 | Versão | Marco principal |
 |---|---|
@@ -13,9 +13,13 @@
 | v10.1 | Aba Desktop no dashboard, smart routing Villa-Lobos, pre-commit hook AST |
 | v10.2 | 8 novas tools MCP centralizadas (memory + cost + ollama manager); skills `schema_version` |
 | v10.2.1 | Hotfix menu `/` no dashboard |
-| **v10.3** | Memória robusta (TTL, search, WAL, fora do OneDrive) + 4 tools novas |
+| v10.3 | Memória robusta (TTL, search, WAL, fora do OneDrive) + 4 tools novas |
+| v10.4 | Profile MCP `opus` (curado) + descriptions reescritas |
+| **v10.5** | Plataforma híbrida (`lilo_api`/`lilo_serve`), dashboard estilo Claude Desktop, Villa **V11.2** (guarda fast-path unificada, retry 4xx, de-viés de domínio), juiz LLM (`quality_judge`) |
 
-**Total atual:** 236 tools MCP, 28 core skills no menu `/`, 7 subagentes, 199 skills geradas.
+**Estado atual:** 7 subagentes; core skills no menu `/` + skills geradas
+(contagem viva em `lilo_skills/registry`); tools MCP por profile em
+`lilo_mcp.py` `_PROFILE_TOOLS`.
 
 ---
 
