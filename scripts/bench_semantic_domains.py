@@ -106,13 +106,24 @@ def _classify_path(text: str) -> str:
     return "outro"
 
 
-def run_bench(iters_list, timeout_s):
+def run_bench(iters_list, timeout_s, judge=False, repeat=1):
     # V10.9: guarda de timeout PORTÁVEL via threads (Windows-safe). Ver
     # docstring do módulo. Substitui o antigo signal.SIGALRM (no-op no Windows).
+    # V11.2: judge=juiz LLM por dominio (shared.quality_judge); repeat=N
+    # corridas por (dominio,iter) para baseline estatistica de tempo.
     from concurrent.futures import ThreadPoolExecutor
     from concurrent.futures import TimeoutError as _FutTimeout
     from functools import partial as _partial
     from agents.villa_lobos.agent import VillaLobosAgent
+    _judge_fn = None
+    if judge:
+        try:
+            from shared.quality_judge import judge_answer as _judge_fn
+            from shared.quality_judge import JUDGE_MODEL
+            print("Juiz LLM ATIVO (modelo=%s)" % JUDGE_MODEL)
+        except Exception as _je:
+            print("AVISO: juiz LLM indisponivel (%s); seguindo so com heuristica" % _je)
+            _judge_fn = None
     try:
         from shared.server_profile import get_server_profile, get_profile_policy
         profile = get_server_profile()
@@ -144,6 +155,7 @@ def run_bench(iters_list, timeout_s):
             route_dom, complexity = "erro:%s" % e, "?"
 
         for it in iters_list:
+          for rep in range(max(1, repeat)):
             froze, bug, degraded, err = False, False, False, ""
             t0 = time.time()
             _ex = ThreadPoolExecutor(max_workers=1)
@@ -161,6 +173,8 @@ def run_bench(iters_list, timeout_s):
                 # Nao esperar threads orfaos: uma corrida travada segue em
                 # background ate o processo encerrar; libera o loop ja.
                 _ex.shutdown(wait=False)
+            # wall_s mede SO o pipeline (juiz roda fora do cronometro p/ nao
+            # poluir a baseline de tempo).
             dt = round(time.time() - t0, 3)
             if "<EXC" in out:
                 bug = True
@@ -169,9 +183,10 @@ def run_bench(iters_list, timeout_s):
                     degraded = True
                 else:
                     bug = True
-            rows.append({
+            row = {
                 "domain": domain,
                 "iters_requested": it,
+                "rep": rep,
                 "route_domain": route_dom,
                 "complexity": complexity,
                 "wall_s": dt,
@@ -182,7 +197,18 @@ def run_bench(iters_list, timeout_s):
                 "path": _classify_path(out),
                 "quality": _quality_score(out),
                 "out_len": len(out),
-            })
+            }
+            # Juiz LLM por dominio (so se nao travou/quebrou e ha texto util).
+            if _judge_fn and not froze and not bug and "ERRO apos" not in out:
+                try:
+                    v = _judge_fn(query, out, domain=domain)
+                    row["quality_llm"] = v.get("total")
+                    row["quality_llm_criteria"] = v.get("criteria")
+                    row["quality_llm_just"] = v.get("justification")
+                except Exception as _ve:  # nunca quebrar o bench por causa do juiz
+                    row["quality_llm"] = None
+                    row["quality_llm_err"] = str(_ve)
+            rows.append(row)
     return rows, profile, cap, backend, degraded_mode
 
 
@@ -191,26 +217,47 @@ def main():
     ap.add_argument("--iters", default="1,2,3")
     ap.add_argument("--timeout", type=int, default=60)
     ap.add_argument("--out", default="")
+    ap.add_argument("--judge", action="store_true",
+                    help="ativa o juiz LLM por dominio (shared.quality_judge)")
+    ap.add_argument("--repeat", type=int, default=1,
+                    help="N corridas por (dominio,iter) p/ baseline estatistica")
     args = ap.parse_args()
     iters_list = [int(x) for x in args.iters.split(",") if x.strip()]
 
-    rows, profile, cap, backend, degraded_mode = run_bench(iters_list, args.timeout)
+    rows, profile, cap, backend, degraded_mode = run_bench(
+        iters_list, args.timeout, judge=args.judge, repeat=max(1, args.repeat))
+
+    import statistics as _stats
+
+    def _avg(vals):
+        return round(sum(vals) / len(vals), 1) if vals else None
+
+    def _std(vals):
+        return round(_stats.pstdev(vals), 2) if len(vals) > 1 else 0.0
 
     n = len(rows)
     froze_n = sum(r["froze"] for r in rows)
     bug_n = sum(r["bug"] for r in rows)
     degraded_n = sum(r.get("degraded") for r in rows)
     avg_q = round(sum(r["quality"] for r in rows) / n, 1) if n else 0
+    # quality_llm so existe quando --judge; agrega apenas os escores validos.
+    _llm_all = [r["quality_llm"] for r in rows if r.get("quality_llm") is not None]
+    avg_q_llm = _avg(_llm_all)
     by_iter = {}
     for it in iters_list:
         sub = [r for r in rows if r["iters_requested"] == it]
         if sub:
+            walls = [r["wall_s"] for r in sub]
+            llm = [r["quality_llm"] for r in sub if r.get("quality_llm") is not None]
             by_iter[it] = {
-                "avg_wall_s": round(sum(r["wall_s"] for r in sub) / len(sub), 3),
+                "avg_wall_s": round(sum(walls) / len(walls), 3),
+                "std_wall_s": _std(walls),  # V11.2: dispersao p/ baseline de tempo
                 "avg_quality": round(sum(r["quality"] for r in sub) / len(sub), 1),
+                "avg_quality_llm": _avg(llm),  # None se --judge ausente
                 "bugs": sum(r["bug"] for r in sub),
                 "degraded": sum(r.get("degraded") for r in sub),
                 "froze": sum(r["froze"] for r in sub),
+                "n": len(sub),
             }
 
     report = {
@@ -220,8 +267,11 @@ def main():
         "degraded_mode": degraded_mode,
         "max_iterations_cap": cap,
         "iters_tested": iters_list,
+        "repeat": max(1, args.repeat),
+        "judge": bool(args.judge),
         "totals": {"runs": n, "froze": froze_n, "bugs": bug_n,
-                   "degraded": degraded_n, "avg_quality": avg_q},
+                   "degraded": degraded_n, "avg_quality": avg_q,
+                   "avg_quality_llm": avg_q_llm},
         "by_iter": by_iter,
         "rows": rows,
     }
@@ -240,15 +290,20 @@ def main():
     os.replace(_tmp, out_json)
 
     print("== Bench semântico multi-domínio LILO ==")
-    print("perfil=%s  backend=%s  degradado=%s  teto_iter=%s  iters=%s  corridas=%d" %
-          (profile, backend, degraded_mode, cap, iters_list, n))
-    print("travou=%d  bugs_reais=%d  degradado(sem_LLM)=%d  qualidade_media=%.1f" %
-          (froze_n, bug_n, degraded_n, avg_q))
-    print("\n%-22s %5s %7s %5s %4s %4s %4s %s" %
-          ("dominio", "iters", "wall_s", "qual", "bug", "deg", "trv", "path"))
+    print("perfil=%s  backend=%s  degradado=%s  teto_iter=%s  iters=%s  "
+          "repeat=%d  juiz=%s  corridas=%d" %
+          (profile, backend, degraded_mode, cap, iters_list,
+           max(1, args.repeat), bool(args.judge), n))
+    _qllm_txt = ("  qualidade_LLM_media=%.1f" % avg_q_llm) if avg_q_llm is not None else ""
+    print("travou=%d  bugs_reais=%d  degradado(sem_LLM)=%d  qualidade_media=%.1f%s" %
+          (froze_n, bug_n, degraded_n, avg_q, _qllm_txt))
+    print("\n%-22s %5s %7s %5s %5s %4s %4s %4s %s" %
+          ("dominio", "iters", "wall_s", "qual", "qLLM", "bug", "deg", "trv", "path"))
     for r in rows:
-        print("%-22s %5d %7.2f %5d %4s %4s %4s %s" %
+        _ql = r.get("quality_llm")
+        print("%-22s %5d %7.2f %5d %5s %4s %4s %4s %s" %
               (r["domain"], r["iters_requested"], r["wall_s"], r["quality"],
+               ("%d" % _ql) if _ql is not None else "-",
                "S" if r["bug"] else "-", "S" if r.get("degraded") else "-",
                "S" if r["froze"] else "-", r["path"]))
     print("\npor iteração:", json.dumps(by_iter, ensure_ascii=False))
