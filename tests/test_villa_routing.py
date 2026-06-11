@@ -111,6 +111,70 @@ def test_is_deep_query(query, expected):
 
 
 # --------------------------------------------------------------------------
+# V11.2 (2026-06-11): guarda anti-fast-path UNIFICADA (ramo LLM + heuristico).
+# Bench 2026-06-11: fisica ("Explique ... e suas implicacoes fisicas") caiu em
+# fast-path (q=64) porque a guarda do ramo do LLM-orchestrator so cobria
+# demonstracao/prova, deixando explicacao/profundidade escapar.
+# --------------------------------------------------------------------------
+@pytest.mark.parametrize("query,expected", [
+    ("Enuncie e demonstre o teorema fundamental do calculo.", "proof"),
+    ("prove que a soma de dois pares e par", "proof"),
+    ("Explique o principio da incerteza e suas implicacoes fisicas.", "explain"),
+    ("Detalhe o mecanismo da esterificacao de Fischer.", "explain"),
+    ("Descreva a formacao das bacias hidrograficas.", "explain"),
+    # factual curto/longo SEM marcador -> fast-path permitido (celeridade)
+    ("o que e PCR?", None),
+    ("Qual a capital da Franca e a sua populacao aproximada hoje?", None),
+])
+def test_block_fast_path_classification(query, expected):
+    from agents.villa_lobos.agent import _block_fast_path
+    assert _block_fast_path(query) == expected
+
+
+class _FakeClientFastSkip:
+    """LLM falso que SEMPRE manda pular para o reporter (skip_to_reporter=true).
+
+    Simula o classificador LLM marcando fast-path indevidamente; a guarda
+    V11.2 deve reescalar queries explicativas/prova para o Worker.
+    """
+    backend = "ollama"
+
+    def chat(self, *a, **k):
+        return ('{"complexity":"simple","needs_planning":false,'
+                '"needs_reader":false,"needs_worker":false,"iterations":1,'
+                '"skip_to_reporter":true,"reasoning":"factual"}')
+
+    def health(self):
+        return {"backend": "ollama"}
+
+
+@pytest.mark.parametrize("query,min_iters", [
+    ("Explique o principio da incerteza de Heisenberg e suas implicacoes fisicas.", 1),
+    ("Detalhe o mecanismo da esterificacao de Fischer, incluindo catalise.", 1),
+    ("Enuncie e demonstre o teorema fundamental do calculo.", 2),  # prova -> >=2
+])
+def test_llm_fast_path_escalated_to_worker(query, min_iters):
+    from agents.villa_lobos.agent import VillaLobosAgent
+    v = VillaLobosAgent()
+    v.client = _FakeClientFastSkip()
+    d = v._orchestrate_decision(query, use_cache=False)
+    # Mesmo o LLM mandando pular, a guarda V11.2 garante o Worker.
+    assert d["skip_to_reporter"] is False
+    assert d["needs_worker"] is True
+    assert d["iterations"] >= min_iters
+
+
+def test_llm_fast_path_preserved_for_trivial():
+    # Query factual curta sem marcador: fast-path do LLM e RESPEITADO.
+    from agents.villa_lobos.agent import VillaLobosAgent
+    v = VillaLobosAgent()
+    v.client = _FakeClientFastSkip()
+    d = v._orchestrate_decision("o que e PCR?", use_cache=False)
+    assert d["skip_to_reporter"] is True
+    assert d["needs_worker"] is False
+
+
+# --------------------------------------------------------------------------
 # _orchestrate_decision (heuristica, pois client e mock)
 # --------------------------------------------------------------------------
 def test_decision_simple_query_skips_to_reporter(villa):

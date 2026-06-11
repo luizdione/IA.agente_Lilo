@@ -155,6 +155,48 @@ def _is_deep_query(query):
     return len(q) >= 60 or any(m in q for m in _GATEWAY_DEEP_MARKERS)
 
 
+# V11.2 (2026-06-11): marcadores que BLOQUEIAM o fast-path (skip-to-reporter).
+# Sao verbos explicativos + sinais de profundidade. Diferem de _is_deep_query
+# (que usa len>=60, largo demais p/ esta decisao) por serem PRECISOS: uma
+# consulta factual curta-ou-longa ("Qual a capital da Franca e sua populacao?")
+# NAO casa nenhum marcador e segue podendo usar o fast-path (preserva
+# celeridade); ja "Explique ... e suas implicacoes" casa e exige o Worker.
+_FAST_PATH_BLOCK_MARKERS = (
+    # verbos de explicacao/analise aprofundada
+    "explique", "explicar", "descreva", "descrever", "detalhe", "detalhar",
+    "discuta", "discutir", "compare", "comparar", "analise", "avalie",
+    "enumere", "elenque", "como funciona",
+    # profundidade conceitual (subconjunto de _GATEWAY_DEEP_MARKERS)
+    "mecanismo", "implicac", "principio", "principais", "causas", "fatores",
+    "etapas", "diagnostic", "manejo", "sinais clinic", "edafoclimatic",
+    "e suas ", "aprofund",
+)
+# Demonstracao/prova: exige Worker E mais de uma iteracao (passo de refino).
+_PROOF_MARKERS = (
+    "demonstr", "deduz", "deduc", "prove que", "provar que", "passo a passo",
+    "derive ", "enuncie",
+)
+
+
+def _block_fast_path(query):
+    """V11.2: classifica a guarda anti-fast-path UNIFICADA (ramo LLM + ramo
+    heuristico usavam guardas distintas e inconsistentes; bench 2026-06-11:
+    fisica caiu em fast-path q=64 porque o ramo do LLM-orchestrator so cobria
+    demonstracao/prova, nao explicacao/profundidade).
+
+    Retorna:
+      "proof" -> escalar fast-path -> Worker com >=2 iteracoes;
+      "explain" -> escalar fast-path -> Worker com iteracoes inalteradas;
+      None -> fast-path permitido (query trivial/factual).
+    """
+    q = _strip_accents((query or "").lower())
+    if any(m in q for m in _PROOF_MARKERS):
+        return "proof"
+    if any(m in q for m in _FAST_PATH_BLOCK_MARKERS):
+        return "explain"
+    return None
+
+
 def _detect_domain(query):
     q = _strip_accents((query or "").lower())
     kw_map = get_domain_keywords()
@@ -684,27 +726,25 @@ class VillaLobosAgent(BaseAgent):
                         "skip_to_reporter": bool(data.get("skip_to_reporter", False)),
                         "reasoning": str(data.get("reasoning", ""))[:200],
                     }
-                    # V11.0 (2026-06-09): guarda anti-fast-path-raso na
-                    # decisao do LLM orchestrator. O classificador as vezes
-                    # marca skip_to_reporter=True para pedidos de DEMONSTRACAO/
-                    # DEDUCAO/PROVA (ex.: "enuncie e demonstre o teorema..."),
-                    # que o prompt conciso do fast-path responde de forma rasa
-                    # (bench 2026-06-08: matematica fast-path = stub de 361
-                    # chars, qualidade 49). Esses pedidos exigem o Worker (que
-                    # usa o EXPERT_SYSTEM aprofundado). A guarda so ESCALA
-                    # fast-path -> Worker; nunca rebaixa. Complementa _EXPLAIN_KW,
-                    # que ate aqui so protegia o ramo heuristico (nao o do LLM).
-                    _qn = _strip_accents((query or "").lower())
-                    if out.get("skip_to_reporter") and any(
-                            kw in _qn for kw in (
-                                "demonstr", "deduz", "deduc", "prove que",
-                                "provar que", "passo a passo", "derive ")):
+                    # V11.2 (2026-06-11): guarda anti-fast-path-raso UNIFICADA
+                    # na decisao do LLM orchestrator. O classificador as vezes
+                    # marca skip_to_reporter=True para pedidos que o prompt
+                    # conciso do fast-path responde de forma rasa. Antes (V11.0)
+                    # so cobria DEMONSTRACAO/PROVA; bench 2026-06-11 mostrou
+                    # fisica ("Explique ... e suas implicacoes") caindo em
+                    # fast-path com q=64, pois EXPLICACAO/PROFUNDIDADE escapava.
+                    # Agora _block_fast_path() unifica os dois ramos (LLM e
+                    # heuristico). So ESCALA fast-path -> Worker; nunca rebaixa.
+                    _fp = _block_fast_path(query) if out.get(
+                        "skip_to_reporter") else None
+                    if _fp:
                         out["skip_to_reporter"] = False
                         out["needs_worker"] = True
                         out["complexity"] = out.get("complexity") or "moderate"
-                        out["iterations"] = max(2, int(out.get("iterations", 1)))
+                        if _fp == "proof":
+                            out["iterations"] = max(2, int(out.get("iterations", 1)))
                         out["reasoning"] = (
-                            "guarda V11.0 (demonstracao->Worker) | "
+                            "guarda V11.2 (%s->Worker) | " % _fp
                             + str(out.get("reasoning", "")))[:200]
                     if out["skip_to_reporter"]:
                         out["needs_planning"] = False
@@ -914,6 +954,13 @@ class VillaLobosAgent(BaseAgent):
         except Exception:
             _backend = "unknown"
         _circuit_open = (_backend == "mock")
+        # V11.2 (2026-06-11): erro de PAYLOAD (HTTP 400) e determinístico --
+        # reintentar com o MESMO payload ou cair no fallback de modelo (que
+        # reusa o payload) so gasta tempo. Foi o que custou ~3-5s/stage no
+        # bench 2026-06-11 (keep_alive=-1 -> 400 em planner+fallback+worker,
+        # identicos). Quando setado, pula retry E fallback. Distingue-se de
+        # 404 (modelo inexistente), onde o fallback de modelo AINDA ajuda.
+        _payload_error = False
         effective_retries = 1 if _circuit_open else MAX_RETRIES
         for attempt in range(1, effective_retries + 1):
             try:
@@ -942,13 +989,28 @@ class VillaLobosAgent(BaseAgent):
                 break
             except Exception as e:
                 last_error = str(e)
+                # V11.2: status HTTP via e.response.status_code (requests.
+                # HTTPError) sem importar requests. 4xx != 5xx no remedio.
+                _status = getattr(getattr(e, "response", None),
+                                  "status_code", None)
+                if _status == 400:
+                    _payload_error = True
+                    log.error("    %s erro 400 (payload invalido) -- "
+                              "sem retry/fallback: %s", role, e)
+                    break
+                if _status is not None and 400 <= _status < 500:
+                    # outros 4xx (ex.: 404 modelo inexistente): nao reintentar
+                    # o mesmo modelo, mas permitir o fallback de modelo abaixo.
+                    log.warning("    %s erro %s -- sem retry (tenta fallback)",
+                                role, _status)
+                    break
                 log.warning("    %s tentativa %d falhou: %s", role, attempt, e)
                 if attempt < effective_retries:
                     log.info("    Retry em %.1fs...", RETRY_DELAY)
                     time.sleep(RETRY_DELAY)
         if result_text is None:
             fallback_model = MODELS.get("chat", "llama3.1:8b-instruct-q8_0")
-            if fallback_model != model and not _circuit_open:
+            if fallback_model != model and not _circuit_open and not _payload_error:
                 try:
                     log.info("    Fallback: %s -> %s", role, fallback_model)
                     fb = self.client.chat(

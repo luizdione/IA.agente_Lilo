@@ -133,7 +133,11 @@ def run_bench(iters_list, timeout_s):
     for domain, query in DOMAIN_QUERIES.items():
         try:
             route = agent.explain_routing(query, allow_delegate=True)
-            route_dom = (route.get("delegate") or {}).get("agent") \
+            # explain_routing expoe 'delegate_target' (string|None), nao
+            # 'delegate' (dict). A leitura antiga ('delegate').get('agent')
+            # era sempre None -> a telemetria de route_domain jamais refletia
+            # o alvo de delegacao; caia em domain_heuristic/'geral' por acaso.
+            route_dom = route.get("delegate_target") \
                 or route.get("domain_heuristic") or "geral"
             complexity = (route.get("decision") or {}).get("complexity", "?")
         except Exception as e:  # noqa: BLE001
