@@ -289,7 +289,7 @@ def health_check():
 def get_tool_map():
     """
     Mapa centralizado tool_name -> (tab, context_builder).
-    Todos os MCPs (lilo_mcp, lilo_server, lilo_pycharm) devem usar este mapa.
+    Todos os MCPs (lilo_mcp, lilo_serve, lilo_api) devem usar este mapa.
     """
     return {
         # SQL

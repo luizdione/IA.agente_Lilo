@@ -51,7 +51,7 @@ desktop.ini
 logs/
 *.log
 *.db
-!memory/Dockerfile
+# (memory/Dockerfile arquivado em _ARCHIVE_v10/v9_servers)
 
 # ── Temporários ──────────────────────────────────────────────
 *.tmp
@@ -91,3 +91,4 @@ backups/
 _mount_probe_*.txt
 _sentinel_test.txt
 /C/
+pytest-cache-files-*/

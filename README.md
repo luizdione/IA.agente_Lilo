@@ -189,8 +189,9 @@ Detalhes em `docs/tecnico/arquitetura_v10.md`.
 IA.agente/
 ├── lilo.py                    Orquestrador central
 ├── lilo_mcp.py                MCP server unificado (--profile)
-├── lilo_server.py             HTTP MCP server (legado, será migrado para FastAPI)
-├── dashboard.py               Streamlit UI :8100
+├── lilo_api.py                API HTTP FastAPI :8088 (plataforma híbrida)
+├── lilo_serve.py              Multiplexer de transporte (stdio/http/sse)
+├── dashboard.py               Streamlit UI :8100 (tema Claude Desktop)
 ├── agents/                    7 subagentes (sql, pdf, scholar, prism, villa, gateway, desktop)
 ├── shared/                    Cliente LLM, Policy Engine, base_agent, chat_memory, web_search
 ├── lilo_skills/               199 skills auto-geradas + bio/openmm_nvt_equilibration_safe

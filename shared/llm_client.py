@@ -174,6 +174,23 @@ class LLMClient:
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"]
 
+    @staticmethod
+    def _normalize_keep_alive(value):
+        """Normaliza keep_alive para o formato aceito pelo Ollama.
+
+        Ollama aceita numero (segundos; -1 = manter para sempre) ou duracao
+        com unidade ("2h", "30m"). String numerica SEM unidade ("-1", "300")
+        passou a causar 400 ('time: missing unit in duration') em versoes
+        recentes -- e e exatamente o que chega quando OLLAMA_KEEP_ALIVE=-1
+        esta definido como variavel de ambiente do Windows (bench 2026-06-11,
+        27/27 corridas com bug). Converte para int quando possivel.
+        """
+        v = str(value).strip()
+        try:
+            return int(v)
+        except ValueError:
+            return v
+
     def _chat_ollama(self, prompt, system, model, temperature, max_tokens):
         cot_suffix = (
             "\n\nIMPORTANT: Think step-by-step. First reason through the problem "
@@ -189,7 +206,8 @@ class LLMClient:
                 {"role": "user",      "content": prompt},
             ],
             "stream": False,
-            "keep_alive": get_env("OLLAMA_KEEP_ALIVE", "2h"),
+            "keep_alive": self._normalize_keep_alive(
+                get_env("OLLAMA_KEEP_ALIVE", "2h")),
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,

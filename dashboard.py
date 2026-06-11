@@ -204,192 +204,263 @@ def run_with_stop(func, *args):
 
 
 
-# -- CSS layout v10 — reforma radical (clean + legivel) ---------------------
-# Paleta: verde IFRJ na sidebar, fundo branco-quente no centro, painel direito estreito.
+# -- CSS layout v10.10 — tema "Claude Desktop" (marfim quente + coral) -------
+# Paleta inspirada no Claude Desktop: fundo marfim, sidebar creme com navegacao
+# ghost, acento coral (#D97757), headings serifados, chat em bolhas suaves e
+# composer arredondado com sombra.
 st.markdown("""
 <style>
-/* === RESET de top-padding pra header nao cortar === */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400..700&display=swap');
+
+:root {
+    --lilo-bg:          #FAF9F5;   /* marfim — fundo principal */
+    --lilo-bg-soft:     #F0EEE6;   /* creme — sidebar e bolha do usuario */
+    --lilo-bg-card:     #FFFFFF;   /* cartoes e composer */
+    --lilo-border:      #E3E1D7;
+    --lilo-text:        #3D3929;   /* marrom-escuro quente */
+    --lilo-text-dim:    #73705F;
+    --lilo-accent:      #D97757;   /* coral Claude */
+    --lilo-accent-dark: #C96442;
+    --lilo-accent-soft: #F5E8E1;
+    --lilo-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --lilo-sans:  'Inter', -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* === BASE — fundo marfim, tipografia ===================================== */
+html, body, [data-testid="stAppViewContainer"] {
+    background: var(--lilo-bg) !important;
+    color: var(--lilo-text) !important;
+    font-family: var(--lilo-sans) !important;
+}
+header[data-testid="stHeader"] { background: transparent !important; }
+#MainMenu, footer { visibility: hidden; }
+
 .main .block-container {
     padding-top: 1.2rem !important;
-    padding-bottom: 4rem !important;
+    padding-bottom: 5rem !important;
     max-width: 100% !important;
 }
 
-/* === SIDEBAR ESQUERDA — verde IFRJ === */
+/* Headings serifados, estilo Claude */
+.main h1, .main h2, .main h3 {
+    font-family: var(--lilo-serif) !important;
+    color: var(--lilo-text) !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.01em;
+}
+.main h1 {
+    font-size: 1.9rem !important;
+    border-bottom: none !important;
+    padding-bottom: 0.2rem;
+    margin-bottom: 0.8rem !important;
+}
+
+/* === SIDEBAR — creme, navegacao ghost ==================================== */
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #005A2D 0%, #003D1F 100%) !important;
-    border-right: 1px solid rgba(0,0,0,0.15);
+    background: var(--lilo-bg-soft) !important;
+    border-right: 1px solid var(--lilo-border) !important;
 }
 section[data-testid="stSidebar"] > div:first-child {
     padding-top: 0.6rem !important;
 }
-/* Texto da sidebar (markdown, captions, labels) */
 section[data-testid="stSidebar"] .stMarkdown,
 section[data-testid="stSidebar"] .stCaption,
 section[data-testid="stSidebar"] label,
 section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] span,
 section[data-testid="stSidebar"] small {
-    color: #F1F8F4 !important;
+    color: var(--lilo-text) !important;
+}
+section[data-testid="stSidebar"] .stCaption,
+section[data-testid="stSidebar"] small {
+    color: var(--lilo-text-dim) !important;
 }
 section[data-testid="stSidebar"] hr {
-    border-color: rgba(255,255,255,0.20) !important;
+    border-color: var(--lilo-border) !important;
     margin: 0.5rem 0 0.4rem 0 !important;
 }
+/* Rotulos de secao (SUB-AGENTES, FERRAMENTAS...) */
 section[data-testid="stSidebar"] .stMarkdown p {
     margin: 0 0 0.2rem 0 !important;
-    font-size: 0.72rem !important;
-    letter-spacing: 1.2px;
+    font-size: 0.68rem !important;
+    letter-spacing: 1.4px;
     text-transform: uppercase;
-    opacity: 0.85;
-    font-weight: 700;
+    color: var(--lilo-text-dim) !important;
+    font-weight: 600;
 }
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
-    gap: 0.25rem !important;
+    gap: 0.15rem !important;
 }
 
-/* === BOTOES DA SIDEBAR — fundo solido, texto branco SEMPRE === */
+/* === BOTOES DA SIDEBAR — ghost (transparente), hover suave ============== */
 section[data-testid="stSidebar"] .stButton > button {
     width: 100%;
-    padding: 0.5rem 0.8rem !important;
+    padding: 0.42rem 0.75rem !important;
     margin: 0 !important;
     border: none !important;
     border-radius: 8px;
-    font-weight: 600;
+    font-weight: 500;
     font-size: 0.88rem !important;
-    line-height: 1.2 !important;
-    min-height: 36px !important;
+    line-height: 1.25 !important;
+    min-height: 34px !important;
     cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.20);
+    transition: background 0.12s ease;
+    box-shadow: none !important;
     text-align: left;
-    /* ESSENCIAL — texto sempre visivel sobre o fundo gradient */
-    color: #FFFFFF !important;
-    background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%) !important;
+    color: var(--lilo-text) !important;
+    background: transparent !important;
 }
 section[data-testid="stSidebar"] .stButton > button p,
 section[data-testid="stSidebar"] .stButton > button span,
 section[data-testid="stSidebar"] .stButton > button div {
-    color: #FFFFFF !important;
+    color: inherit !important;
 }
 section[data-testid="stSidebar"] .stButton > button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.30);
-    filter: brightness(1.10);
+    background: rgba(61,57,41,0.07) !important;
 }
 section[data-testid="stSidebar"] .stButton > button:active {
-    transform: translateY(0);
+    background: rgba(61,57,41,0.12) !important;
 }
 
-/* Cores especificas por categoria (sobrescreve gradient default) */
-.agent-btn button {
-    background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%) !important;
-}
-.tool-btn button {
-    background: linear-gradient(135deg, #00897B 0%, #00695C 100%) !important;
-}
-.doc-btn button {
-    background: linear-gradient(135deg, #7E57C2 0%, #4527A0 100%) !important;
-}
-.help-btn button {
-    background: linear-gradient(135deg, #FB8C00 0%, #E65100 100%) !important;
-}
+/* Item ativo: tinta coral suave (item selecionado, como no Claude) */
 .active-btn button {
-    outline: 2px solid #FFD54F !important;
-    outline-offset: 1px;
-    filter: brightness(1.15);
+    background: var(--lilo-accent-soft) !important;
+    color: var(--lilo-accent-dark) !important;
+    font-weight: 600 !important;
 }
 
-/* === SELECTBOX e INPUT na sidebar === */
+/* === SELECTBOX e INPUT na sidebar ======================================== */
 section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
-    background-color: rgba(255,255,255,0.12) !important;
-    border-color: rgba(255,255,255,0.30) !important;
+    background-color: var(--lilo-bg-card) !important;
+    border-color: var(--lilo-border) !important;
     min-height: 36px !important;
-    color: #FFFFFF !important;
+    color: var(--lilo-text) !important;
+    border-radius: 8px !important;
 }
 section[data-testid="stSidebar"] div[data-baseweb="select"] span {
-    color: #FFFFFF !important;
+    color: var(--lilo-text) !important;
 }
 
-/* === LOGO === */
+/* === LOGO ================================================================ */
 .lilo-logo-wrap {
     text-align: center;
     padding: 4px 0 2px 0;
 }
 .lilo-logo-wrap img {
-    width: 56px;
-    height: 56px;
+    width: 52px;
+    height: 52px;
     border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.30);
+    box-shadow: 0 1px 4px rgba(61,57,41,0.15);
     background: white;
     padding: 4px;
 }
 .lilo-title {
     text-align: center;
-    font-size: 1.15rem !important;
-    font-weight: 800;
-    letter-spacing: 2px;
-    color: #FFFFFF !important;
+    font-family: var(--lilo-serif);
+    font-size: 1.25rem !important;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--lilo-text) !important;
     margin: 6px 0 2px 0 !important;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.25);
 }
 .lilo-subtitle {
     text-align: center;
     font-size: 0.68rem !important;
-    color: rgba(255,255,255,0.75) !important;
+    color: var(--lilo-text-dim) !important;
     margin-bottom: 8px !important;
 }
 
-/* === AREA CENTRAL — branco-quente neutro === */
-section[data-testid="stMain"],
-div[data-testid="stAppViewContainer"] > .main {
-    background-color: #FAFAFA !important;
+/* === CHAT — bolhas estilo Claude ========================================= */
+div[data-testid="stChatMessage"] {
+    background: transparent !important;
+    padding: 0.4rem 0;
 }
-div[data-testid="stMainBlockContainer"] {
-    background-color: #FAFAFA !important;
+/* Mensagem do usuario: bolha creme arredondada */
+div[data-testid="stChatMessage"]:has([data-testid="chatAvatarIcon-user"]) {
+    background: var(--lilo-bg-soft) !important;
+    border-radius: 16px;
+    padding: 0.7rem 1rem;
 }
-.main h1, .main h2, .main h3 {
-    color: #1B5E20 !important;
-    font-weight: 700;
+div[data-testid="stChatMessage"] p { line-height: 1.65; }
+
+/* Composer: cartao branco arredondado com sombra (como o Claude) */
+div[data-testid="stChatInput"],
+section[data-testid="stChatInput"] {
+    background: var(--lilo-bg-card) !important;
+    border: 1px solid var(--lilo-border) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 4px 18px rgba(61,57,41,0.08) !important;
 }
-.main h1 {
-    border-bottom: 3px solid #4CAF50;
-    padding-bottom: 0.3rem;
-    margin-bottom: 1rem !important;
+div[data-testid="stChatInput"] textarea {
+    background: transparent !important;
+    color: var(--lilo-text) !important;
+    font-family: var(--lilo-sans) !important;
+}
+div[data-testid="stChatInput"] button {
+    background: var(--lilo-accent) !important;
+    border-radius: 10px !important;
+    color: #fff !important;
+}
+div[data-testid="stChatInput"] button:hover {
+    background: var(--lilo-accent-dark) !important;
 }
 
-/* === STOP BUTTON === */
+/* === BOTOES DA AREA CENTRAL — neutros com borda sutil ==================== */
+.main .stButton > button {
+    border: 1px solid var(--lilo-border) !important;
+    border-radius: 10px !important;
+    background: var(--lilo-bg-card) !important;
+    color: var(--lilo-text) !important;
+    font-weight: 500;
+    box-shadow: 0 1px 2px rgba(61,57,41,0.05);
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+.main .stButton > button:hover {
+    border-color: var(--lilo-accent) !important;
+    color: var(--lilo-accent-dark) !important;
+    background: var(--lilo-bg) !important;
+}
+.main .stButton > button[kind="primary"],
+.main button[data-testid="stBaseButton-primary"] {
+    background: var(--lilo-accent) !important;
+    border-color: var(--lilo-accent) !important;
+    color: #fff !important;
+}
+
+/* === STOP BUTTON ========================================================= */
 .stop-btn button {
-    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
+    background: #C0392B !important;
+    border-color: #C0392B !important;
     color: white !important;
     animation: pulse 1.5s infinite;
 }
 @keyframes pulse {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
+    50% { opacity: 0.75; }
 }
 
-/* === TABS (aba Ajuda) === */
+/* === TABS — neutras com ativo coral ====================================== */
 .stTabs [data-baseweb="tab-list"] {
     gap: 4px;
-    background: #ECEFF1;
-    border-radius: 8px;
+    background: var(--lilo-bg-soft);
+    border-radius: 10px;
     padding: 4px;
 }
 .stTabs [data-baseweb="tab"] {
     background-color: transparent;
-    border-radius: 6px;
-    color: #455A64;
+    border-radius: 8px;
+    color: var(--lilo-text-dim);
     font-weight: 600;
-    font-size: 0.92rem;
+    font-size: 0.9rem;
     padding: 0.4rem 1rem;
 }
 .stTabs [aria-selected="true"] {
-    background-color: #4CAF50 !important;
-    color: white !important;
+    background-color: var(--lilo-bg-card) !important;
+    color: var(--lilo-accent-dark) !important;
+    box-shadow: 0 1px 3px rgba(61,57,41,0.10);
 }
 
-/* === SKILLS POPUP === */
+/* === SKILLS POPUP ======================================================== */
 .skill-popup {
     position: fixed;
     bottom: 80px;
@@ -398,12 +469,55 @@ div[data-testid="stMainBlockContainer"] {
     width: 500px;
     max-height: 300px;
     overflow-y: auto;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    background: var(--lilo-bg-card);
+    border: 1px solid var(--lilo-border);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(61,57,41,0.14);
     z-index: 1000;
     padding: 8px;
+}
+
+/* === CODE/PRE em tom quente ============================================== */
+.main code {
+    background: var(--lilo-bg-soft);
+    color: var(--lilo-accent-dark);
+    border-radius: 5px;
+}
+.main pre {
+    background: #FCFBF8 !important;
+    border: 1px solid var(--lilo-border) !important;
+    border-radius: 10px !important;
+}
+
+/* === AJUSTES FINOS (v10.10) ============================================== */
+/* Botoes da sidebar alinhados a esquerda (flex, nao so text-align) */
+section[data-testid="stSidebar"] .stButton > button {
+    justify-content: flex-start !important;
+}
+section[data-testid="stSidebar"] .stButton > button p {
+    text-align: left !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    font-size: 0.88rem !important;
+    font-weight: inherit !important;
+    color: inherit !important;
+}
+/* Caption de status (Ollama | agentes): sem uppercase, com respiro */
+section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {
+    text-transform: none !important;
+    letter-spacing: 0.2px !important;
+    font-size: 0.74rem !important;
+    font-weight: 400 !important;
+    margin: 2px 0 8px 0 !important;
+    text-align: center;
+}
+/* h2/h3 mais contidos (painel direito estreito: "Historico" sem quebrar) */
+.main h3 { font-size: 1.12rem !important; }
+.main h2 { font-size: 1.45rem !important; }
+/* Botoes-pilula nunca quebram linha */
+.lilo-mode-bar .stButton > button,
+div[class*="st-key-lilo_mode_"] button {
+    white-space: nowrap !important;
 }
 
 /* ========================================================================
@@ -413,7 +527,7 @@ div[data-testid="stMainBlockContainer"] {
 
 /* Header azul (Bootstrap info color) replica do GenOmics */
 .help-header {
-    background: linear-gradient(135deg, #5BC0DE 0%, #46A4C8 100%);
+    background: linear-gradient(135deg, #D97757 0%, #C96442 100%);
     color: white;
     padding: 0.85rem 1.4rem;
     border-radius: 8px 8px 0 0;
@@ -432,13 +546,13 @@ div[data-testid="stMainBlockContainer"] {
     padding: 0 !important;
 }
 .help-header.glossario-header {
-    background: linear-gradient(135deg, #5BC0DE 0%, #3FA8D0 100%);
+    background: linear-gradient(135deg, #D97757 0%, #C96442 100%);
 }
 
 /* Subtitle abaixo do header — area cinza clara como no GenOmics */
 .help-subtitle {
-    background: #ECEFF1;
-    color: #455A64;
+    background: #F0EEE6;
+    color: #73705F;
     padding: 0.75rem 1.4rem;
     margin: 0 0 0 0;
     font-family: 'Inter', sans-serif;
@@ -463,24 +577,24 @@ div[data-testid="stMainBlockContainer"] {
 }
 .help-content h1 {
     font-size: 1.55rem !important;
-    color: #1F3A5F !important;
-    border-bottom: 2px solid #5BC0DE !important;
+    color: #3D3929 !important;
+    border-bottom: 2px solid #D97757 !important;
     padding-bottom: 0.4rem !important;
     margin-bottom: 1rem !important;
     font-weight: 700;
 }
 .help-content h2 {
     font-size: 1.25rem !important;
-    color: #2D4A73 !important;
+    color: #3D3929 !important;
     margin-top: 1.6rem !important;
     margin-bottom: 0.6rem !important;
-    border-left: 4px solid #5BC0DE;
+    border-left: 4px solid #D97757;
     padding-left: 0.6rem;
     font-weight: 600;
 }
 .help-content h3 {
     font-size: 1.08rem !important;
-    color: #2D4A73 !important;
+    color: #3D3929 !important;
     margin-top: 1.2rem !important;
     font-weight: 600;
 }
@@ -500,12 +614,12 @@ div[data-testid="stMainBlockContainer"] {
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 .help-content table th {
-    background: #5BC0DE;
+    background: #D97757;
     color: white;
     padding: 0.6rem 0.8rem;
     text-align: left;
     font-weight: 600;
-    border: 1px solid #46A4C8;
+    border: 1px solid #C96442;
 }
 .help-content table td {
     padding: 0.5rem 0.8rem;
@@ -527,7 +641,7 @@ div[data-testid="stMainBlockContainer"] {
 .help-content pre {
     background: #F8F9FA;
     border: 1px solid #E0E0E0;
-    border-left: 3px solid #5BC0DE;
+    border-left: 3px solid #D97757;
     border-radius: 4px;
     padding: 0.8rem 1rem;
     overflow-x: auto;
@@ -539,7 +653,7 @@ div[data-testid="stMainBlockContainer"] {
     padding: 0;
 }
 .help-content blockquote {
-    border-left: 4px solid #5BC0DE;
+    border-left: 4px solid #D97757;
     background: #F0F8FB;
     padding: 0.6rem 1rem;
     margin: 0.8rem 0;
@@ -571,9 +685,9 @@ div[data-testid="stMainBlockContainer"] {
     padding: 0.5rem 1rem !important;
 }
 .stTabs [aria-selected="true"] {
-    background-color: #5BC0DE !important;
+    background-color: #D97757 !important;
     color: white !important;
-    box-shadow: 0 2px 4px rgba(91,192,222,0.25);
+    box-shadow: 0 2px 4px rgba(217,119,87,0.25);
 }
 
 /* Glossario — busca e tabela */
@@ -586,24 +700,35 @@ div[data-testid="stMainBlockContainer"] {
 
 
 def nav_button(label, key, category="agent"):
-    css = category + "-btn"
+    # Estado ativo via seletor .st-key-<key> (Streamlit >= 1.39). Os antigos
+    # wrappers <div> em st.markdown NAO envolvem o botao no DOM renderizado,
+    # entao o destaque nunca era aplicado de fato.
     if st.session_state.page == label:
-        css += " active-btn"
-    st.markdown('<div class="' + css + '">', unsafe_allow_html=True)
+        # Especificidade (0,2,3) — precisa vencer o ghost-style da sidebar
+        # 'section[data-testid="stSidebar"] .stButton > button' (0,2,2).
+        st.markdown(
+            f'<style>section[data-testid="stSidebar"] '
+            f'div[class*="st-key-{key}"] button {{'
+            f'background: var(--lilo-accent-soft, #F5E8E1) !important;'
+            f'color: var(--lilo-accent-dark, #C96442) !important;'
+            f'font-weight: 600 !important; }}</style>',
+            unsafe_allow_html=True)
     if st.button(label, key=key, use_container_width=True):
         st.session_state.page = label
         st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 
 
 def stop_button(key="stop_main"):
-    """Botao de parar execucao."""
-    st.markdown('<div class="stop-btn">', unsafe_allow_html=True)
+    """Botao de parar execucao (vermelho via .st-key, ver nav_button)."""
+    st.markdown(
+        f'<style>.st-key-{key} button {{'
+        f'background: #C0392B !important; border-color: #C0392B !important;'
+        f'color: #fff !important; animation: pulse 1.5s infinite; }}</style>',
+        unsafe_allow_html=True)
     if st.button("PARAR", key=key, use_container_width=True):
         st.session_state.stop_requested = True
         st.session_state.running = False
         st.warning("Execucao interrompida pelo usuario.")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 
 # -- Sidebar esquerda --------------------------------------------------------
@@ -688,27 +813,27 @@ if right_col is not None:
 .lilo-history-item {
     display: flex; align-items: center;
     padding: 4px 8px; margin: 1px 0;
-    border-radius: 6px; cursor: pointer;
-    color: rgba(255,255,255,0.78);
+    border-radius: 8px; cursor: pointer;
+    color: var(--lilo-text-dim, #73705F);
     font-size: 0.86rem; line-height: 1.3;
     transition: background 0.15s ease, color 0.15s ease;
     text-decoration: none;
 }
 .lilo-history-item:hover {
-    background: rgba(255,255,255,0.06);
-    color: rgba(255,255,255,1.00);
+    background: rgba(61,57,41,0.06);
+    color: var(--lilo-text, #3D3929);
 }
 .lilo-history-item.active {
-    background: rgba(46,125,50,0.22);
-    color: #B9F6CA; font-weight: 600;
+    background: var(--lilo-accent-soft, #F5E8E1);
+    color: var(--lilo-accent-dark, #C96442); font-weight: 600;
 }
 .lilo-history-item .dot { opacity: 0.55; margin-right: 6px; }
 .lilo-progress-bar {
-    height: 4px; background: rgba(255,255,255,0.08);
+    height: 4px; background: rgba(61,57,41,0.10);
     border-radius: 2px; overflow: hidden; margin: 4px 0 8px 0;
 }
 .lilo-progress-bar > div {
-    height: 100%; background: linear-gradient(90deg,#388E3C,#66BB6A);
+    height: 100%; background: var(--lilo-accent, #D97757);
 }
 </style>
     """, unsafe_allow_html=True)
@@ -1181,49 +1306,48 @@ with main_col:
 
         st.markdown("""
 <style>
-.lilo-mode-bar { display:flex; gap:6px; margin: 6px 0 8px 0; align-items:center; }
-.lilo-mode-bar .stButton > button {
+div[class*="st-key-lilo_mode_"] button {
     border-radius: 999px !important;
     padding: 4px 14px !important;
     font-size: 0.85rem !important;
-    border: 1px solid rgba(255,255,255,0.14) !important;
-    background: rgba(255,255,255,0.04) !important;
-    color: rgba(255,255,255,0.78) !important;
+    border: 1px solid var(--lilo-border, #E3E1D7) !important;
+    background: var(--lilo-bg-card, #FFFFFF) !important;
+    color: var(--lilo-text-dim, #73705F) !important;
     transition: all 0.15s ease;
+    white-space: nowrap !important;
+    min-height: 30px !important;
 }
-.lilo-mode-bar .stButton > button:hover {
-    background: rgba(255,255,255,0.10) !important;
-    color: #fff !important;
-}
-.lilo-mode-active .stButton > button {
-    background: linear-gradient(135deg,#2E7D32,#43A047) !important;
-    color: #fff !important;
-    border-color: rgba(255,255,255,0.20) !important;
-    box-shadow: 0 2px 8px rgba(46,125,50,0.30);
+div[class*="st-key-lilo_mode_"] button:hover {
+    background: var(--lilo-bg-soft, #F0EEE6) !important;
+    color: var(--lilo-text, #3D3929) !important;
 }
 </style>
         """, unsafe_allow_html=True)
 
-        st.markdown('<div class="lilo-mode-bar">', unsafe_allow_html=True)
-        mc1, mc2, mc3 = st.columns([1, 1, 6])
+        # Pilula ativa via .st-key (os wrappers <div> nao envolvem o botao
+        # no DOM do Streamlit — ver nav_button).
+        _active_mode_key = ("lilo_mode_act" if st.session_state.lilo_mode == "act"
+                            else "lilo_mode_ask")
+        st.markdown(
+            f'<style>div[class*="st-key-{_active_mode_key}"] button {{'
+            f'background: var(--lilo-accent, #D97757) !important;'
+            f'color: #fff !important;'
+            f'border-color: var(--lilo-accent, #D97757) !important;'
+            f'box-shadow: 0 2px 8px rgba(217,119,87,0.30); }}</style>',
+            unsafe_allow_html=True)
+        mc1, mc2, mc3 = st.columns([1.4, 1.8, 4.8])
         with mc1:
-            wrap_act = "lilo-mode-active" if st.session_state.lilo_mode == "act" else ""
-            st.markdown(f'<div class="{wrap_act}">', unsafe_allow_html=True)
             if st.button("✋ Agir", key="lilo_mode_act",
                           help="LILO executa diretamente a tarefa (usa tools, "
                                "filesystem, shell, escreve arquivos). Modo padrao."):
                 st.session_state.lilo_mode = "act"
                 st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
         with mc2:
-            wrap_ask = "lilo-mode-active" if st.session_state.lilo_mode == "ask" else ""
-            st.markdown(f'<div class="{wrap_ask}">', unsafe_allow_html=True)
             if st.button("⚠️ Perguntar", key="lilo_mode_ask",
                           help="LILO responde sem tomar acoes. Util para "
                                "consultar, planejar, ou validar antes de agir."):
                 st.session_state.lilo_mode = "ask"
                 st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
         with mc3:
             _mode_label = ("Modo: AGIR -- LILO executa" if
                            st.session_state.lilo_mode == "act"
@@ -1891,29 +2015,23 @@ with main_col:
             f"""
 <style>
 .villa-3d-card {{
-    background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #388E3C 100%);
+    background: var(--lilo-bg-card, #FFFFFF);
     border-radius: 14px;
     padding: 18px 22px;
     margin: 14px 0 22px 0;
-    color: #FFFFFF;
-    box-shadow:
-        0 14px 28px rgba(27,94,32,0.30),
-        0 10px 10px rgba(27,94,32,0.18),
-        inset 0 1px 0 rgba(255,255,255,0.18);
-    transform: perspective(900px) rotateX(2deg);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    border: 1px solid rgba(255,255,255,0.10);
+    color: var(--lilo-text, #3D3929);
+    box-shadow: 0 2px 10px rgba(61,57,41,0.08);
+    transition: box-shadow 0.2s ease;
+    border: 1px solid var(--lilo-border, #E3E1D7);
 }}
 .villa-3d-card:hover {{
-    transform: perspective(900px) rotateX(0deg) translateY(-3px);
-    box-shadow:
-        0 22px 40px rgba(27,94,32,0.38),
-        0 14px 14px rgba(27,94,32,0.22);
+    box-shadow: 0 6px 18px rgba(61,57,41,0.12);
 }}
 .villa-3d-card .vc-title {{
-    font-size: 1.05rem; font-weight: 700; letter-spacing: 0.5px;
-    margin: 0 0 10px 0; opacity: 0.95;
-    border-bottom: 1px solid rgba(255,255,255,0.20);
+    font-family: var(--lilo-serif, Georgia, serif);
+    font-size: 1.05rem; font-weight: 600; letter-spacing: 0.2px;
+    margin: 0 0 10px 0;
+    border-bottom: 1px solid var(--lilo-border, #E3E1D7);
     padding-bottom: 6px;
 }}
 .villa-3d-card .vc-row {{
@@ -1921,17 +2039,18 @@ with main_col:
     margin: 4px 0; font-size: 0.92rem; line-height: 1.45;
 }}
 .villa-3d-card .vc-stage {{
-    min-width: 120px; font-weight: 700; opacity: 0.92;
+    min-width: 120px; font-weight: 600; color: var(--lilo-text-dim, #73705F);
     text-transform: uppercase; letter-spacing: 1px; font-size: 0.78rem;
 }}
 .villa-3d-card .vc-model {{
     font-family: 'Consolas','Courier New', monospace;
-    background: rgba(0,0,0,0.20); padding: 2px 8px; border-radius: 5px;
+    background: var(--lilo-bg-soft, #F0EEE6); color: var(--lilo-accent-dark, #C96442);
+    padding: 2px 8px; border-radius: 5px;
     font-size: 0.86rem;
 }}
 .villa-3d-card .vc-foot {{
     margin-top: 10px; font-size: 0.78rem;
-    opacity: 0.78; font-style: italic;
+    color: var(--lilo-text-dim, #73705F); font-style: italic;
 }}
 </style>
 <div class="villa-3d-card">
