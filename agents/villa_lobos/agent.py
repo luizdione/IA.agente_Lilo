@@ -300,16 +300,26 @@ def _is_multipart_query(text):
     return False
 
 
+# V11.2 (2026-06-11): EXPERT_SYSTEM domain-adaptativo. Antes forcava
+# "mecanismos moleculares, enzimas, vias metabolicas" em TODA query -- otimo
+# para biologia, mas degradava historia/geografia/matematica/fisica no bench
+# multi-dominio (a IA tentava enquadrar tudo em vias de sinalizacao). Agora a
+# instrucao de vocabulario tecnico e ENUMERADA POR DOMINIO: cada area recebe o
+# registro correto, preservando o perfil do usuario (PhD bio + cientista de
+# dados) sem impor o vies biologico onde nao cabe.
 EXPERT_SYSTEM = (
     "Voce e o agente {role} do pipeline Villa Lobos no LILO. "
-    "O usuario e um PhD em Biologia Molecular e Cientista de Dados senior, "
-    "com expertise em bioinformatica, Python, estatistica e machine learning. "
-    "NUNCA simplifique como se fosse para leigos. Use terminologia tecnica "
-    "precisa, cite mecanismos moleculares, nomes de enzimas, vias metabolicas, "
-    "metodos estatisticos e algoritmos pelo nome correto. "
+    "O usuario e um PhD em Biologia Molecular e Cientista de Dados senior. "
+    "NUNCA simplifique como se fosse para leigos. Use SEMPRE terminologia "
+    "tecnica precisa e o vocabulario proprio do DOMINIO da pergunta: "
+    "equacoes, teoremas e demonstracoes em exatas (fisica/matematica); "
+    "mecanismos de reacao e nomenclatura em quimica; enzimas, vias e "
+    "biomoleculas em biologia; metodos, dados e causas em "
+    "historia/geografia/economia/agro; metodos estatisticos e algoritmos "
+    "pelo nome correto em ciencia de dados. "
     "Responda de forma direta, tecnica e aprofundada. "
-    "Use notacao cientifica quando apropriado. "
-    "Quando relevante, cite referencias (PMID, DOI). "
+    "Use notacao cientifica e equacoes quando apropriado. "
+    "Quando relevante, cite referencias (PMID, DOI, fontes). "
     "Responda em portugues brasileiro."
 )
 
@@ -575,19 +585,26 @@ class VillaLobosAgent(BaseAgent):
                         " (iteracao %d/%d)" % (i + 1, effective_iterations)
                         if effective_iterations > 1 else ""
                     )
+                    # V11.2: instrucao de profundidade NEUTRA por dominio (antes
+                    # impunha "mecanismos moleculares, proteinas/genes, vias de
+                    # sinalizacao" a TODA query -- vies bio que degradava
+                    # historia/geografia/matematica). O detalhe especifico cabe
+                    # ao EXPERT_SYSTEM (enumerado por dominio).
                     worker_prompt = (
                         "Execute a tarefa abaixo" + iter_ctx + ". "
-                        "Seja rigoroso, tecnico e aprofundado. "
-                        "Use terminologia cientifica precisa. "
-                        "Quando aplicavel, inclua equacoes, mecanismos moleculares, "
-                        "nomes de proteinas/genes, vias de sinalizacao, ou metodos "
-                        "computacionais especificos.\n\n"
+                        "Seja rigoroso, tecnico e aprofundado, no nivel de um "
+                        "pesquisador senior da area. Fundamente com dados "
+                        "quantitativos, equacoes, nomenclatura tecnica correta e "
+                        "exemplos concretos do dominio quando aplicavel.\n\n"
                         "TAREFA ORIGINAL: " + query + "\n\n"
                         + _mp_nudge
                     )
-                    if plan_result:
+                    # V11.2 (#7): so injeta plano/contexto se forem uteis -- um
+                    # stub de erro ("[planner ERRO...]" / "[reader ERRO...]") nao
+                    # deve virar "PLANO"/"CONTEXTO" e poluir o prompt do Worker.
+                    if plan_result and not plan_result.lstrip().startswith("["):
                         worker_prompt += "PLANO:\n" + plan_result[:800] + "\n\n"
-                    if reader_result:
+                    if reader_result and not reader_result.lstrip().startswith("["):
                         worker_prompt += "CONTEXTO:\n" + reader_result[:400] + "\n\n"
                     if work_results:
                         worker_prompt += (

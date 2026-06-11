@@ -1603,7 +1603,11 @@ div[class*="st-key-lilo_mode_"] button:hover {
         # Disparam o scanner offline e abrem a UI independente.
         _SCANNER_PATH = _ROOT / "agents" / "PDFs_library" / "scripts" / "build_workaholics_db.py"
         _LIBAPP_PATH = _ROOT / "agents" / "PDFs_library" / "scripts" / "library_app.py"
-        _WORKHOL_DEFAULT = r"D:\OneDrive\Documentos\Workaholics"
+        # V11.2: path da biblioteca via env (portabilidade). O default
+        # D:\... e a maquina do autor; outra maquina configura
+        # LILO_WORKAHOLICS_ROOT no .env sem editar codigo.
+        _WORKHOL_DEFAULT = get_env(
+            "LILO_WORKAHOLICS_ROOT", r"D:\OneDrive\Documentos\Workaholics")
 
         bcol1, bcol2, bcol3, bcol4 = st.columns(4)
         with bcol1:

@@ -237,8 +237,11 @@ def route(query, tab=None, context=None):
             tier=decision.tier.value, model=decision.model or "",
             cost_usd=decision.estimated_cost, duration_ms=duration,
         )
-    except Exception:
-        pass  # Obsidian eh opcional
+    except Exception as _obs_err:
+        # Obsidian eh opcional; nao quebra a resposta. Mas registrar em DEBUG
+        # evita "silent failure" (V11.2): falhas de path/permissao ficavam
+        # invisiveis. Use LILO_LOG_LEVEL=DEBUG para diagnosticar.
+        log.debug("Obsidian save ignorado: %s", _obs_err)
 
     return result
 

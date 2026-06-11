@@ -172,7 +172,16 @@ class LLMClient:
         r = requests.post(LITELLM_URL + "/chat/completions",
                           json=payload, headers=headers, timeout=TIMEOUT)
         r.raise_for_status()
-        return r.json()["choices"][0]["message"]["content"]
+        # Parse defensivo (ver _chat_ollama): choices[] vazio ou sem content
+        # vira mensagem acionavel em vez de KeyError/IndexError cru.
+        data = r.json()
+        choices = data.get("choices") or []
+        if not choices:
+            raise ValueError("LiteLLM retornou sem choices: %s" % str(data)[:200])
+        content = (choices[0].get("message") or {}).get("content")
+        if not content:
+            raise ValueError("LiteLLM choice sem content: %s" % str(data)[:200])
+        return content
 
     @staticmethod
     def _normalize_keep_alive(value):
@@ -217,7 +226,17 @@ class LLMClient:
         }
         r = requests.post(OLLAMA_URL + "/api/chat", json=payload, timeout=TIMEOUT)
         r.raise_for_status()
-        response = r.json()["message"]["content"]
+        # Parse defensivo: raise_for_status() so valida o STATUS HTTP, nao o
+        # corpo. Um 200 com payload inesperado (truncagem, erro embutido,
+        # modelo descarregado) faria r.json()["message"]["content"] estourar
+        # KeyError/TypeError cru -- mascarado como falha generica do stage e
+        # disparando fallback inutil. Mensagem acionavel em vez de KeyError.
+        data = r.json()
+        response = (data.get("message") or {}).get("content")
+        if not response:
+            raise ValueError(
+                "Ollama retornou payload sem message.content (modelo=%s): %s"
+                % (model, str(data)[:200]))
 
         if "</thinking>" in response:
             parts = response.split("</thinking>", 1)
