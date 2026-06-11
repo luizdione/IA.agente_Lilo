@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_acos",
+  "description": "Computes the inverse cosine or arccosine of `x`, `\\cos^{-1}(x)`.\nSince `-1 \\le \\cos(x) \\le 1` for real `x`, the inverse\ncosine is real-valued only for `-1 \\le x \\le 1`. On this interval,\n:func:`~mpmat",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}

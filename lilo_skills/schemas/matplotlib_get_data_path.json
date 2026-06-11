@@ -1,0 +1,9 @@
+{
+  "name": "matplotlib_get_data_path",
+  "description": "Return the path to Matplotlib data.",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}

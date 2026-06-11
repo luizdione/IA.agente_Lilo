@@ -1,0 +1,20 @@
+{
+  "name": "differentiate_xp_copy",
+  "description": "Copies an array.\n\nParameters\n----------\nx : array\n\nxp : array_namespace\n\nReturns\n-------\ncopy : array\n    Copied array\n\nNotes\n-----\nThis copy function does not offer all the semantics of `np.copy`, i.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "xp": {
+        "type": "string",
+        "description": "xp (module | None)"
+      }
+    },
+    "required": [
+      "x"
+    ]
+  }
+}

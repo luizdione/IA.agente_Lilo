@@ -1,0 +1,16 @@
+{
+  "name": "gen_maybe_future",
+  "description": "Converts ``x`` into a `.Future`.\n\nIf ``x`` is already a `.Future`, it is simply returned; otherwise\nit is wrapped in a new `.Future`.  This is suitable for use as\n``result = yield gen.maybe_future(f()",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      }
+    },
+    "required": [
+      "x"
+    ]
+  }
+}

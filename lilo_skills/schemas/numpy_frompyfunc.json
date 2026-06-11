@@ -1,0 +1,16 @@
+{
+  "name": "numpy_frompyfunc",
+  "description": "frompyfunc(func, /, nin, nout, *[, identity])\n\nTakes an arbitrary Python function and returns a NumPy ufunc.\n\nCan be used, for example, to add broadcasting to a built-in Python\nfunction (see Examples ",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "args": {
+        "type": "string",
+        "description": "args (Any)"
+      }
+    },
+    "required": [
+      "args"
+    ]
+  }
+}

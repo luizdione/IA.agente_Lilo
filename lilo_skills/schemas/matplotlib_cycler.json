@@ -1,0 +1,21 @@
+{
+  "name": "matplotlib_cycler",
+  "description": "Create a `~cycler.Cycler` object much like :func:`cycler.cycler`,\nbut includes input validation.\n\nCall signatures::\n\n  cycler(cycler)\n  cycler(label=values, label2=values2, ...)\n  cycler(label, values",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "args": {
+        "type": "string",
+        "description": "args (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "args",
+      "kwargs"
+    ]
+  }
+}

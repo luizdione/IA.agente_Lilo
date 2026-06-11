@@ -1,0 +1,16 @@
+{
+  "name": "gen_convert_yielded",
+  "description": "Convert a yielded object into a `.Future`.\n\nThe default implementation accepts lists, dictionaries, and\nFutures. This has the side effect of starting any coroutines that\ndid not start themselves, simi",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "yielded": {
+        "type": "string",
+        "description": "yielded (Union)"
+      }
+    },
+    "required": [
+      "yielded"
+    ]
+  }
+}

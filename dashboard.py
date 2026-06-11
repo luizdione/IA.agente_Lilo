@@ -1,13 +1,16 @@
 """
-dashboard.py — Dashboard LILO (Streamlit)
-==========================================
-Interface web local que integra os 4 subagentes via shared/.
+dashboard.py -- Dashboard LILO v9.1 (Streamlit)
+=================================================
+Interface web com:
+- Sidebar esquerda: botoes 3D para sub-agentes e ferramentas
+- Sidebar direita: historico de chats + projetos
+- Botao Stop em todas as areas de input
+- Slash commands (/) para skills
+- Anexo de arquivos
+- Busca web integrada
 
 Uso:
-    pip install streamlit pandas requests
-    streamlit run dashboard.py --server.port 8501
-
-Acesso: http://localhost:8501
+    streamlit run dashboard.py --server.port 8100
 """
 
 import streamlit as st
@@ -15,94 +18,106 @@ import sys
 import os
 import json
 import time
+import threading
 import requests
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
-# Garante path do projeto
 _ROOT = Path(__file__).parent
 sys.path.insert(0, str(_ROOT))
 
 from shared.utils import load_env, get_env
 from shared.logger import get_logger
+from shared.chat_memory import get_memory
+
+# V10.5 (2026-05-31): recursos estilo Claude Cowork (tarefas, memoria KV,
+# conectores/capabilities, streaming). Import tolerante a falha p/ nao
+# derrubar o dashboard caso o modulo nao esteja presente.
+try:
+    import dashboard_cowork as cowork
+except Exception as _cw_err:  # pragma: no cover
+    cowork = None
 
 load_env()
 log = get_logger("Dashboard")
+memory = get_memory()
 
-# ── Configuração da página ───────────────────────────────────────────────────
+# Icone LILO no titulo da aba do navegador (favicon).
+# Streamlit aceita path para .png/.ico/.jpg ou emoji.
+_ICON_PATH = _ROOT / "lilo_icon.ico"
 st.set_page_config(
-    page_title="LILO — Dashboard",
-    page_icon="🧬",
+    page_title="LILO -- Dashboard",
+    page_icon=str(_ICON_PATH) if _ICON_PATH.exists() else "🧬",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ── Estado da sessão ─────────────────────────────────────────────────────────
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "agents_loaded" not in st.session_state:
-    st.session_state.agents_loaded = False
-if "agents" not in st.session_state:
-    st.session_state.agents = {}
+# -- Estado da sessao --------------------------------------------------------
+defaults = {
+    "messages": [],
+    "page": "Chat",
+    "current_chat_id": None,
+    "running": False,
+    "stop_requested": False,
+    "attached_files": [],
+    "current_project": None,
+    "skill_filter": "",
+    "show_right_panel": True,
+    # Task 2 — sintese de diretorio
+    "attached_dir": "",
+    "last_synthesis_md": "",
+    "last_synthesis_html": "",
+}
+for k, v in defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
 
 
-# ── Carregar agentes (lazy, uma vez) ─────────────────────────────────────────
+# -- Carregar agentes --------------------------------------------------------
 @st.cache_resource
 def load_agents():
-    """Carrega os subagentes LILO."""
     agents = {}
     errors = {}
-
+    for name, mod_path, cls_name in [
+        ("sql", "agents.Analise_SQL.agent", "SQLAgent"),
+        ("pdf", "agents.PDFs_library.agent", "PDFAgent"),
+        ("scholar", "agents.scholaragent.agent", "ScholarAgent"),
+        ("prism", "agents.prism_ai", "PrismAgent"),
+        ("gateway", "agents.gateway", "GatewayAgent"),
+        ("desktop", "agents.desktop.agent", "DesktopAgent"),
+    ]:
+        try:
+            mod = __import__(mod_path, fromlist=[cls_name])
+            agents[name] = getattr(mod, cls_name)()
+        except Exception as e:
+            errors[name] = str(e)
+    # Villa Lobos
     try:
-        from Analise_SQL.agent import SQLAgent
-        agents["sql"] = SQLAgent()
+        from agents.villa_lobos import VillaLobosAgent
+        agents["villa"] = VillaLobosAgent()
     except Exception as e:
-        errors["sql"] = str(e)
-
-    try:
-        from PDFs_library.agent import PDFAgent
-        agents["pdf"] = PDFAgent()
-    except Exception as e:
-        errors["pdf"] = str(e)
-
-    try:
-        from scholaragent.agent import ScholarAgent
-        agents["scholar"] = ScholarAgent()
-    except Exception as e:
-        errors["scholar"] = str(e)
-
-    try:
-        import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "gateway_agent", _ROOT / "llm-gateway" / "agent.py"
-        )
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        agents["gateway"] = mod.GatewayAgent()
-    except Exception as e:
-        errors["gateway"] = str(e)
-
+        errors["villa"] = str(e)
     return agents, errors
 
 
-# ── Health check ─────────────────────────────────────────────────────────────
 def check_ollama():
-    """Verifica status do Ollama."""
     try:
-        r = requests.get(f"{get_env('OLLAMA_HOST', 'http://localhost:11434')}/api/tags", timeout=3)
+        r = requests.get(
+            get_env("OLLAMA_HOST", "http://localhost:11434") + "/api/tags",
+            timeout=3)
         if r.status_code == 200:
-            models = [m["name"] for m in r.json().get("models", [])]
-            return True, models
+            return True, [m["name"] for m in r.json().get("models", [])]
     except Exception:
         pass
     return False, []
 
 
 def check_ollama_gpu():
-    """Verifica modelos carregados na GPU."""
     try:
-        r = requests.get(f"{get_env('OLLAMA_HOST', 'http://localhost:11434')}/api/ps", timeout=3)
+        r = requests.get(
+            get_env("OLLAMA_HOST", "http://localhost:11434") + "/api/ps",
+            timeout=3)
         if r.status_code == 200:
             return r.json().get("models", [])
     except Exception:
@@ -110,364 +125,2474 @@ def check_ollama_gpu():
     return []
 
 
-# ── Sidebar ──────────────────────────────────────────────────────────────────
+def check_nvidia_smi():
+    """Detecta GPU NVIDIA e retorna info do driver. None se nao encontrar nvidia-smi."""
+    import subprocess
+    try:
+        r = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,driver_version,memory.total,memory.used,utilization.gpu",
+             "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            line = r.stdout.strip().splitlines()[0]
+            parts = [p.strip() for p in line.split(",")]
+            if len(parts) >= 5:
+                return {
+                    "name": parts[0],
+                    "driver": parts[1],
+                    "vram_total_mb": int(parts[2]),
+                    "vram_used_mb": int(parts[3]),
+                    "util_pct": int(parts[4]),
+                }
+    except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):
+        pass
+    return None
+
+
+def warm_up_gpu(model_name=None):
+    """Forca Ollama a carregar um modelo na VRAM com keep_alive longo.
+    Retorna (ok, mensagem)."""
+    try:
+        if not model_name:
+            model_name = get_env("OLLAMA_MODEL", "llama3.1:8b-instruct-q8_0")
+        payload = {
+            "model": model_name,
+            "messages": [{"role": "user", "content": "ok"}],
+            "stream": False,
+            "keep_alive": "2h",  # mantem 2h em VRAM
+            "options": {"num_predict": 1, "num_gpu": 99},
+        }
+        r = requests.post(
+            get_env("OLLAMA_HOST", "http://localhost:11434") + "/api/chat",
+            json=payload, timeout=120)
+        if r.status_code == 200:
+            return True, f"Modelo {model_name} aquecido (keep_alive=2h)."
+        return False, f"Erro {r.status_code}: {r.text[:120]}"
+    except Exception as e:
+        return False, str(e)
+
+
+@st.cache_data(ttl=60)
+def load_skills_list():
+    """Carrega lista de skills do registry + 16 skills CORE injetadas no topo
+    (lilo_chat, lilo_sql, prism_*, villa_*, lilo_web_*, etc).
+    Garante que o menu / do chat sempre mostre os comandos core do LILO."""
+    try:
+        from lilo_skills import get_full_registry
+        return get_full_registry()
+    except Exception:
+        # Fallback: registry puro (apenas as 199 geradas, sem as core)
+        registry_path = _ROOT / "lilo_skills" / "registry.json"
+        if registry_path.exists():
+            with open(registry_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return {"skills": [], "total_skills": 0}
+
+
+def run_with_stop(func, *args):
+    """Executa funcao com suporte a stop."""
+    st.session_state.running = True
+    st.session_state.stop_requested = False
+    try:
+        result = func(*args)
+    except Exception as e:
+        result = "Erro: " + str(e)
+    finally:
+        st.session_state.running = False
+    return result
+
+
+
+# -- CSS layout v10 — reforma radical (clean + legivel) ---------------------
+# Paleta: verde IFRJ na sidebar, fundo branco-quente no centro, painel direito estreito.
+st.markdown("""
+<style>
+/* === RESET de top-padding pra header nao cortar === */
+.main .block-container {
+    padding-top: 1.2rem !important;
+    padding-bottom: 4rem !important;
+    max-width: 100% !important;
+}
+
+/* === SIDEBAR ESQUERDA — verde IFRJ === */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #005A2D 0%, #003D1F 100%) !important;
+    border-right: 1px solid rgba(0,0,0,0.15);
+}
+section[data-testid="stSidebar"] > div:first-child {
+    padding-top: 0.6rem !important;
+}
+/* Texto da sidebar (markdown, captions, labels) */
+section[data-testid="stSidebar"] .stMarkdown,
+section[data-testid="stSidebar"] .stCaption,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] small {
+    color: #F1F8F4 !important;
+}
+section[data-testid="stSidebar"] hr {
+    border-color: rgba(255,255,255,0.20) !important;
+    margin: 0.5rem 0 0.4rem 0 !important;
+}
+section[data-testid="stSidebar"] .stMarkdown p {
+    margin: 0 0 0.2rem 0 !important;
+    font-size: 0.72rem !important;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    opacity: 0.85;
+    font-weight: 700;
+}
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
+    gap: 0.25rem !important;
+}
+
+/* === BOTOES DA SIDEBAR — fundo solido, texto branco SEMPRE === */
+section[data-testid="stSidebar"] .stButton > button {
+    width: 100%;
+    padding: 0.5rem 0.8rem !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.88rem !important;
+    line-height: 1.2 !important;
+    min-height: 36px !important;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.20);
+    text-align: left;
+    /* ESSENCIAL — texto sempre visivel sobre o fundo gradient */
+    color: #FFFFFF !important;
+    background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%) !important;
+}
+section[data-testid="stSidebar"] .stButton > button p,
+section[data-testid="stSidebar"] .stButton > button span,
+section[data-testid="stSidebar"] .stButton > button div {
+    color: #FFFFFF !important;
+}
+section[data-testid="stSidebar"] .stButton > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.30);
+    filter: brightness(1.10);
+}
+section[data-testid="stSidebar"] .stButton > button:active {
+    transform: translateY(0);
+}
+
+/* Cores especificas por categoria (sobrescreve gradient default) */
+.agent-btn button {
+    background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%) !important;
+}
+.tool-btn button {
+    background: linear-gradient(135deg, #00897B 0%, #00695C 100%) !important;
+}
+.doc-btn button {
+    background: linear-gradient(135deg, #7E57C2 0%, #4527A0 100%) !important;
+}
+.help-btn button {
+    background: linear-gradient(135deg, #FB8C00 0%, #E65100 100%) !important;
+}
+.active-btn button {
+    outline: 2px solid #FFD54F !important;
+    outline-offset: 1px;
+    filter: brightness(1.15);
+}
+
+/* === SELECTBOX e INPUT na sidebar === */
+section[data-testid="stSidebar"] div[data-baseweb="select"] > div {
+    background-color: rgba(255,255,255,0.12) !important;
+    border-color: rgba(255,255,255,0.30) !important;
+    min-height: 36px !important;
+    color: #FFFFFF !important;
+}
+section[data-testid="stSidebar"] div[data-baseweb="select"] span {
+    color: #FFFFFF !important;
+}
+
+/* === LOGO === */
+.lilo-logo-wrap {
+    text-align: center;
+    padding: 4px 0 2px 0;
+}
+.lilo-logo-wrap img {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.30);
+    background: white;
+    padding: 4px;
+}
+.lilo-title {
+    text-align: center;
+    font-size: 1.15rem !important;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #FFFFFF !important;
+    margin: 6px 0 2px 0 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+}
+.lilo-subtitle {
+    text-align: center;
+    font-size: 0.68rem !important;
+    color: rgba(255,255,255,0.75) !important;
+    margin-bottom: 8px !important;
+}
+
+/* === AREA CENTRAL — branco-quente neutro === */
+section[data-testid="stMain"],
+div[data-testid="stAppViewContainer"] > .main {
+    background-color: #FAFAFA !important;
+}
+div[data-testid="stMainBlockContainer"] {
+    background-color: #FAFAFA !important;
+}
+.main h1, .main h2, .main h3 {
+    color: #1B5E20 !important;
+    font-weight: 700;
+}
+.main h1 {
+    border-bottom: 3px solid #4CAF50;
+    padding-bottom: 0.3rem;
+    margin-bottom: 1rem !important;
+}
+
+/* === STOP BUTTON === */
+.stop-btn button {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
+    color: white !important;
+    animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* === TABS (aba Ajuda) === */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 4px;
+    background: #ECEFF1;
+    border-radius: 8px;
+    padding: 4px;
+}
+.stTabs [data-baseweb="tab"] {
+    background-color: transparent;
+    border-radius: 6px;
+    color: #455A64;
+    font-weight: 600;
+    font-size: 0.92rem;
+    padding: 0.4rem 1rem;
+}
+.stTabs [aria-selected="true"] {
+    background-color: #4CAF50 !important;
+    color: white !important;
+}
+
+/* === SKILLS POPUP === */
+.skill-popup {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 500px;
+    max-height: 300px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    z-index: 1000;
+    padding: 8px;
+}
+
+/* ========================================================================
+   AJUDA & GLOSSARIO — estilo GenOmics localhost:3838
+   ======================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* Header azul (Bootstrap info color) replica do GenOmics */
+.help-header {
+    background: linear-gradient(135deg, #5BC0DE 0%, #46A4C8 100%);
+    color: white;
+    padding: 0.85rem 1.4rem;
+    border-radius: 8px 8px 0 0;
+    margin-top: 0.5rem;
+    margin-bottom: 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+.help-header h2 {
+    color: white !important;
+    margin: 0 !important;
+    font-family: 'Inter', sans-serif;
+    font-size: 1.15rem !important;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    border: none !important;
+    padding: 0 !important;
+}
+.help-header.glossario-header {
+    background: linear-gradient(135deg, #5BC0DE 0%, #3FA8D0 100%);
+}
+
+/* Subtitle abaixo do header — area cinza clara como no GenOmics */
+.help-subtitle {
+    background: #ECEFF1;
+    color: #455A64;
+    padding: 0.75rem 1.4rem;
+    margin: 0 0 0 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.92rem;
+    border-left: 1px solid #E0E0E0;
+    border-right: 1px solid #E0E0E0;
+}
+
+/* Card branco para conteudo Markdown */
+.help-content {
+    background: white;
+    padding: 1.8rem 2.2rem;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border: 1px solid #E0E0E0;
+    border-top: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.94rem;
+    line-height: 1.65;
+    color: #2C3E50;
+    margin-bottom: 1.5rem;
+}
+.help-content h1 {
+    font-size: 1.55rem !important;
+    color: #1F3A5F !important;
+    border-bottom: 2px solid #5BC0DE !important;
+    padding-bottom: 0.4rem !important;
+    margin-bottom: 1rem !important;
+    font-weight: 700;
+}
+.help-content h2 {
+    font-size: 1.25rem !important;
+    color: #2D4A73 !important;
+    margin-top: 1.6rem !important;
+    margin-bottom: 0.6rem !important;
+    border-left: 4px solid #5BC0DE;
+    padding-left: 0.6rem;
+    font-weight: 600;
+}
+.help-content h3 {
+    font-size: 1.08rem !important;
+    color: #2D4A73 !important;
+    margin-top: 1.2rem !important;
+    font-weight: 600;
+}
+.help-content p {
+    margin-bottom: 0.8rem;
+}
+.help-content ul, .help-content ol {
+    margin-left: 1.2rem;
+    margin-bottom: 0.8rem;
+}
+.help-content li { margin-bottom: 0.3rem; }
+.help-content table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+    font-size: 0.88rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.help-content table th {
+    background: #5BC0DE;
+    color: white;
+    padding: 0.6rem 0.8rem;
+    text-align: left;
+    font-weight: 600;
+    border: 1px solid #46A4C8;
+}
+.help-content table td {
+    padding: 0.5rem 0.8rem;
+    border-bottom: 1px solid #E0E0E0;
+    border-left: 1px solid #F0F0F0;
+    border-right: 1px solid #F0F0F0;
+    vertical-align: top;
+}
+.help-content table tr:nth-child(even) td { background: #FAFBFC; }
+.help-content table tr:hover td { background: #F0F8FB; }
+.help-content code {
+    background: #F0F4F8;
+    color: #C0392B;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 0.87em;
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+.help-content pre {
+    background: #F8F9FA;
+    border: 1px solid #E0E0E0;
+    border-left: 3px solid #5BC0DE;
+    border-radius: 4px;
+    padding: 0.8rem 1rem;
+    overflow-x: auto;
+    margin: 0.8rem 0;
+}
+.help-content pre code {
+    background: transparent;
+    color: #2C3E50;
+    padding: 0;
+}
+.help-content blockquote {
+    border-left: 4px solid #5BC0DE;
+    background: #F0F8FB;
+    padding: 0.6rem 1rem;
+    margin: 0.8rem 0;
+    color: #455A64;
+    font-style: italic;
+}
+.help-content hr {
+    border: none;
+    border-top: 1px solid #E0E0E0;
+    margin: 1.5rem 0;
+}
+
+/* Tabs do GenOmics — fundo cinza claro com active state azul */
+.stTabs [data-baseweb="tab-list"] {
+    background: #ECEFF1 !important;
+    border: 1px solid #E0E0E0 !important;
+    border-radius: 6px !important;
+    padding: 4px !important;
+    gap: 2px !important;
+    margin-bottom: 0.5rem !important;
+}
+.stTabs [data-baseweb="tab"] {
+    background-color: transparent !important;
+    border-radius: 4px !important;
+    color: #455A64 !important;
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 0.88rem !important;
+    padding: 0.5rem 1rem !important;
+}
+.stTabs [aria-selected="true"] {
+    background-color: #5BC0DE !important;
+    color: white !important;
+    box-shadow: 0 2px 4px rgba(91,192,222,0.25);
+}
+
+/* Glossario — busca e tabela */
+.glossario-search input {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.95rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+def nav_button(label, key, category="agent"):
+    css = category + "-btn"
+    if st.session_state.page == label:
+        css += " active-btn"
+    st.markdown('<div class="' + css + '">', unsafe_allow_html=True)
+    if st.button(label, key=key, use_container_width=True):
+        st.session_state.page = label
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+def stop_button(key="stop_main"):
+    """Botao de parar execucao."""
+    st.markdown('<div class="stop-btn">', unsafe_allow_html=True)
+    if st.button("PARAR", key=key, use_container_width=True):
+        st.session_state.stop_requested = True
+        st.session_state.running = False
+        st.warning("Execucao interrompida pelo usuario.")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+# -- Sidebar esquerda --------------------------------------------------------
 with st.sidebar:
-    st.image("https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Dna/3D/dna_3d.png", width=60)
-    st.title("LILO")
-    st.caption("Agente Pessoal Integrado")
+    # Logo LILO no topo (icone do projeto). Fallback p/ titulo se nao encontrar.
+    if _ICON_PATH.exists():
+        st.markdown('<div class="lilo-logo-wrap">', unsafe_allow_html=True)
+        st.image(str(_ICON_PATH), width=64)
+        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('<div class="lilo-title">LILO</div>', unsafe_allow_html=True)
 
-    # Carregar agentes
     agents, agent_errors = load_agents()
-
-    # Status
-    st.markdown("### Status")
     ollama_ok, ollama_models = check_ollama()
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Ollama", "Online" if ollama_ok else "Offline")
-    with col2:
-        st.metric("Modelos", len(ollama_models) if ollama_ok else 0)
+    n_agents = len(agents)
+    status_icon = "ON" if ollama_ok else "OFF"
+    st.caption(status_icon + " Ollama | " + str(n_agents) + "/6 agentes")
 
-    st.markdown("**Subagentes:**")
-    agent_labels = {"sql": "SQL", "pdf": "PDFs", "scholar": "Scholar", "gateway": "Gateway"}
-    for key, label in agent_labels.items():
-        if key in agents:
-            st.success(f"{label}")
-        else:
-            st.error(f"{label}: {agent_errors.get(key, 'erro')[:40]}")
+    st.markdown("---")
+    st.markdown("**SUB-AGENTES**")
+    nav_button("Chat", "nav_chat", "agent")
+    nav_button("SQL", "nav_sql", "agent")
+    nav_button("PDFs", "nav_pdf", "agent")
+    nav_button("Scholar", "nav_scholar", "agent")
+    nav_button("Prism AI", "nav_prism", "agent")
+    nav_button("Villa Lobos", "nav_villa", "agent")
+    nav_button("Desktop", "nav_desktop", "agent")
 
-    st.divider()
+    st.markdown("---")
+    st.markdown("**COWORK**")
+    nav_button("Tarefas", "nav_tarefas", "tool")
+    nav_button("Memoria", "nav_memoria", "tool")
+    nav_button("Conectores", "nav_conectores", "tool")
 
-    # Navegação
-    page = st.radio(
-        "Navegação",
-        ["Chat", "SQL", "PDFs", "Scholar", "Custos", "Health"],
-        label_visibility="collapsed",
-    )
+    st.markdown("---")
+    st.markdown("**FERRAMENTAS**")
+    nav_button("Skills", "nav_skills", "tool")
+    nav_button("Custos", "nav_custos", "tool")
+    nav_button("Saude", "nav_health", "tool")
 
-    st.divider()
+    st.markdown("---")
+    st.markdown("**DOCUMENTOS**")
+    nav_button("Glossario", "nav_glossario", "help")
+    nav_button("Ajuda", "nav_help", "help")
 
-    # Modo do chat
-    if page == "Chat":
-        mode = st.selectbox("Modo", ["chat", "code", "bioinfo", "sql"])
+    st.markdown("---")
+    mode = st.selectbox(
+        "Modo IA",
+        ["chat", "code", "bioinfo", "sql"],
+        help="Modo de operacao do Chat")
+
+    st.caption("LILO v10.0 -- " + datetime.now().strftime("%H:%M"))
+
+
+# -- Pagina ativa -------------------------------------------------------------
+page = st.session_state.page
+agent_labels = {
+    "sql": "SQL", "pdf": "PDFs", "scholar": "Scholar",
+    "gateway": "Gateway", "prism": "Prism AI", "villa": "Villa Lobos",
+    "desktop": "Desktop"}
+
+
+# -- Layout principal: conteudo + sidebar direita ----------------------------
+# Abas Ajuda e Glossario usam toda a largura (sem painel direito)
+if page in ("Ajuda", "Glossario"):
+    main_col = st.container()
+    right_col = None
+else:
+    main_col, right_col = st.columns([4, 1], gap="medium")
+
+if right_col is not None:
+  with right_col:
+    # 2026-05-08: sidebar direita simplificada (estilo Claude Desktop).
+    # - "Projetos" foi movida para a aba Villa Lobos (area central).
+    # - "Anexos" foi convertida em popover (+) na caixa de mensagem central.
+    # Aqui ficam: Historico (lista flat) + Progresso (tasks com checkbox).
+
+    # CSS minimalista para o historico em lista (sem botoes encaixotados)
+    st.markdown("""
+<style>
+.lilo-history-list { margin: 0 0 8px 0; padding: 0; }
+.lilo-history-item {
+    display: flex; align-items: center;
+    padding: 4px 8px; margin: 1px 0;
+    border-radius: 6px; cursor: pointer;
+    color: rgba(255,255,255,0.78);
+    font-size: 0.86rem; line-height: 1.3;
+    transition: background 0.15s ease, color 0.15s ease;
+    text-decoration: none;
+}
+.lilo-history-item:hover {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,1.00);
+}
+.lilo-history-item.active {
+    background: rgba(46,125,50,0.22);
+    color: #B9F6CA; font-weight: 600;
+}
+.lilo-history-item .dot { opacity: 0.55; margin-right: 6px; }
+.lilo-progress-bar {
+    height: 4px; background: rgba(255,255,255,0.08);
+    border-radius: 2px; overflow: hidden; margin: 4px 0 8px 0;
+}
+.lilo-progress-bar > div {
+    height: 100%; background: linear-gradient(90deg,#388E3C,#66BB6A);
+}
+</style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("### Historico")
+
+    # Busca em chats
+    search_q = st.text_input("Buscar chats", key="chat_search",
+                              placeholder="Filtrar por conteudo...",
+                              label_visibility="collapsed")
+
+    # Atalho '+ Novo chat' (link discreto, no topo da lista)
+    if st.button("+ Novo chat", key="new_chat_btn",
+                 use_container_width=True):
+        chat_id = memory.new_chat(subagent=page.lower())
+        st.session_state.current_chat_id = chat_id
+        st.session_state.messages = []
+        st.rerun()
+
+    # Lista de chats (filtrada pelo projeto ativo, se houver)
+    if search_q:
+        chats = memory.search_chats(search_q, limit=30)
     else:
-        mode = "chat"
+        proj = st.session_state.current_project
+        chats = memory.list_chats(project_id=proj, limit=30)
+
+    # Render lista flat estilo Claude Desktop. Cada item e um link
+    # `?lilo_chat=<id>` capturado pelo dashboard via query params.
+    qp = st.query_params if hasattr(st, "query_params") else {}
+    requested = qp.get("lilo_chat", None)
+    if isinstance(requested, list):
+        requested = requested[0] if requested else None
+    if requested and requested != st.session_state.current_chat_id:
+        st.session_state.current_chat_id = requested
+        msgs = memory.get_messages(requested)
+        st.session_state.messages = [
+            {"role": m["role"], "content": m["content"]} for m in msgs]
+        # limpa query param para nao rerender em loop
+        try:
+            del st.query_params["lilo_chat"]
+        except Exception:
+            pass
+        st.rerun()
+
+    if chats:
+        items_html = ['<div class="lilo-history-list">']
+        for ch in chats:
+            is_active = ch["id"] == st.session_state.current_chat_id
+            cls = "lilo-history-item active" if is_active else "lilo-history-item"
+            title_safe = (ch["title"] or "(sem titulo)").replace("<", "&lt;").replace(">", "&gt;")[:48]
+            items_html.append(
+                f'<a class="{cls}" href="?lilo_chat={ch["id"]}" target="_self">'
+                f'<span class="dot">·</span>{title_safe}</a>'
+            )
+        items_html.append("</div>")
+        st.markdown("".join(items_html), unsafe_allow_html=True)
+    else:
+        st.caption("(sem conversas)")
+
+    # Indicador discreto do projeto ativo + atalho para a aba Villa
+    if st.session_state.current_project:
+        st.markdown("---")
+        try:
+            _proj_obj = next(
+                (p for p in memory.list_projects()
+                 if p["id"] == st.session_state.current_project),
+                None,
+            )
+            _proj_label = _proj_obj["name"][:28] if _proj_obj else (
+                st.session_state.current_project[:8]
+            )
+        except Exception:
+            _proj_label = st.session_state.current_project[:8]
+        st.caption("Projeto: " + _proj_label)
+
+        # ---- Progresso (tasks do projeto) ---------------------------------
+        st.markdown("### Progresso")
+        prog = memory.task_progress(st.session_state.current_project)
+        if prog["total"]:
+            st.markdown(
+                f'<div class="lilo-progress-bar"><div style="width:{prog["pct"]}%"></div></div>'
+                f'<div style="font-size:0.78rem;opacity:0.7;margin:-4px 0 6px 0">'
+                f'{prog["done"]}/{prog["total"]} concluidas ({prog["pct"]}%)</div>',
+                unsafe_allow_html=True,
+            )
+        tasks = memory.list_tasks(st.session_state.current_project)
+        for t in tasks:
+            tk_id = t["id"]
+            checked = bool(t["done"])
+            new_val = st.checkbox(
+                t["title"][:60],
+                value=checked,
+                key=f"task_chk_{tk_id}",
+            )
+            if new_val != checked:
+                memory.set_task_done(tk_id, new_val)
+                st.rerun()
+        # Adicionar nova task
+        new_task = st.text_input(
+            "Nova task",
+            key="new_task_input",
+            placeholder="+ adicionar task...",
+            label_visibility="collapsed",
+        )
+        if new_task and st.session_state.get("new_task_last", "") != new_task:
+            memory.add_task(st.session_state.current_project, new_task)
+            st.session_state.new_task_last = new_task
+            st.rerun()
 
 
-# ── Página: Chat ─────────────────────────────────────────────────────────────
-if page == "Chat":
-    st.header("Chat LILO")
+# ============================================================================
+# Helpers reutilizados pela area central
+# ============================================================================
 
-    # Histórico
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+def _render_attachments_popover(key_prefix: str) -> None:
+    """Renderiza um botao (+) acima da caixa de mensagem para anexar arquivos
+    ou referenciar um diretorio. Substitui a antiga aba 'Anexos' da sidebar.
 
-    # Input
-    if prompt := st.chat_input("Digite sua pergunta..."):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        with st.chat_message("assistant"):
-            with st.spinner("Pensando..."):
-                try:
-                    # Roteamento automático via lilo.py
-                    from lilo import route
-                    response = route(prompt, context={"mode": mode})
-                except Exception as e:
-                    response = f"Erro: {e}"
-
-            st.markdown(response)
-            st.session_state.messages.append({"role": "assistant", "content": response})
-
-
-# ── Página: SQL ──────────────────────────────────────────────────────────────
-elif page == "SQL":
-    st.header("Análise SQL")
-
-    col1, col2 = st.columns([2, 1])
-
-    with col2:
-        # Listar bancos disponíveis
-        db_files = list(_ROOT.rglob("*.db")) + list(_ROOT.rglob("*.sqlite"))
-        db_names = [str(f.relative_to(_ROOT)) for f in db_files]
-        selected_db = st.selectbox("Banco de dados", db_names if db_names else ["Nenhum encontrado"])
-
-        if selected_db and selected_db != "Nenhum encontrado":
-            import sqlite3
-            db_path = _ROOT / selected_db
-            try:
-                conn = sqlite3.connect(str(db_path))
-                tables = pd.read_sql("SELECT name FROM sqlite_master WHERE type='table'", conn)
-                st.dataframe(tables, use_container_width=True)
-
-                if not tables.empty:
-                    selected_table = st.selectbox("Tabela", tables["name"].tolist())
-                    if selected_table:
-                        schema = pd.read_sql(f"PRAGMA table_info({selected_table})", conn)
-                        st.dataframe(schema[["name", "type"]], use_container_width=True)
-                conn.close()
-            except Exception as e:
-                st.error(f"Erro: {e}")
-
-    with col1:
-        query_input = st.text_area(
-            "Query SQL ou pergunta em linguagem natural",
-            height=100,
-            placeholder="Ex: SELECT * FROM tabela LIMIT 10\nOu: quais são as espécies com mais registros?",
+    Args:
+        key_prefix: prefixo unico para as keys do widget Streamlit (evita
+                    colisao quando varias paginas usam o popover na mesma sessao).
+    """
+    # Se houver popover (Streamlit >=1.32) usa, senao cai em expander.
+    _container = (
+        st.popover("+ Anexar arquivo ou pasta", use_container_width=False)
+        if hasattr(st, "popover")
+        else st.expander("+ Anexar arquivo ou pasta", expanded=False)
+    )
+    with _container:
+        attach_mode = st.radio(
+            "Tipo",
+            ["Arquivos", "Diretorio"],
+            horizontal=True,
+            key=f"{key_prefix}_attach_mode",
         )
 
-        col_run, col_ai = st.columns(2)
+        if attach_mode == "Arquivos":
+            uploaded = st.file_uploader(
+                "Selecione um ou mais arquivos",
+                type=["pdf", "csv", "xlsx", "txt", "py", "json", "tsv", "md"],
+                key=f"{key_prefix}_file_attach",
+                accept_multiple_files=True,
+            )
+            if uploaded:
+                st.session_state.attached_files = uploaded
+            if st.session_state.get("attached_files"):
+                st.caption(
+                    "Anexos ativos: " +
+                    ", ".join(f.name for f in st.session_state.attached_files)
+                )
+                if st.button(
+                    "Remover anexos",
+                    key=f"{key_prefix}_clear_attach",
+                    use_container_width=True,
+                ):
+                    st.session_state.attached_files = []
+                    st.rerun()
+        else:
+            dir_path = st.text_input(
+                "Caminho do diretorio",
+                value=st.session_state.get("attached_dir", ""),
+                placeholder=r"D:\OneDrive\meu_projeto",
+                key=f"{key_prefix}_dir_path_input",
+            )
+            cb1, cb2 = st.columns(2)
+            with cb1:
+                if st.button("Procurar...", key=f"{key_prefix}_dir_browse",
+                              use_container_width=True):
+                    try:
+                        import tkinter as tk
+                        from tkinter import filedialog
+                        root_tk = tk.Tk()
+                        root_tk.withdraw()
+                        root_tk.attributes("-topmost", True)
+                        chosen = filedialog.askdirectory(title="Escolher diretorio")
+                        root_tk.destroy()
+                        if chosen:
+                            st.session_state.attached_dir = chosen
+                            st.rerun()
+                    except Exception as e:
+                        st.warning("Cole o caminho manualmente. (" + str(e) + ")")
+            with cb2:
+                if st.button("Sintetizar", key=f"{key_prefix}_dir_synth",
+                              type="primary", use_container_width=True,
+                              help="Gera .md com estrutura, etapas, TODOs"):
+                    if not dir_path or not Path(dir_path).is_dir():
+                        st.error("Caminho invalido ou nao e diretorio.")
+                    else:
+                        try:
+                            from shared.dir_synthesis import (
+                                synthesize_directory, synthesis_to_html)
+                            with st.spinner("Sintetizando diretorio..."):
+                                md_path = synthesize_directory(dir_path)
+                                html_path = synthesis_to_html(md_path)
+                            st.session_state.attached_dir = dir_path
+                            st.session_state.last_synthesis_md = str(md_path)
+                            st.session_state.last_synthesis_html = str(html_path)
+                            if st.session_state.current_project:
+                                link_line = (
+                                    f"- Sintese de `{dir_path}` gerada em "
+                                    f"{datetime.now().strftime('%Y-%m-%d %H:%M')} "
+                                    f"-> `{md_path.name}`"
+                                )
+                                memory.append_to_section(
+                                    st.session_state.current_project,
+                                    "Decisoes e contexto",
+                                    link_line)
+                            st.success("Sintese gerada.")
+                        except Exception as e:
+                            st.error("Erro: " + str(e))
 
-        with col_run:
-            if st.button("Executar SQL", type="primary") and query_input:
+            if st.session_state.get("attached_dir"):
+                st.caption("Diretorio: " + st.session_state.attached_dir)
+            if st.session_state.get("last_synthesis_md"):
+                md_p = Path(st.session_state["last_synthesis_md"])
+                html_p = Path(st.session_state.get("last_synthesis_html", ""))
+                if md_p.exists():
+                    st.caption("Ultima sintese: " + md_p.name)
+                    if html_p.exists() and st.button(
+                        "Abrir em nova aba",
+                        key=f"{key_prefix}_open_synth",
+                        use_container_width=True,
+                    ):
+                        import webbrowser
+                        webbrowser.open(html_p.as_uri(), new=2)
+
+
+def _render_villa_project_explorer(base_path: str = ".") -> None:
+    """Painel de Projetos + Explorador de arquivos (CRUD) embutido na aba
+    Villa Lobos. Substitui a antiga seção 'Projetos' da sidebar direita.
+
+    Funcionalidades:
+      - Listar / criar / selecionar projeto LILO (memoria persistente).
+      - Notas do projeto (notes.md auto-gerado).
+      - Explorador do diretorio `base_path` com leitura, criacao, edicao
+        e remocao de arquivos/pastas (delete sai com confirmacao dupla).
+
+    Restricao de seguranca: o explorador respeita LILO_DESKTOP_ALLOW. Caminhos
+    fora da allow-list resultam em erro retornado pelo agente Desktop.
+    """
+    st.markdown("#### Projetos")
+
+    # ---- Projetos LILO -----------------------------------------------------
+    cprj1, cprj2 = st.columns([2, 1])
+    with cprj1:
+        projects = memory.list_projects()
+        proj_names = ["-- (sem projeto)"] + [p["name"] for p in projects]
+        proj_ids   = [None]               + [p["id"]   for p in projects]
+        try:
+            cur_idx = proj_ids.index(st.session_state.current_project)
+        except ValueError:
+            cur_idx = 0
+        sel = st.selectbox(
+            "Projeto ativo",
+            range(len(proj_names)),
+            format_func=lambda i: proj_names[i],
+            index=cur_idx,
+            key="villa_proj_select",
+        )
+        if proj_ids[sel] != st.session_state.current_project:
+            st.session_state.current_project = proj_ids[sel]
+            st.rerun()
+    with cprj2:
+        new_proj = st.text_input("Novo projeto", key="villa_new_proj_name",
+                                  placeholder="nome...")
+        if st.button("Criar", key="villa_new_proj_btn",
+                      use_container_width=True):
+            name = (new_proj or "").strip() or (
+                "Projeto " + datetime.now().strftime("%d/%m %H:%M"))
+            pid = memory.new_project(name)
+            st.session_state.current_project = pid
+            st.rerun()
+
+    if st.session_state.current_project:
+        notes_path = memory.get_project_notes_path(
+            st.session_state.current_project)
+        if notes_path:
+            with st.expander("Notas do projeto (notes.md)", expanded=False):
+                from pathlib import Path as _P
+                content = _P(notes_path).read_text(encoding="utf-8")
+                st.code(content, language="markdown")
+                st.download_button(
+                    "Baixar notes.md",
+                    data=content,
+                    file_name="notes.md",
+                    mime="text/markdown",
+                    key="villa_dl_notes_" + st.session_state.current_project,
+                )
+
+    st.markdown("---")
+    st.markdown("#### Explorador de arquivos")
+    st.caption(
+        "CRUD de arquivos e pastas no diretorio base do pipeline. "
+        "Restrito a allow-list (LILO_DESKTOP_ALLOW)."
+    )
+
+    explorer_root = st.text_input(
+        "Pasta a explorar",
+        value=st.session_state.get("villa_explorer_root", base_path or "."),
+        key="villa_explorer_root_input",
+        help="Use caminho absoluto. Default: base_path do pipeline.",
+    )
+    st.session_state.villa_explorer_root = explorer_root
+
+    try:
+        from agents.desktop.agent import DesktopAgent
+        _desktop = DesktopAgent()
+    except Exception as e:
+        st.error("DesktopAgent indisponivel: " + str(e))
+        return
+
+    # ---- Listar conteudo ---------------------------------------------------
+    try:
+        listing = _desktop.fs_list(explorer_root, glob="*", recursive=False,
+                                     limit=500)
+    except TypeError:
+        # Fallback: assinatura antiga ou via run()
+        listing = _desktop.run(
+            "listar diretorio",
+            {"action": "fs_list", "path": explorer_root,
+             "glob": "*", "recursive": False},
+        )
+    with st.expander("Conteudo da pasta", expanded=True):
+        st.code(listing or "(vazio)", language=None)
+
+    # ---- Operacoes CRUD ----------------------------------------------------
+    op_tabs = st.tabs(["Ler", "Escrever / Criar", "Renomear / Mover", "Remover"])
+
+    with op_tabs[0]:  # ---- Ler ------------------------------------------------
+        rd_path = st.text_input(
+            "Caminho do arquivo a ler",
+            key="villa_explorer_read_path",
+            placeholder=str(Path(explorer_root) / "exemplo.py"),
+        )
+        if st.button("Ler arquivo", key="villa_explorer_read_btn",
+                      use_container_width=True):
+            try:
+                content = _desktop.fs_read(rd_path)
+                st.session_state.villa_explorer_last_read = content
+                st.session_state.villa_explorer_last_read_path = rd_path
+                st.success("Arquivo lido (" + str(len(content)) + " chars)")
+            except Exception as e:
+                st.error("Erro: " + str(e))
+        if st.session_state.get("villa_explorer_last_read"):
+            st.caption("Conteudo de " +
+                       st.session_state.get("villa_explorer_last_read_path", ""))
+            st.code(st.session_state["villa_explorer_last_read"][:5000],
+                    language=None)
+
+    with op_tabs[1]:  # ---- Escrever / Criar ----------------------------------
+        wr_path = st.text_input(
+            "Caminho do arquivo (sera criado se nao existir)",
+            key="villa_explorer_write_path",
+            placeholder=str(Path(explorer_root) / "novo.txt"),
+        )
+        wr_content = st.text_area(
+            "Conteudo",
+            key="villa_explorer_write_content",
+            height=200,
+            value=st.session_state.get("villa_explorer_last_read", "")
+                  if st.session_state.get("villa_explorer_last_read_path") == wr_path
+                  else "",
+        )
+        wr_append = st.checkbox(
+            "Append (em vez de sobrescrever)",
+            key="villa_explorer_write_append",
+        )
+        cwx, cmk = st.columns(2)
+        with cwx:
+            if st.button("Salvar arquivo", key="villa_explorer_write_btn",
+                          type="primary", use_container_width=True):
+                try:
+                    res = _desktop.fs_write(wr_path, wr_content,
+                                             append=wr_append)
+                    st.success(res or "Arquivo salvo")
+                except Exception as e:
+                    st.error("Erro: " + str(e))
+        with cmk:
+            new_dir = st.text_input(
+                "Nome de nova pasta (relativa ao root)",
+                key="villa_explorer_mkdir_name",
+                placeholder="subpasta",
+                label_visibility="collapsed",
+            )
+            if st.button("Criar pasta", key="villa_explorer_mkdir_btn",
+                          use_container_width=True):
+                try:
+                    target = Path(explorer_root) / (new_dir or "").strip()
+                    if not (new_dir or "").strip():
+                        st.warning("Informe o nome da pasta")
+                    else:
+                        # Cria pasta usando fs_write em arquivo placeholder
+                        # ou diretamente via Path.mkdir se permitido.
+                        target.mkdir(parents=True, exist_ok=True)
+                        st.success("Pasta criada: " + str(target))
+                        st.rerun()
+                except Exception as e:
+                    st.error("Erro: " + str(e))
+
+    with op_tabs[2]:  # ---- Renomear / Mover ----------------------------------
+        mv_src = st.text_input(
+            "Origem", key="villa_explorer_mv_src",
+            placeholder=str(Path(explorer_root) / "antigo.txt"),
+        )
+        mv_dst = st.text_input(
+            "Destino", key="villa_explorer_mv_dst",
+            placeholder=str(Path(explorer_root) / "novo.txt"),
+        )
+        if st.button("Mover / renomear", key="villa_explorer_mv_btn",
+                      use_container_width=True):
+            try:
+                src_p = Path(mv_src)
+                dst_p = Path(mv_dst)
+                if not src_p.exists():
+                    st.error("Origem nao existe.")
+                else:
+                    src_p.rename(dst_p)
+                    st.success("Movido: " + str(src_p) + " -> " + str(dst_p))
+                    st.rerun()
+            except Exception as e:
+                st.error("Erro: " + str(e))
+
+    with op_tabs[3]:  # ---- Remover --------------------------------------------
+        rm_path = st.text_input(
+            "Caminho a remover",
+            key="villa_explorer_rm_path",
+            placeholder=str(Path(explorer_root) / "obsoleto.txt"),
+        )
+        confirm = st.checkbox(
+            "Confirmo a remocao definitiva",
+            key="villa_explorer_rm_confirm",
+        )
+        if st.button("Remover", key="villa_explorer_rm_btn",
+                      use_container_width=True,
+                      disabled=not confirm):
+            import shutil
+            try:
+                p = Path(rm_path)
+                if not p.exists():
+                    st.error("Caminho nao existe.")
+                elif p.is_dir():
+                    shutil.rmtree(p)
+                    st.success("Pasta removida: " + str(p))
+                    st.rerun()
+                else:
+                    p.unlink()
+                    st.success("Arquivo removido: " + str(p))
+                    st.rerun()
+            except Exception as e:
+                st.error("Erro: " + str(e))
+
+
+with main_col:
+
+    # == CHAT =================================================================
+    if page == "Chat":
+        st.header("Chat LILO")
+
+        # Mostrar mensagens
+        for msg in st.session_state.messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+
+        # ---- Toolbar acima do input (Agir / Perguntar + Anexos) -------------
+        # Estilo Claude Desktop: dois "modos" do agente.
+        #   - act  (✋  mao): LILO executa direto a tarefa (uso de tools/skills)
+        #   - ask  (⚠️ placa): LILO responde sem tomar acao (so consulta/explica)
+        if "lilo_mode" not in st.session_state:
+            st.session_state.lilo_mode = "act"
+
+        st.markdown("""
+<style>
+.lilo-mode-bar { display:flex; gap:6px; margin: 6px 0 8px 0; align-items:center; }
+.lilo-mode-bar .stButton > button {
+    border-radius: 999px !important;
+    padding: 4px 14px !important;
+    font-size: 0.85rem !important;
+    border: 1px solid rgba(255,255,255,0.14) !important;
+    background: rgba(255,255,255,0.04) !important;
+    color: rgba(255,255,255,0.78) !important;
+    transition: all 0.15s ease;
+}
+.lilo-mode-bar .stButton > button:hover {
+    background: rgba(255,255,255,0.10) !important;
+    color: #fff !important;
+}
+.lilo-mode-active .stButton > button {
+    background: linear-gradient(135deg,#2E7D32,#43A047) !important;
+    color: #fff !important;
+    border-color: rgba(255,255,255,0.20) !important;
+    box-shadow: 0 2px 8px rgba(46,125,50,0.30);
+}
+</style>
+        """, unsafe_allow_html=True)
+
+        st.markdown('<div class="lilo-mode-bar">', unsafe_allow_html=True)
+        mc1, mc2, mc3 = st.columns([1, 1, 6])
+        with mc1:
+            wrap_act = "lilo-mode-active" if st.session_state.lilo_mode == "act" else ""
+            st.markdown(f'<div class="{wrap_act}">', unsafe_allow_html=True)
+            if st.button("✋ Agir", key="lilo_mode_act",
+                          help="LILO executa diretamente a tarefa (usa tools, "
+                               "filesystem, shell, escreve arquivos). Modo padrao."):
+                st.session_state.lilo_mode = "act"
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+        with mc2:
+            wrap_ask = "lilo-mode-active" if st.session_state.lilo_mode == "ask" else ""
+            st.markdown(f'<div class="{wrap_ask}">', unsafe_allow_html=True)
+            if st.button("⚠️ Perguntar", key="lilo_mode_ask",
+                          help="LILO responde sem tomar acoes. Util para "
+                               "consultar, planejar, ou validar antes de agir."):
+                st.session_state.lilo_mode = "ask"
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+        with mc3:
+            _mode_label = ("Modo: AGIR -- LILO executa" if
+                           st.session_state.lilo_mode == "act"
+                           else "Modo: PERGUNTAR -- LILO so responde, sem agir")
+            st.caption(_mode_label)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Anexos via popover (+) -- substitui sidebar 'Anexos'
+        _render_attachments_popover("chat")
+
+        # Input com slash commands
+        _placeholder = (
+            "Digite uma instrucao para o LILO executar... (/ para skills)"
+            if st.session_state.lilo_mode == "act"
+            else "Digite uma pergunta -- LILO nao tomara acoes (/ para skills)"
+        )
+        prompt = st.chat_input(_placeholder)
+
+        if prompt:
+            # Slash command: listar ou executar skill
+            if prompt.startswith("/"):
+                # Parsing v10.2.1: separa nome_skill de args (formato "/nome key=val")
+                parts = prompt[1:].split()
+                skill_name = parts[0] if parts else ""
+                skill_args_raw = parts[1:]
+
+                registry = load_skills_list()
+                all_skills = registry.get("skills", [])
+                # Match exato do nome (executar) tem prioridade sobre busca
+                exact = next(
+                    (s for s in all_skills if s["name"] == skill_name),
+                    None,
+                )
+
+                # Caso 1: nome exato + tem argumentos -> executar com args
+                # Caso 2: nome exato sem args -> executar com {} (tools com defaults)
+                # Caso 3: nome parcial -> listar matches (autocomplete)
+                if exact and (skill_args_raw or "=" not in prompt):
+                    skill_args = {}
+                    for p in skill_args_raw:
+                        if "=" in p:
+                            k, v = p.split("=", 1)
+                            skill_args[k] = v
+                    try:
+                        from lilo_skills import call_skill
+                        result = call_skill(skill_name, skill_args)
+                        st.session_state.messages.append(
+                            {"role": "user", "content": prompt})
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": "```\n" + str(result) + "\n```",
+                        })
+                    except Exception as e:
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": "Erro skill: " + str(e),
+                        })
+                    st.rerun()
+                else:
+                    # Listar matches (autocomplete)
+                    skill_query = skill_name.lower() if skill_name else ""
+                    if skill_query:
+                        matched = [
+                            s for s in all_skills
+                            if skill_query in s["name"].lower()
+                            or any(skill_query in t for t in s.get("tags", []))
+                        ]
+                    else:
+                        matched = all_skills[:30]
+
+                    if matched:
+                        lines = [
+                            "**Skills disponiveis** (/" + skill_query + "):"]
+                        for s in matched[:20]:
+                            tags = ", ".join(s.get("tags", []))
+                            lines.append(
+                                "- `/" + s["name"] + "` ("
+                                + s.get("source_package", "")
+                                + ") [" + tags + "]"
+                            )
+                        lines.append("")
+                        lines.append(
+                            "Use `/<nome_skill>` (sem args) ou "
+                            "`/<nome_skill> arg1=val1 arg2=val2` para executar."
+                        )
+                        skill_response = "\n".join(lines)
+                        st.session_state.messages.append({
+                            "role": "assistant", "content": skill_response,
+                        })
+                        st.rerun()
+                    else:
+                        st.info(
+                            "Nenhuma skill encontrada para: " + skill_query)
+            else:
+                # Chat normal
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                with st.chat_message("user"):
+                    st.markdown(prompt)
+
+                # Garantir chat ativo
+                if not st.session_state.current_chat_id:
+                    st.session_state.current_chat_id = memory.new_chat(
+                        title=prompt[:60], subagent="chat",
+                        project_id=st.session_state.current_project)
+                memory.add_message(st.session_state.current_chat_id, "user", prompt)
+
+                with st.chat_message("assistant"):
+                    with st.spinner("Pensando..."):
+                        try:
+                            from lilo import route
+                            # Incluir contexto de arquivos anexados
+                            ctx = {"mode": mode}
+                            # Modo Agir/Perguntar (estilo Claude Desktop):
+                            # - act: agente pode usar tools, executar, escrever.
+                            # - ask: agente apenas responde, sem tools.
+                            _lilo_mode = st.session_state.get("lilo_mode", "act")
+                            ctx["intent"] = _lilo_mode
+                            ctx["allow_tools"] = (_lilo_mode == "act")
+                            ctx["system_hint"] = (
+                                "Modo AGIR: voce pode executar a tarefa, usar "
+                                "tools/skills, escrever arquivos. Seja proativo."
+                                if _lilo_mode == "act"
+                                else "Modo PERGUNTAR: apenas responda. Nao "
+                                     "execute, nao escreva arquivos. Se a tarefa "
+                                     "exigir acao, descreva os passos sem fazer."
+                            )
+                            if st.session_state.attached_files:
+                                ctx["attached_files"] = [f.name for f in st.session_state.attached_files]
+                            # Auto-consulta de notas do projeto: injeta o
+                            # notes.md como contexto no inicio da conversa
+                            # (Task 4 — auto-update + auto-consulta).
+                            if st.session_state.current_project:
+                                proj_ctx = memory.build_project_context(
+                                    st.session_state.current_project,
+                                    max_chars=3000)
+                                if proj_ctx:
+                                    ctx["project_notes"] = proj_ctx
+                            # Sintese de diretorio anexado (Task 2)
+                            if st.session_state.get("last_synthesis_md"):
+                                synth_p = Path(st.session_state["last_synthesis_md"])
+                                if synth_p.exists():
+                                    synth_md = synth_p.read_text(encoding="utf-8")
+                                    # truncamos para nao explodir o prompt
+                                    ctx["dir_synthesis"] = synth_md[:4000]
+                                    ctx["dir_synthesis_path"] = str(synth_p)
+                            response = route(prompt, context=ctx)
+                        except Exception as e:
+                            response = "Erro: " + str(e)
+                    # V10.5: exibicao progressiva (streaming visual) estilo Cowork.
+                    if cowork and st.session_state.get("stream_chat", True):
+                        try:
+                            st.write_stream(cowork.stream_words(response))
+                        except Exception:
+                            st.markdown(response)
+                    else:
+                        st.markdown(response)
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": response})
+                    memory.add_message(st.session_state.current_chat_id, "assistant", response)
+                    # Auto-update das notas do projeto apos cada turno
+                    # (Task 4) — sem gastar tokens (resumo heuristico).
+                    if st.session_state.current_project:
+                        try:
+                            memory.update_project_notes_after_chat(
+                                project_id=st.session_state.current_project,
+                                chat_id=st.session_state.current_chat_id,
+                                tags=[mode] if mode else None,
+                                status="ok",
+                            )
+                        except Exception as ne:
+                            # Nunca quebrar o chat por falha em nota
+                            st.caption(f"(aviso: nota nao atualizada: {ne})")
+
+        # Botao stop (visivel durante execucao)
+        if st.session_state.running:
+            stop_button("stop_chat")
+
+
+    # == SQL ==================================================================
+    elif page == "SQL":
+        st.header("Analise SQL")
+        col1, col2 = st.columns([2, 1])
+        with col2:
+            db_files = list(_ROOT.rglob("*.db")) + list(_ROOT.rglob("*.sqlite"))
+            db_names = [str(f.relative_to(_ROOT)) for f in db_files]
+            selected_db = st.selectbox(
+                "Banco de dados",
+                db_names if db_names else ["Nenhum encontrado"])
+            if selected_db and selected_db != "Nenhum encontrado":
+                import sqlite3
+                db_path = _ROOT / selected_db
+                try:
+                    conn = sqlite3.connect(str(db_path))
+                    tables = pd.read_sql(
+                        "SELECT name FROM sqlite_master WHERE type='table'", conn)
+                    st.dataframe(tables, use_container_width=True)
+                    if not tables.empty:
+                        selected_table = st.selectbox("Tabela", tables["name"].tolist())
+                        if selected_table:
+                            schema = pd.read_sql(
+                                "PRAGMA table_info(" + selected_table + ")", conn)
+                            st.dataframe(
+                                schema[["name", "type"]],
+                                use_container_width=True)
+                    conn.close()
+                except Exception as e:
+                    st.error("Erro: " + str(e))
+        with col1:
+            _render_attachments_popover("sql")
+            query_input = st.text_area(
+                "Query SQL ou pergunta (/ para skills)",
+                height=100,
+                placeholder="SELECT * FROM tabela LIMIT 10")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                run_sql = st.button("Executar SQL", type="primary")
+            with c2:
+                ask_lilo = st.button("Perguntar ao LILO")
+            with c3:
+                if st.session_state.running:
+                    stop_button("stop_sql")
+
+            if run_sql and query_input:
                 if selected_db and selected_db != "Nenhum encontrado":
                     try:
-                        conn = sqlite3.connect(str(_ROOT / selected_db))
+                        import sqlite3 as sql3
+                        conn = sql3.connect(str(_ROOT / selected_db))
                         df = pd.read_sql(query_input, conn)
                         conn.close()
                         st.dataframe(df, use_container_width=True)
-                        st.info(f"{len(df)} registros retornados")
+                        st.info(str(len(df)) + " registros")
                     except Exception as e:
-                        st.error(f"Erro SQL: {e}")
+                        st.error("Erro SQL: " + str(e))
 
-        with col_ai:
-            if st.button("Perguntar ao LILO") and query_input:
+            if ask_lilo and query_input:
                 with st.spinner("Processando..."):
                     if "sql" in agents:
                         ctx = {}
                         if selected_db and selected_db != "Nenhum encontrado":
                             ctx["db_path"] = str(_ROOT / selected_db)
-                        response = agents["sql"].run(query_input, ctx)
-                        st.markdown(response)
+                        st.markdown(agents["sql"].run(query_input, ctx))
                     else:
-                        st.error("SQLAgent não disponível")
+                        st.error("SQLAgent indisponivel")
 
 
-# ── Página: PDFs ─────────────────────────────────────────────────────────────
-elif page == "PDFs":
-    st.header("Biblioteca de PDFs")
+    # == PDFs =================================================================
+    elif page == "PDFs":
+        st.header("Biblioteca de PDFs")
+        # Anexar PDFs via popover (+) -- substitui sidebar 'Anexos'
+        _render_attachments_popover("pdfs")
 
-    pdf_dir = Path(get_env("PDF_DIR", str(_ROOT / "PDFs_library" / "data")))
+        # --- Botoes de gestao da biblioteca (Task 5) ------------------------
+        # Disparam o scanner offline e abrem a UI independente.
+        _SCANNER_PATH = _ROOT / "agents" / "PDFs_library" / "scripts" / "build_workaholics_db.py"
+        _LIBAPP_PATH = _ROOT / "agents" / "PDFs_library" / "scripts" / "library_app.py"
+        _WORKHOL_DEFAULT = r"D:\OneDrive\Documentos\Workaholics"
 
-    col1, col2 = st.columns([1, 2])
+        bcol1, bcol2, bcol3, bcol4 = st.columns(4)
+        with bcol1:
+            if st.button("📁 Incluir pastas", use_container_width=True,
+                          help="Adicionar diretorio e indexar PDFs"):
+                st.session_state["_pdf_show_addfolder"] = True
+        with bcol2:
+            if st.button("📄 Incluir PDF", use_container_width=True,
+                          help="Adicionar PDF avulso"):
+                st.session_state["_pdf_show_addpdf"] = True
+        with bcol3:
+            if st.button("🔄 Atualizar diretorios",
+                          use_container_width=True,
+                          type="primary",
+                          help="Re-indexa Workaholics em background"):
+                try:
+                    import subprocess
+                    subprocess.Popen(
+                        [sys.executable, str(_SCANNER_PATH),
+                         "--root", _WORKHOL_DEFAULT],
+                        creationflags=getattr(subprocess,
+                                              "CREATE_NEW_CONSOLE", 0))
+                    st.success("Scanner disparado em janela separada.")
+                except Exception as e:
+                    st.error("Erro: " + str(e))
+        with bcol4:
+            if st.button("🌐 Abrir biblioteca",
+                          use_container_width=True,
+                          help="Abre UI Streamlit independente em :8101"):
+                try:
+                    import subprocess
+                    import webbrowser
+                    # Inicia em janela separada (so se ainda nao estiver rodando)
+                    subprocess.Popen(
+                        [sys.executable, "-m", "streamlit", "run",
+                         str(_LIBAPP_PATH), "--server.port", "8101",
+                         "--server.headless", "true"],
+                        creationflags=getattr(subprocess,
+                                              "CREATE_NEW_CONSOLE", 0))
+                    time.sleep(1.5)
+                    webbrowser.open("http://localhost:8101", new=2)
+                except Exception as e:
+                    st.error("Erro: " + str(e))
 
-    with col1:
-        st.subheader("Arquivos")
-        # Buscar em múltiplos diretórios
-        pdf_files = list(pdf_dir.rglob("*.pdf")) if pdf_dir.exists() else []
-        pdf_files += list((_ROOT / "PDFs_library").rglob("*.pdf"))
-        pdf_files += list((_ROOT / "scholaragent" / "uploads").rglob("*.pdf"))
-        # Remover duplicatas
-        pdf_files = list({str(f): f for f in pdf_files}.values())
-
-        if pdf_files:
-            pdf_names = [f.name for f in pdf_files]
-            selected_pdf = st.selectbox("Selecione um PDF", pdf_names)
-            selected_path = next(f for f in pdf_files if f.name == selected_pdf)
-            st.caption(f"Caminho: {selected_path}")
-        else:
-            st.warning(f"Nenhum PDF encontrado em {pdf_dir}")
-            selected_pdf = None
-            selected_path = None
-
-        # Upload
-        uploaded = st.file_uploader("Upload PDF", type=["pdf"])
-        if uploaded:
-            save_path = pdf_dir / uploaded.name
-            pdf_dir.mkdir(parents=True, exist_ok=True)
-            with open(save_path, "wb") as f:
-                f.write(uploaded.getbuffer())
-            st.success(f"Salvo em {save_path}")
-            st.rerun()
-
-    with col2:
-        if selected_path:
-            analysis_mode = st.radio(
-                "Modo de análise",
-                ["simple", "introduction", "methods"],
-                horizontal=True,
-            )
-
-            if st.button("Analisar PDF", type="primary"):
-                with st.spinner(f"Analisando {selected_pdf}..."):
-                    if "pdf" in agents:
-                        response = agents["pdf"].run(
-                            f"Analisar {selected_pdf}",
-                            {"file_path": str(selected_path), "mode": analysis_mode},
-                        )
-                        st.markdown(response)
+        # Form: incluir pastas
+        if st.session_state.get("_pdf_show_addfolder"):
+            with st.expander("Incluir pasta", expanded=True):
+                fp = st.text_input(
+                    "Caminho da pasta",
+                    placeholder=_WORKHOL_DEFAULT,
+                    key="pdf_addfolder_path")
+                if st.button("Indexar pasta", key="pdf_addfolder_run",
+                              type="primary"):
+                    if fp and Path(fp).is_dir():
+                        try:
+                            import subprocess
+                            subprocess.Popen(
+                                [sys.executable, str(_SCANNER_PATH),
+                                 "--root", fp],
+                                creationflags=getattr(subprocess,
+                                                      "CREATE_NEW_CONSOLE", 0))
+                            st.success(f"Indexando: {fp}")
+                            st.session_state["_pdf_show_addfolder"] = False
+                        except Exception as e:
+                            st.error(str(e))
                     else:
-                        st.error("PDFAgent não disponível")
+                        st.error("Caminho invalido.")
 
+        # Form: incluir PDF avulso
+        if st.session_state.get("_pdf_show_addpdf"):
+            with st.expander("Incluir PDF avulso", expanded=True):
+                up_avulso = st.file_uploader(
+                    "PDFs", type=["pdf"], accept_multiple_files=True,
+                    key="pdf_avulso_uploader")
+                dest = st.text_input(
+                    "Pasta destino (sera indexada)",
+                    value=str(_ROOT / "agents" / "PDFs_library" / "data"),
+                    key="pdf_avulso_dest")
+                if up_avulso and dest and st.button(
+                        "Salvar e indexar", key="pdf_avulso_save",
+                        type="primary"):
+                    Path(dest).mkdir(parents=True, exist_ok=True)
+                    for u in up_avulso:
+                        with open(Path(dest) / u.name, "wb") as f:
+                            f.write(u.getbuffer())
+                    try:
+                        import subprocess
+                        subprocess.Popen(
+                            [sys.executable, str(_SCANNER_PATH),
+                             "--root", dest],
+                            creationflags=getattr(subprocess,
+                                                  "CREATE_NEW_CONSOLE", 0))
+                        st.success(f"{len(up_avulso)} PDF(s) salvos e indexando.")
+                        st.session_state["_pdf_show_addpdf"] = False
+                    except Exception as e:
+                        st.error(str(e))
 
-# ── Página: Scholar ──────────────────────────────────────────────────────────
-elif page == "Scholar":
-    st.header("Busca Acadêmica")
+        st.markdown("---")
 
-    search_query = st.text_input(
-        "Termos de busca",
-        placeholder="Ex: CRISPR-Cas9 Trypanosoma cruzi drug targets",
-    )
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        source = st.selectbox("Fonte", ["auto", "pubmed", "arxiv"])
-    with col2:
-        max_results = st.slider("Max resultados", 1, 20, 5)
-    with col3:
-        synthesize = st.checkbox("Sintetizar com LLM", value=True)
-
-    if st.button("Buscar", type="primary") and search_query:
-        with st.spinner("Buscando artigos..."):
-            if "scholar" in agents:
-                response = agents["scholar"].run(
-                    search_query,
-                    {"source": source, "max_results": max_results, "synthesize": synthesize},
-                )
-                st.markdown(response)
-            else:
-                st.error("ScholarAgent não disponível")
-
-
-# ── Página: Custos ──────────────────────────────────────────────────────────
-elif page == "Custos":
-    st.header("Monitoramento de Custos")
-
-    try:
-        from shared.cost_tracker import get_tracker
-        tracker = get_tracker()
-        summary = tracker.daily_summary()
-
-        col1, col2, col3, col4 = st.columns(4)
+        pdf_dir = Path(get_env("PDF_DIR", str(_ROOT / "agents" / "PDFs_library" / "data")))
+        col1, col2 = st.columns([1, 2])
         with col1:
-            st.metric("Requests hoje", summary["total_requests"])
-        with col2:
-            st.metric("Custo total", f"${summary['total_cost_usd']:.4f}")
-        with col3:
-            st.metric("Tokens IN", summary["total_tokens_in"])
-        with col4:
-            st.metric("Tokens OUT", summary["total_tokens_out"])
-
-        st.divider()
-
-        col_be, col_sa = st.columns(2)
-        with col_be:
-            st.subheader("Por Backend")
-            if summary["by_backend"]:
-                be_df = pd.DataFrame([
-                    {"Backend": k, "Requests": v["count"], "Custo": f"${v['cost']:.4f}"}
-                    for k, v in summary["by_backend"].items()
-                ])
-                st.dataframe(be_df, use_container_width=True, hide_index=True)
-
-        with col_sa:
-            st.subheader("Por Subagente")
-            if summary["by_subagent"]:
-                sa_df = pd.DataFrame([
-                    {"Subagente": k, "Requests": v["count"], "Custo": f"${v['cost']:.4f}"}
-                    for k, v in summary["by_subagent"].items()
-                ])
-                st.dataframe(sa_df, use_container_width=True, hide_index=True)
-
-        st.divider()
-        st.subheader("Últimas Requests")
-        recent = tracker.recent_requests(20)
-        if recent:
-            recent_df = pd.DataFrame(recent)
-            cols_show = [c for c in ["timestamp", "subagent", "tier", "model", "cost_usd", "duration_ms", "query_preview"] if c in recent_df.columns]
-            st.dataframe(recent_df[cols_show], use_container_width=True, hide_index=True)
-        else:
-            st.info("Nenhuma request registrada ainda.")
-
-    except Exception as e:
-        st.error(f"Erro ao carregar custos: {e}")
-
-
-# ── Página: Health ───────────────────────────────────────────────────────────
-elif page == "Health":
-    st.header("Diagnóstico LILO")
-
-    if st.button("Executar Health Check", type="primary"):
-        with st.spinner("Verificando backends..."):
-            # Ollama
-            ollama_ok, models = check_ollama()
-            gpu_models = check_ollama_gpu()
-
-            # Tabela de status
-            status_data = []
-
-            status_data.append({
-                "Componente": "Ollama",
-                "Status": "Online" if ollama_ok else "Offline",
-                "Detalhes": f"{len(models)} modelos" if ollama_ok else "Não respondeu",
-            })
-
-            # Modelos LILO esperados
-            expected = {
-                "chat": get_env("OLLAMA_MODEL", "llama3.1:8b-instruct-q8_0"),
-                "code": get_env("OLLAMA_MODEL_CODE", "qwen2.5-coder:14b"),
-                "plan": get_env("OLLAMA_MODEL_PLAN", "phi3:14b-medium-128k-instruct-q4_K_M"),
-                "fast": get_env("OLLAMA_MODEL_FAST", "qwen2.5-coder:7b-instruct"),
-            }
-
-            for role, model_name in expected.items():
-                installed = model_name in models if ollama_ok else False
-                status_data.append({
-                    "Componente": f"Modelo ({role})",
-                    "Status": "Instalado" if installed else "Faltando",
-                    "Detalhes": model_name,
-                })
-
-            # GPU
-            if gpu_models:
-                for gm in gpu_models:
-                    vram = gm.get("size_vram", 0) / 1e9
-                    status_data.append({
-                        "Componente": "GPU",
-                        "Status": "Ativo",
-                        "Detalhes": f"{gm.get('name', '?')} — {vram:.1f} GB VRAM",
-                    })
+            st.subheader("Arquivos")
+            pdf_files = list(pdf_dir.rglob("*.pdf")) if pdf_dir.exists() else []
+            pdf_files += list((_ROOT / "agents" / "PDFs_library").rglob("*.pdf"))
+            pdf_files = list({str(f): f for f in pdf_files}.values())
+            # Incluir anexos
+            if st.session_state.attached_files:
+                for af in st.session_state.attached_files:
+                    if af.name.endswith(".pdf"):
+                        save_path = pdf_dir / af.name
+                        pdf_dir.mkdir(parents=True, exist_ok=True)
+                        with open(save_path, "wb") as fout:
+                            fout.write(af.getbuffer())
+                        pdf_files.append(save_path)
+            if pdf_files:
+                pdf_names = [f.name for f in pdf_files]
+                selected_pdf = st.selectbox("Selecione um PDF", pdf_names)
+                selected_path = next(f for f in pdf_files if f.name == selected_pdf)
+                st.caption("Caminho: " + str(selected_path))
             else:
-                status_data.append({
-                    "Componente": "GPU",
-                    "Status": "N/A",
-                    "Detalhes": "Nenhum modelo na GPU",
-                })
+                st.warning("Nenhum PDF encontrado")
+                selected_pdf = None
+                selected_path = None
+            up_pdf = st.file_uploader("Upload PDF", type=["pdf"])
+            if up_pdf:
+                save_path = pdf_dir / up_pdf.name
+                pdf_dir.mkdir(parents=True, exist_ok=True)
+                with open(save_path, "wb") as fout:
+                    fout.write(up_pdf.getbuffer())
+                st.success("Salvo: " + str(save_path))
+                st.rerun()
+        with col2:
+            if selected_path:
+                analysis_mode = st.radio(
+                    "Modo", ["simple", "introduction", "methods"],
+                    horizontal=True)
+                c1, c2 = st.columns([2, 1])
+                with c1:
+                    run_pdf = st.button("Analisar PDF", type="primary")
+                with c2:
+                    if st.session_state.running:
+                        stop_button("stop_pdf")
+                if run_pdf:
+                    with st.spinner("Analisando " + selected_pdf + "..."):
+                        if "pdf" in agents:
+                            st.markdown(agents["pdf"].run(
+                                "Analisar " + selected_pdf,
+                                {"file_path": str(selected_path),
+                                 "mode": analysis_mode}))
+                        else:
+                            st.error("PDFAgent indisponivel")
 
-            # Subagentes
-            for key, label in agent_labels.items():
-                status_data.append({
-                    "Componente": f"Agent: {label}",
-                    "Status": "OK" if key in agents else "Erro",
-                    "Detalhes": "" if key in agents else agent_errors.get(key, "?")[:60],
-                })
 
-            # LiteLLM
+    # == Scholar ==============================================================
+    elif page == "Scholar":
+        st.header("Busca Academica")
+        _render_attachments_popover("scholar")
+        search_query = st.text_input(
+            "Termos de busca",
+            placeholder="Ex: CRISPR-Cas9 Trypanosoma cruzi drug targets")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            _src_opts = (cowork.SCHOLAR_SOURCES if cowork
+                         else ["auto", "pubmed", "arxiv"])
+            source = st.selectbox(
+                "Fonte", _src_opts,
+                format_func=(lambda s: cowork.SOURCE_LABELS.get(s, s)) if cowork else str,
+                help=("Fontes publicas (sem chave): PubMed, arXiv, "
+                      "ClinicalTrials.gov, Open Targets, NPI, Crossref, "
+                      "Semantic Scholar. 'all' agrega todas."))
+        with c2:
+            max_results = st.slider("Max resultados", 1, 20, 5)
+        with c3:
+            synthesize = st.checkbox("Sintetizar com LLM", value=True)
+        bc1, bc2 = st.columns([2, 1])
+        with bc1:
+            run_scholar = st.button("Buscar", type="primary")
+        with bc2:
+            if st.session_state.running:
+                stop_button("stop_scholar")
+        if run_scholar and search_query:
+            with st.spinner("Buscando artigos..."):
+                if "scholar" in agents:
+                    result = agents["scholar"].run(
+                        search_query,
+                        {"source": source, "max_results": max_results,
+                         "synthesize": synthesize})
+                    st.markdown(result)
+                    # Salvar no historico
+                    if not st.session_state.current_chat_id:
+                        st.session_state.current_chat_id = memory.new_chat(
+                            title="Scholar: " + search_query[:40], subagent="scholar")
+                    memory.add_message(st.session_state.current_chat_id, "user", search_query)
+                    memory.add_message(st.session_state.current_chat_id, "assistant", result)
+                else:
+                    st.error("ScholarAgent indisponivel")
+
+
+    # == Prism AI =============================================================
+    elif page == "Prism AI":
+        st.header("Prism AI -- Analise Cientifica")
+        st.caption("Pipeline: deteccao > estatistica > graficos > texto > exportacao")
+        _render_attachments_popover("prism")
+        prism = agents.get("prism")
+        if prism:
+            up_data = st.file_uploader("Dados experimentais", type=["xlsx", "csv", "tsv"])
+            c1, c2 = st.columns(2)
+            with c1:
+                lang = st.selectbox("Idioma do texto", ["en", "pt"])
+            with c2:
+                alpha = st.number_input(
+                    "Significancia", value=0.05,
+                    min_value=0.001, max_value=0.20,
+                    step=0.01, format="%.3f")
+            bc1, bc2 = st.columns([2, 1])
+            with bc1:
+                run_prism = st.button("Executar Pipeline", type="primary")
+            with bc2:
+                if st.session_state.running:
+                    stop_button("stop_prism")
+            if up_data and run_prism:
+                import tempfile
+                with tempfile.NamedTemporaryFile(
+                        delete=False, suffix=Path(up_data.name).suffix) as tmp:
+                    tmp.write(up_data.read())
+                    tmp_path = tmp.name
+                output_dir = str(Path(tmp_path).parent / "prism_output")
+                with st.spinner("Pipeline Prism AI..."):
+                    result = prism.run(
+                        "analyze " + tmp_path,
+                        context={"file_path": tmp_path,
+                                 "output_dir": output_dir,
+                                 "language": lang, "alpha": alpha,
+                                 "enhance_with_llm": True})
+                st.markdown(result)
+                out_path = Path(output_dir)
+                if out_path.exists():
+                    for img in out_path.glob("*.png"):
+                        st.image(str(img), caption=img.stem,
+                                 use_container_width=True)
+                    for pzfx in out_path.glob("*.pzfx"):
+                        with open(pzfx, "r") as fh:
+                            st.download_button(
+                                "Baixar .pzfx", fh.read(),
+                                file_name=pzfx.name, mime="application/xml")
+            with st.expander("Status Prism AI"):
+                health = prism.health()
+                for pkg, status in health.get("dependencies", {}).items():
+                    if status == "ok":
+                        st.success(pkg)
+                    else:
+                        st.error(pkg + ": " + str(status))
+        else:
+            st.error("PrismAgent: " + agent_errors.get("prism", "?"))
+
+
+    # == Villa Lobos ==========================================================
+    elif page == "Villa Lobos":
+        st.header("Villa Lobos -- Pipeline Multi-Estagio")
+        st.caption("Orchestrator > Planner > Reader > Worker > Reporter")
+
+        # 2026-05-08: a aba Villa agora hospeda o gerenciador de Projetos +
+        # Explorador de arquivos (antes na sidebar direita). Selector simples
+        # entre 'Pipeline' (default) e 'Projeto & Arquivos'.
+        villa_view = st.radio(
+            "Modo da aba Villa",
+            ["Pipeline", "Projeto & Arquivos"],
+            horizontal=True,
+            label_visibility="collapsed",
+            key="villa_view_mode",
+        )
+
+        if villa_view == "Projeto & Arquivos":
+            _render_villa_project_explorer(
+                base_path=st.session_state.get("villa_base_path", ".")
+            )
+            st.stop()
+
+        # Anexos como popover (+) acima do input -- substitui a antiga
+        # sidebar 'Anexos'.
+        _render_attachments_popover("villa")
+
+        task_input = st.text_area(
+            "Tarefa para o pipeline (/ para skills)",
+            height=100,
+            placeholder="Descreva a tarefa...")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            iterations = st.number_input(
+                "Iteracoes do Worker",
+                value=2, min_value=1, max_value=5,
+                help=(
+                    "Quantas vezes o Worker re-executa a tarefa, refinando o "
+                    "resultado anterior. Default 2 = sweet spot para research-grade "
+                    "(DM, sintese de literatura, analise estatistica profunda). "
+                    "1 = resposta unica e rapida (~1-2 min). "
+                    "2 = refinamento com auto-critica (~3-5 min). "
+                    "3-5 = analise iterativa profunda (~5-15 min) — usar com cautela "
+                    "na RTX 3060, pode saturar VRAM com modelos 14B."
+                ),
+            )
+        with c2:
+            use_reader = st.checkbox(
+                "Usar Reader",
+                value=True,
+                help=(
+                    "Ativa o estagio 3/5 do pipeline (Reader). O Reader le o plano "
+                    "do Planner e identifica que arquivos/contexto sao necessarios "
+                    "no diretorio Base path. Util quando: a tarefa precisa consultar "
+                    "estrutura do projeto, analisar codigo existente, ou referenciar "
+                    "PDFs locais. DESLIGUE quando: a tarefa e generica (ex: 'explique "
+                    "tripanotione redutase') e nao depende de arquivos seus — economiza "
+                    "~30 segundos por execucao."
+                ),
+            )
+        with c3:
+            base_path = st.text_input(
+                "Base path",
+                value=st.session_state.get("villa_base_path", "."),
+                key="villa_base_path",
+                help=(
+                    "Diretorio raiz que o Reader vai inspecionar. Default '.' = raiz "
+                    "do projeto LILO (C:\\Users\\luizd\\OneDrive\\Data_Science\\Projetos"
+                    "\\IA.agente). Use caminho ABSOLUTO para apontar para outro projeto, "
+                    "ex: D:\\OneDrive\\Documentos\\Workaholics\\Artigos PDF para "
+                    "consultar artigos cientificos. Tambem usado pela aba "
+                    "'Projeto & Arquivos' como root do explorador."
+                ),
+            )
+        bc1, bc2 = st.columns([2, 1])
+        with bc1:
+            run_villa = st.button("Executar Pipeline", type="primary")
+        with bc2:
+            if st.session_state.running:
+                stop_button("stop_villa")
+        if run_villa and task_input:
+            st.session_state.running = True
             try:
-                r = requests.get(f"{get_env('LITELLM_PROXY_URL', 'http://localhost:4000')}/health", timeout=2)
-                litellm_ok = r.status_code == 200
-            except Exception:
-                litellm_ok = False
+                # V10.5: progresso stage-a-stage (Cowork-like) quando disponivel.
+                if cowork:
+                    result = cowork.run_villa_with_progress(
+                        st, task_input, iterations=iterations,
+                        allow_delegate=True, use_reader=use_reader,
+                        base_path=base_path)
+                else:
+                    from lilo import handle_tool_call
+                    with st.spinner("Pipeline Villa Lobos em execucao..."):
+                        result = handle_tool_call("villa_pipeline", {
+                            "query": task_input,
+                            "iterations": iterations,
+                            "use_reader": use_reader,
+                            "base_path": base_path})
+                st.markdown(result)
+                # Salvar no historico
+                if not st.session_state.current_chat_id:
+                    st.session_state.current_chat_id = memory.new_chat(
+                        title="Villa: " + task_input[:40], subagent="villa")
+                memory.add_message(st.session_state.current_chat_id, "user", task_input)
+                memory.add_message(st.session_state.current_chat_id, "assistant", result)
+            except Exception as e:
+                st.error("Erro: " + str(e))
+            finally:
+                st.session_state.running = False
 
-            status_data.append({
-                "Componente": "LiteLLM Proxy",
-                "Status": "Online" if litellm_ok else "Offline",
-                "Detalhes": get_env("LITELLM_PROXY_URL", "http://localhost:4000"),
-            })
+        # Quick Ask
+        st.divider()
+        st.subheader("Quick Ask")
+        qa_input = st.text_input("Pergunta rapida a um agente (/ para skills)")
+        qa_agent = st.selectbox(
+            "Agente", ["worker", "planner", "reader", "orchestrator", "reporter"])
+        bc1, bc2 = st.columns([2, 1])
+        with bc1:
+            run_qa = st.button("Perguntar")
+        with bc2:
+            if st.session_state.running:
+                stop_button("stop_qa")
+        if run_qa and qa_input:
+            with st.spinner("Consultando..."):
+                st.session_state.running = True
+                try:
+                    from lilo import handle_tool_call
+                    result = handle_tool_call("villa_quick_ask", {
+                        "query": qa_input, "agent": qa_agent})
+                    st.markdown(result)
+                except Exception as e:
+                    st.error("Erro: " + str(e))
+                finally:
+                    st.session_state.running = False
 
-            df = pd.DataFrame(status_data)
-            st.dataframe(df, use_container_width=True, hide_index=True)
-
-            # Lista completa de modelos
-            if ollama_ok and models:
-                with st.expander("Todos os modelos Ollama"):
-                    for m in sorted(models):
-                        st.code(m)
 
 
-# ── Footer ───────────────────────────────────────────────────────────────────
-st.sidebar.divider()
-st.sidebar.caption(f"LILO v{get_env('LILO_VERSION', '1.0.0')} — {datetime.now().strftime('%H:%M:%S')}")
+        # ── Card 3D: LLMs default por estagio (rodape da pagina) ─────────────
+        try:
+            from agents.villa_lobos.agent import VILLA_MODELS as _VM
+            _vm_orchestrator = _VM.get("orchestrator", "?")
+            _vm_planner      = _VM.get("planner", "?")
+            _vm_reader       = _VM.get("reader", "?")
+            _vm_worker       = _VM.get("worker", "?")
+            _vm_reporter     = _VM.get("reporter", "?")
+        except Exception:
+            _vm_orchestrator = get_env("OLLAMA_MODEL", "llama3.1:8b-instruct-q8_0")
+            _vm_planner      = get_env("OLLAMA_MODEL_PLAN", "phi3:14b-medium-128k-instruct-q4_K_M")
+            _vm_reader       = get_env("OLLAMA_MODEL_CODE", "qwen2.5-coder:14b")
+            _vm_worker       = get_env("OLLAMA_MODEL_CODE", "qwen2.5-coder:14b")
+            _vm_reporter     = get_env("OLLAMA_MODEL", "llama3.1:8b-instruct-q8_0")
+
+        st.markdown(
+            f"""
+<style>
+.villa-3d-card {{
+    background: linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #388E3C 100%);
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin: 14px 0 22px 0;
+    color: #FFFFFF;
+    box-shadow:
+        0 14px 28px rgba(27,94,32,0.30),
+        0 10px 10px rgba(27,94,32,0.18),
+        inset 0 1px 0 rgba(255,255,255,0.18);
+    transform: perspective(900px) rotateX(2deg);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid rgba(255,255,255,0.10);
+}}
+.villa-3d-card:hover {{
+    transform: perspective(900px) rotateX(0deg) translateY(-3px);
+    box-shadow:
+        0 22px 40px rgba(27,94,32,0.38),
+        0 14px 14px rgba(27,94,32,0.22);
+}}
+.villa-3d-card .vc-title {{
+    font-size: 1.05rem; font-weight: 700; letter-spacing: 0.5px;
+    margin: 0 0 10px 0; opacity: 0.95;
+    border-bottom: 1px solid rgba(255,255,255,0.20);
+    padding-bottom: 6px;
+}}
+.villa-3d-card .vc-row {{
+    display: flex; align-items: baseline;
+    margin: 4px 0; font-size: 0.92rem; line-height: 1.45;
+}}
+.villa-3d-card .vc-stage {{
+    min-width: 120px; font-weight: 700; opacity: 0.92;
+    text-transform: uppercase; letter-spacing: 1px; font-size: 0.78rem;
+}}
+.villa-3d-card .vc-model {{
+    font-family: 'Consolas','Courier New', monospace;
+    background: rgba(0,0,0,0.20); padding: 2px 8px; border-radius: 5px;
+    font-size: 0.86rem;
+}}
+.villa-3d-card .vc-foot {{
+    margin-top: 10px; font-size: 0.78rem;
+    opacity: 0.78; font-style: italic;
+}}
+</style>
+<div class="villa-3d-card">
+  <div class="vc-title">LLMs default do pipeline (por estagio)</div>
+  <div class="vc-row"><span class="vc-stage">Orchestrator</span> <span class="vc-model">{_vm_orchestrator}</span></div>
+  <div class="vc-row"><span class="vc-stage">Planner</span> <span class="vc-model">{_vm_planner}</span></div>
+  <div class="vc-row"><span class="vc-stage">Reader</span> <span class="vc-model">{_vm_reader}</span></div>
+  <div class="vc-row"><span class="vc-stage">Worker</span> <span class="vc-model">{_vm_worker}</span></div>
+  <div class="vc-row"><span class="vc-stage">Reporter</span> <span class="vc-model">{_vm_reporter}</span></div>
+  <div class="vc-foot">Configuravel em agents/villa_lobos/agent.py (VILLA_MODELS) ou via .env (OLLAMA_MODEL_*).</div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+    # == Desktop =============================================================
+    # Aba visual para os subagente Desktop (fs_*, run_shell, run_python).
+    # Reusa lilo.handle_tool_call para nao duplicar a logica do agente.
+    elif page == "Desktop":
+        st.header("Desktop -- Filesystem & Shell")
+        st.caption(
+            "Formulario visual para fs_read/fs_write/fs_list/fs_search/"
+            "run_shell/run_python. Restrito a allow-list "
+            "(LILO_DESKTOP_ALLOW)."
+        )
+
+        # Mostra a allow-list atual para o usuario saber onde pode operar.
+        try:
+            from agents.desktop.agent import ALLOWLIST as _DESK_ALLOWLIST
+            with st.expander("Allow-list ativa", expanded=False):
+                for _p in _DESK_ALLOWLIST:
+                    st.code(str(_p), language=None)
+                st.caption(
+                    "Configuravel em .env via LILO_DESKTOP_ALLOW "
+                    "(separador ';' no Windows, ':' no Unix)."
+                )
+        except Exception as _eal:
+            st.warning("Nao foi possivel carregar allow-list: " + str(_eal))
+
+        from lilo import handle_tool_call as _desk_call
+
+        _tab_read, _tab_write, _tab_list, _tab_search, _tab_shell, _tab_py = st.tabs([
+            "fs_read", "fs_write", "fs_list", "fs_search",
+            "run_shell", "run_python",
+        ])
+
+        # ---- fs_read ----
+        with _tab_read:
+            _path_r = st.text_input(
+                "Caminho do arquivo",
+                value=str(_ROOT / "README.md"),
+                key="desk_read_path",
+            )
+            _maxb = st.number_input(
+                "max_bytes", min_value=1024, max_value=2_000_000,
+                value=200_000, step=10_000, key="desk_read_maxb",
+            )
+            if st.button("Ler arquivo", key="desk_read_btn", type="primary"):
+                with st.spinner("Lendo..."):
+                    try:
+                        out = _desk_call("fs_read", {
+                            "path": _path_r, "max_bytes": int(_maxb)})
+                        st.code(out, language=None)
+                    except Exception as e:
+                        st.error("Erro: " + str(e))
+
+        # ---- fs_write ----
+        with _tab_write:
+            _path_w = st.text_input(
+                "Caminho de destino",
+                value=str(_ROOT / "outputs" / "exemplo.txt"),
+                key="desk_write_path",
+            )
+            _content = st.text_area(
+                "Conteudo", height=200, key="desk_write_content",
+                placeholder="texto a escrever...",
+            )
+            _append = st.checkbox(
+                "Append (anexar em vez de sobrescrever)",
+                value=False, key="desk_write_append",
+            )
+            if st.button("Escrever arquivo", key="desk_write_btn",
+                         type="primary"):
+                with st.spinner("Escrevendo..."):
+                    try:
+                        out = _desk_call("fs_write", {
+                            "path": _path_w,
+                            "content": _content,
+                            "append": _append,
+                        })
+                        st.code(out, language=None)
+                    except Exception as e:
+                        st.error("Erro: " + str(e))
+
+        # ---- fs_list ----
+        with _tab_list:
+            _path_l = st.text_input(
+                "Diretorio", value=str(_ROOT), key="desk_list_path")
+            _glob = st.text_input(
+                "Glob pattern", value="*", key="desk_list_glob",
+                help="Ex: *.py, **/*.md, data/*.csv")
+            _rec = st.checkbox(
+                "Recursivo", value=False, key="desk_list_rec")
+            _lim = st.number_input(
+                "Limite de itens", min_value=10, max_value=2000,
+                value=200, step=50, key="desk_list_limit")
+            if st.button("Listar diretorio", key="desk_list_btn",
+                         type="primary"):
+                with st.spinner("Listando..."):
+                    try:
+                        out = _desk_call("fs_list", {
+                            "path": _path_l,
+                            "glob": _glob,
+                            "recursive": _rec,
+                            "limit": int(_lim),
+                        })
+                        st.code(out, language=None)
+                    except Exception as e:
+                        st.error("Erro: " + str(e))
+
+        # ---- fs_search ----
+        with _tab_search:
+            _root_s = st.text_input(
+                "Raiz da busca", value=str(_ROOT), key="desk_search_root")
+            _pat = st.text_input(
+                "Padrao", value="", key="desk_search_pat",
+                placeholder="texto literal ou regex")
+            _re = st.checkbox("Regex", value=False, key="desk_search_re")
+            _lim_s = st.number_input(
+                "Limite de matches", min_value=10, max_value=500,
+                value=50, step=10, key="desk_search_lim")
+            if st.button("Buscar", key="desk_search_btn", type="primary"):
+                if not _pat.strip():
+                    st.warning("Informe o padrao a buscar.")
+                else:
+                    with st.spinner("Buscando..."):
+                        try:
+                            out = _desk_call("fs_search", {
+                                "root": _root_s,
+                                "pattern": _pat,
+                                "regex": _re,
+                                "limit": int(_lim_s),
+                            })
+                            st.code(out, language=None)
+                        except Exception as e:
+                            st.error("Erro: " + str(e))
+
+        # ---- run_shell ----
+        with _tab_shell:
+            st.warning(
+                "Comandos perigosos (rm -rf /, format, fork-bomb, "
+                "shutdown...) sao bloqueados pelo agente.",
+                icon=None,
+            )
+            _cmd = st.text_area(
+                "Comando", value="", height=80, key="desk_shell_cmd",
+                placeholder="ex: dir /b   ou   ls -la")
+            _cwd = st.text_input(
+                "cwd (opcional)", value="", key="desk_shell_cwd")
+            _to = st.number_input(
+                "timeout (s)", min_value=5, max_value=600,
+                value=60, step=5, key="desk_shell_to")
+            if st.button("Executar shell", key="desk_shell_btn",
+                         type="primary"):
+                if not _cmd.strip():
+                    st.warning("Informe o comando.")
+                else:
+                    with st.spinner("Executando..."):
+                        try:
+                            args = {"cmd": _cmd, "timeout": int(_to)}
+                            if _cwd.strip():
+                                args["cwd"] = _cwd
+                            out = _desk_call("run_shell", args)
+                            st.code(out, language="bash")
+                        except Exception as e:
+                            st.error("Erro: " + str(e))
+
+        # ---- run_python ----
+        with _tab_py:
+            st.caption(
+                "Snippet Python executado em subprocess isolado. "
+                "Use print() para ver saida."
+            )
+            _code = st.text_area(
+                "Codigo Python", height=220, key="desk_py_code",
+                value='print("ola, LILO Desktop!")')
+            _to_py = st.number_input(
+                "timeout (s)", min_value=5, max_value=600,
+                value=60, step=5, key="desk_py_to")
+            if st.button("Executar Python", key="desk_py_btn",
+                         type="primary"):
+                if not _code.strip():
+                    st.warning("Informe o codigo.")
+                else:
+                    with st.spinner("Executando..."):
+                        try:
+                            out = _desk_call("run_python", {
+                                "code": _code, "timeout": int(_to_py)})
+                            st.code(out, language="python")
+                        except Exception as e:
+                            st.error("Erro: " + str(e))
+
+
+    # == Skills ===============================================================
+    elif page == "Tarefas":
+        if cowork:
+            cowork.render_tasks_page(st)
+        else:
+            st.error("Modulo dashboard_cowork indisponivel.")
+
+    elif page == "Memoria":
+        if cowork:
+            cowork.render_memory_page(st)
+        else:
+            st.error("Modulo dashboard_cowork indisponivel.")
+
+    elif page == "Conectores":
+        if cowork:
+            cowork.render_connectors_page(st)
+        else:
+            st.error("Modulo dashboard_cowork indisponivel.")
+
+    elif page == "Skills":
+        st.header("Skills Geradas")
+        st.caption("Funcoes do Conda como tools MCP -- use / no chat para invocar")
+        registry = load_skills_list()
+        skills_dir = _ROOT / "lilo_skills"
+        if registry.get("total_skills", 0) > 0:
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.metric("Total", registry.get("total_skills", 0))
+            with c2:
+                st.metric("Simples", registry.get("by_complexity", {}).get("simple", 0))
+            with c3:
+                st.metric("Media", registry.get("by_complexity", {}).get("medium", 0))
+            all_skills = registry.get("skills", [])
+            all_pkgs = sorted(set(s.get("source_package", "") for s in all_skills))
+            all_tags = sorted(set(t for s in all_skills for t in s.get("tags", [])))
+            fc1, fc2 = st.columns(2)
+            with fc1:
+                sel_pkg = st.selectbox("Pacote", ["Todos"] + all_pkgs)
+            with fc2:
+                sel_tag = st.selectbox("Tag", ["Todos"] + all_tags)
+            filtered = all_skills
+            if sel_pkg != "Todos":
+                filtered = [s for s in filtered if s.get("source_package") == sel_pkg]
+            if sel_tag != "Todos":
+                filtered = [s for s in filtered if sel_tag in s.get("tags", [])]
+            st.markdown("**" + str(len(filtered)) + " skills**")
+            if filtered:
+                df_sk = pd.DataFrame([{
+                    "Slash Cmd": "/" + s["name"],
+                    "Pacote": s.get("source_package", ""),
+                    "Tags": ", ".join(s.get("tags", [])),
+                    "Params": s.get("n_params", 0),
+                } for s in filtered])
+                st.dataframe(df_sk, use_container_width=True, hide_index=True)
+            st.divider()
+            st.subheader("Testar Skill")
+            sel_skill = st.selectbox("Skill", [s["name"] for s in all_skills])
+            if sel_skill:
+                sp = skills_dir / "schemas" / (sel_skill + ".json")
+                if sp.exists():
+                    with open(sp) as fh:
+                        schema = json.load(fh)
+                    params = schema.get("parameters", {}).get("properties", {})
+                    st.json(schema, expanded=False)
+                    skill_args = {}
+                    if params:
+                        for pn, pd_ in params.items():
+                            skill_args[pn] = st.text_input(
+                                pn + " (" + pd_.get("type", "str") + ")",
+                                value=str(pd_.get("default", "")),
+                                key="skp_" + pn)
+                    bc1, bc2 = st.columns([2, 1])
+                    with bc1:
+                        run_skill = st.button("Executar", type="primary")
+                    with bc2:
+                        if st.session_state.running:
+                            stop_button("stop_skill")
+                    if run_skill:
+                        with st.spinner("Executando..."):
+                            try:
+                                from lilo_skills import call_skill
+                                r = call_skill(sel_skill, skill_args if params else {})
+                                st.code(r, language="json")
+                            except Exception as e:
+                                st.error("Erro: " + str(e))
+            st.divider()
+            st.code(
+                "python lilo_skills/scan_conda_env.py\n"
+                "python lilo_skills/generate_skills.py --validate",
+                language="bash")
+        else:
+            st.warning("Nenhuma skill gerada. Execute scan_conda_env.py primeiro.")
+
+
+    # == Custos ===============================================================
+    elif page == "Custos":
+        st.header("Monitoramento de Custos")
+        try:
+            from shared.cost_tracker import get_tracker
+            tracker = get_tracker()
+            summary = tracker.daily_summary()
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.metric("Requests", summary["total_requests"])
+            with c2:
+                st.metric("Custo", "$%.4f" % summary["total_cost_usd"])
+            with c3:
+                st.metric("Tokens IN", summary["total_tokens_in"])
+            with c4:
+                st.metric("Tokens OUT", summary["total_tokens_out"])
+            st.divider()
+            cb, cs = st.columns(2)
+            with cb:
+                st.subheader("Por Backend")
+                if summary["by_backend"]:
+                    st.dataframe(pd.DataFrame([
+                        {"Backend": k, "Requests": v["count"],
+                         "Custo": "$%.4f" % v["cost"]}
+                        for k, v in summary["by_backend"].items()
+                    ]), use_container_width=True, hide_index=True)
+            with cs:
+                st.subheader("Por Subagente")
+                if summary["by_subagent"]:
+                    st.dataframe(pd.DataFrame([
+                        {"Subagente": k, "Requests": v["count"],
+                         "Custo": "$%.4f" % v["cost"]}
+                        for k, v in summary["by_subagent"].items()
+                    ]), use_container_width=True, hide_index=True)
+            st.divider()
+            st.subheader("Recentes")
+            recent = tracker.recent_requests(20)
+            if recent:
+                rdf = pd.DataFrame(recent)
+                cols = [c for c in ["timestamp", "subagent", "tier",
+                                    "model", "cost_usd", "duration_ms",
+                                    "query_preview"] if c in rdf.columns]
+                st.dataframe(rdf[cols], use_container_width=True, hide_index=True)
+        except Exception as e:
+            st.error("Erro: " + str(e))
+
+
+    # == Saude ================================================================
+    elif page == "Saude":
+        st.header("Diagnostico LILO")
+        if st.button("Health Check", type="primary"):
+            with st.spinner("Verificando..."):
+                ollama_ok, models = check_ollama()
+                gpu_models = check_ollama_gpu()
+                status_data = []
+                status_data.append({
+                    "Componente": "Ollama",
+                    "Status": "Online" if ollama_ok else "Offline",
+                    "Detalhes": str(len(models)) + " modelos" if ollama_ok else "Offline",
+                })
+                expected = {
+                    "chat": get_env("OLLAMA_MODEL", "llama3.1:8b-instruct-q8_0"),
+                    "code": get_env("OLLAMA_MODEL_CODE", "qwen2.5-coder:14b"),
+                    "plan": get_env("OLLAMA_MODEL_PLAN",
+                                    "phi3:14b-medium-128k-instruct-q4_K_M"),
+                    "fast": get_env("OLLAMA_MODEL_FAST", "qwen2.5-coder:7b-instruct"),
+                }
+                for role, mn in expected.items():
+                    ok = mn in models if ollama_ok else False
+                    status_data.append({
+                        "Componente": "Modelo (" + role + ")",
+                        "Status": "Instalado" if ok else "Faltando",
+                        "Detalhes": mn,
+                    })
+                # Detecta hardware NVIDIA primeiro
+                nv = check_nvidia_smi()
+                if nv:
+                    status_data.append({
+                        "Componente": "GPU (driver)",
+                        "Status": "OK",
+                        "Detalhes": f"{nv['name']} | driver {nv['driver']} | "
+                                    f"VRAM {nv['vram_used_mb']}/{nv['vram_total_mb']} MB | "
+                                    f"util {nv['util_pct']}%",
+                    })
+                else:
+                    status_data.append({
+                        "Componente": "GPU (driver)", "Status": "Nao detectado",
+                        "Detalhes": "nvidia-smi nao encontrado. Instale driver NVIDIA + CUDA."})
+
+                # Modelos atualmente em VRAM (Ollama)
+                if gpu_models:
+                    for gm in gpu_models:
+                        vram = gm.get("size_vram", 0) / 1e9
+                        status_data.append({
+                            "Componente": "Ollama VRAM",
+                            "Status": "Ativo",
+                            "Detalhes": gm.get("name", "?") + " - %.1f GB carregado" % vram,
+                        })
+                else:
+                    note = ("Nenhum modelo carregado AGORA. Normal apos 5 min de "
+                            "ociosidade (OLLAMA_KEEP_ALIVE). Use 'Aquecer GPU' "
+                            "abaixo ou rode uma query.")
+                    status_data.append({
+                        "Componente": "Ollama VRAM",
+                        "Status": "Idle",
+                        "Detalhes": note})
+
+                for key, label in agent_labels.items():
+                    status_data.append({
+                        "Componente": "Agent: " + label,
+                        "Status": "OK" if key in agents else "Erro",
+                        "Detalhes": "" if key in agents
+                                    else agent_errors.get(key, "?")[:60],
+                    })
+                # Web search
+                try:
+                    from shared.web_search import web_search as _ws
+                    status_data.append({
+                        "Componente": "Web Search",
+                        "Status": "OK",
+                        "Detalhes": "DuckDuckGo + requests"})
+                except Exception:
+                    status_data.append({
+                        "Componente": "Web Search",
+                        "Status": "Indisponivel",
+                        "Detalhes": "pip install duckduckgo-search"})
+                # Chat Memory
+                try:
+                    from shared.chat_memory import get_memory as _gm
+                    _gm()
+                    status_data.append({
+                        "Componente": "Chat Memory",
+                        "Status": "OK",
+                        "Detalhes": "SQLite ativo"})
+                except Exception as e:
+                    status_data.append({
+                        "Componente": "Chat Memory",
+                        "Status": "Indisponivel",
+                        "Detalhes": str(e)[:60]})
+
+                df_status = pd.DataFrame(status_data)
+                st.dataframe(df_status, use_container_width=True, hide_index=True)
+
+        st.markdown("---")
+        st.subheader("Acoes")
+
+        col_warm1, col_warm2 = st.columns([2, 3])
+        with col_warm1:
+            warm_model = st.selectbox(
+                "Modelo a aquecer",
+                [
+                    get_env("OLLAMA_MODEL", "llama3.1:8b-instruct-q8_0"),
+                    get_env("OLLAMA_MODEL_CODE", "qwen2.5-coder:14b"),
+                    get_env("OLLAMA_MODEL_PLAN", "phi3:14b-medium-128k-instruct-q4_K_M"),
+                    get_env("OLLAMA_MODEL_FAST", "qwen2.5-coder:7b-instruct"),
+                ],
+                key="warm_model_sel",
+            )
+        with col_warm2:
+            st.markdown("&nbsp;")
+            if st.button("Aquecer GPU (carregar modelo na VRAM)",
+                         type="primary", use_container_width=True):
+                with st.spinner(f"Carregando {warm_model} na VRAM..."):
+                    ok, msg = warm_up_gpu(warm_model)
+                if ok:
+                    st.success(msg)
+                    nv2 = check_nvidia_smi()
+                    if nv2:
+                        st.info(f"VRAM apos warm-up: {nv2['vram_used_mb']}/"
+                                f"{nv2['vram_total_mb']} MB | util {nv2['util_pct']}%")
+                else:
+                    st.error(msg)
+
+        st.caption(
+            "Dica: para o modelo nao descarregar da VRAM apos 5 min, "
+            "OLLAMA_KEEP_ALIVE=2h ja esta no .env. Para sempre, use -1."
+        )
+
+
+    # == AJUDA & TUTORIAIS ====================================================
+    # Layout estilo GenOmics localhost:3838 — header azul + tabs horizontais
+    # com cards de conteudo em fundo branco.
+    elif page == "Ajuda":
+        # Header azul (Bootstrap info color)
+        st.markdown(
+            '''
+            <div class="help-header">
+                <h2>Ajuda &amp; Tutoriais</h2>
+            </div>
+            <div class="help-subtitle">
+                Documentacao completa da plataforma LILO. Selecione um documento abaixo:
+            </div>
+            ''',
+            unsafe_allow_html=True,
+        )
+
+        def _render_md(filepath):
+            """Renderiza arquivo .md dentro de card branco."""
+            try:
+                content_md = Path(filepath).read_text(encoding="utf-8")
+                st.markdown('<div class="help-content">', unsafe_allow_html=True)
+                st.markdown(content_md, unsafe_allow_html=False)
+                st.markdown('</div>', unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Nao foi possivel carregar {filepath}: {e}")
+
+        def _list_md(folder):
+            pf = Path(folder)
+            if not pf.exists():
+                return []
+            return sorted(pf.glob("*.md"))
+
+        # 6 abas como no GenOmics (README + Manual + Tecnica + Avancos + Versoes + Subagentes)
+        tab_readme, tab_uso, tab_tecnico, tab_avancos, tab_versoes, tab_agentes = st.tabs([
+            "README", "Manual do Usuario", "Documentacao Tecnica",
+            "Avancos da Plataforma", "Versionamento", "Subagentes",
+        ])
+
+        with tab_readme:
+            readme_path = _ROOT / "README.md"
+            if readme_path.exists():
+                _render_md(readme_path)
+            else:
+                st.warning("README.md nao encontrado.")
+
+        with tab_uso:
+            files = _list_md(_ROOT / "docs" / "uso")
+            if not files:
+                st.info("Nenhum documento em docs/uso/")
+            else:
+                names = [f.stem.replace("_", " ") for f in files]
+                choice = st.radio("Documento:", names, horizontal=True, key="help_uso_radio")
+                _render_md(files[names.index(choice)])
+
+        with tab_tecnico:
+            files = _list_md(_ROOT / "docs" / "tecnico")
+            if not files:
+                st.info("Nenhum documento em docs/tecnico/")
+            else:
+                names = [f.stem.replace("_", " ") for f in files]
+                choice = st.radio("Documento:", names, horizontal=True, key="help_tec_radio")
+                _render_md(files[names.index(choice)])
+
+        with tab_avancos:
+            # Avancos = historico ordenado pelo mais recente
+            files = sorted(_list_md(_ROOT / "docs" / "historico"), reverse=True)
+            if not files:
+                st.info("Nenhum registro de avancos em docs/historico/.")
+            else:
+                names = [f.stem for f in files]
+                choice = st.selectbox(
+                    "Selecione um marco/registro (mais recentes primeiro):",
+                    names, key="help_av_sel",
+                )
+                _render_md(files[names.index(choice)])
+
+        with tab_versoes:
+            files = _list_md(_ROOT / "docs" / "versoes")
+            if not files:
+                st.info("Nenhum documento em docs/versoes/")
+            else:
+                for f in files:
+                    with st.expander(f.stem, expanded=(f == files[0])):
+                        _render_md(f)
+
+        with tab_agentes:
+            files = _list_md(_ROOT / "docs" / "agentes")
+            if not files:
+                st.info("Nenhum README de subagente em docs/agentes/")
+            else:
+                names = [f.stem for f in files]
+                choice = st.radio("Subagente:", names, horizontal=True, key="help_ag_radio")
+                _render_md(files[names.index(choice)])
+
+    # == GLOSSARIO ============================================================
+    # Layout estilo GenOmics — header azul + busca + tabela 2 colunas
+    elif page == "Glossario":
+        st.markdown(
+            """
+            <div class="help-header glossario-header">
+                <h2>Glossario de Termos</h2>
+            </div>
+            <div class="help-subtitle">
+                Termos tecnicos usados na plataforma LILO. Use a busca abaixo para filtrar.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # Parse do GLOSSARIO.md em pares (termo, definicao) das tabelas markdown
+        glossario_path = _ROOT / "docs" / "tecnico" / "GLOSSARIO.md"
+        terms = []
+        if glossario_path.exists():
+            md = glossario_path.read_text(encoding="utf-8")
+            current_section = "Geral"
+            for line in md.splitlines():
+                line = line.strip()
+                if line.startswith("## "):
+                    current_section = line[3:].strip()
+                    continue
+                if line.startswith("|") and "|" in line[1:]:
+                    parts = [p.strip() for p in line.split("|")[1:-1]]
+                    if len(parts) >= 2:
+                        termo, definicao = parts[0], parts[1]
+                        if termo in ("Termo", "**Termo**", "") or set(termo) <= set("- :"):
+                            continue
+                        termo_clean = termo.replace("**", "").strip()
+                        if termo_clean and definicao:
+                            terms.append({
+                                "Secao": current_section,
+                                "Termo": termo_clean,
+                                "Definicao": definicao,
+                            })
+
+        col_search, col_secao = st.columns([3, 2])
+        with col_search:
+            search_q = st.text_input(
+                "Buscar termo...",
+                key="glossario_search",
+                placeholder="Ex: NVT, Ollama, Policy Engine, allow-list",
+            )
+        with col_secao:
+            if terms:
+                sections = sorted({t["Secao"] for t in terms})
+                sel_secao = st.selectbox(
+                    "Filtrar por secao:",
+                    ["Todas"] + sections,
+                    key="glossario_secao",
+                )
+            else:
+                sel_secao = "Todas"
+
+        filtered = terms
+        if search_q:
+            q = search_q.lower()
+            filtered = [t for t in filtered
+                        if q in t["Termo"].lower() or q in t["Definicao"].lower()]
+        if sel_secao != "Todas":
+            filtered = [t for t in filtered if t["Secao"] == sel_secao]
+
+        st.markdown(
+            f"<p style='color:#455A64;font-family:Inter,sans-serif;'>"
+            f"<strong>{len(filtered)}</strong> termo(s) encontrados de "
+            f"<strong>{len(terms)}</strong> total.</p>",
+            unsafe_allow_html=True,
+        )
+
+        if filtered:
+            df_terms = pd.DataFrame(filtered)
+            st.dataframe(
+                df_terms,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Secao": st.column_config.TextColumn("Secao", width="small"),
+                    "Termo": st.column_config.TextColumn("Termo", width="medium"),
+                    "Definicao": st.column_config.TextColumn("Definicao", width="large"),
+                },
+                height=600,
+            )
+        else:
+            st.warning("Nenhum termo encontrado com os filtros aplicados.")
+
+        st.caption(
+            "Fonte: docs/tecnico/GLOSSARIO.md - "
+            "para adicionar termos, edite o arquivo e recarregue a pagina (R)."
+        )

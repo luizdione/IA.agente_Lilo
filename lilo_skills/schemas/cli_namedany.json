@@ -1,0 +1,16 @@
+{
+  "name": "cli_namedany",
+  "description": "Retrieve a Python object by its fully qualified name from the global Python\nmodule namespace.  The first part of the name, that describes a module,\nwill be discovered and imported.  Each subsequent pa",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "name (Any)"
+      }
+    },
+    "required": [
+      "name"
+    ]
+  }
+}

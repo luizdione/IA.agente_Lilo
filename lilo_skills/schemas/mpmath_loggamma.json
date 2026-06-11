@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_loggamma",
+  "description": "Computes the principal branch of the log-gamma function,\n`\\ln \\Gamma(z)`. Unlike `\\ln(\\Gamma(z))`, which has infinitely many\ncomplex branch cuts, the principal log-gamma function only has a single\nbra",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "tabulate_simple_separated_format",
+  "description": "Construct a simple TableFormat with columns separated by a separator.\n\n>>> tsv = simple_separated_format(\"\\t\") ;         tabulate([[\"foo\", 1], [\"spam\", 23]], tablefmt=tsv) == 'foo \\t 1\\nspam\\t23'\nTrue",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "separator": {
+        "type": "string",
+        "description": "separator (Any)"
+      }
+    },
+    "required": [
+      "separator"
+    ]
+  }
+}

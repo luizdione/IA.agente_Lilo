@@ -1,5 +1,22 @@
+# docker-compose.yml — Plataforma híbrida LILO unificada
+# =========================================================
+# V10.3 (2026-05-31): orquestra os 3 serviços da plataforma híbrida
+# (proposta seção 6 do relatório 2026-05-30):
+#   ollama   -> motor LLM local (modelos quentes)
+#   litellm  -> proxy/gateway OpenAI-compat sobre Ollama + Anthropic
+#   lilo_api -> FastAPI expondo o agente tipo Claude Desktop (lilo_api.py)
+#
+# Subir tudo:           docker compose up -d --build
+# Logs do agente:       docker compose logs -f lilo_api
+# Smoke da API:         curl http://localhost:8000/health
+# Roteamento Villa:     curl 'http://localhost:8000/v1/villa/route?task=anova+exp1.xlsx'
+# Capacidades:          curl http://localhost:8000/v1/villa/capabilities
+#
+# GPU: o serviço ollama declara reserva NVIDIA; em máquinas sem GPU,
+# comente o bloco `deploy.resources` (Ollama roda em CPU).
+
 services:
-  # ── Ollama — Motor LLM local com GPU ──────────────────────────
+  # ── Ollama — motor LLM local ──────────────────────────────────────────────
   ollama:
     build:
       context: ./ollama-service
@@ -14,7 +31,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 90s
     deploy:
       resources:
         reservations:
@@ -23,101 +40,67 @@ services:
               count: 1
               capabilities: [gpu]
     networks:
-      - lilo_network
+      - lilo_net
+    restart: unless-stopped
 
-  # ── ChromaDB — Memória vetorial ───────────────────────────────
-  memory:
-    build:
-      context: ./memory
-      dockerfile: Dockerfile
-    container_name: lilo_memory
+  # ── LiteLLM — gateway OpenAI-compat (Ollama local + Anthropic nuvem) ───────
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: lilo_litellm
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
     volumes:
-      - chroma_data:/data
+      - ./config/litellm_config.docker.yaml:/app/config.yaml:ro
     ports:
-      - "8001:8001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/api/v1/heartbeat"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - "4000:4000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    depends_on:
+      ollama:
+        condition: service_healthy
     networks:
-      - lilo_network
+      - lilo_net
+    restart: unless-stopped
 
-  # ── Backend — FastAPI + subagentes ────────────────────────────
-  backend:
+  # ── lilo_api — agente híbrido (FastAPI, "API rodando o agente Desktop") ────
+  lilo_api:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: lilo_backend
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: lilo_api
+    command: ["uvicorn", "lilo_api:app", "--host", "0.0.0.0", "--port", "8000"]
     volumes:
-      - ./workspace:/workspace
-      - ./backend/app:/app/app
-      - backend_logs:/app/logs
+      - ./:/app
+      - lilo_logs:/app/logs
     ports:
       - "8000:8000"
     environment:
+      - PYTHONPATH=/app
       - OLLAMA_HOST=http://ollama:11434
-      - CHROMA_HOST=memory
-      - CHROMA_PORT=8001
-      - WORKSPACE_DIR=/workspace
-      - DEBUG=true
+      - LITELLM_PROXY_URL=http://litellm:4000
+      - LILO_SERVER_PROFILE=${LILO_SERVER_PROFILE:-desktop_dev}
+      # DB de custos fora do bind-mount sincronizado (evita disk I/O error):
+      - LILO_COST_DB=/app/logs/cost_tracking.db
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - LILO_API_TOKEN=${LILO_API_TOKEN:-}
     depends_on:
       ollama:
         condition: service_healthy
-      memory:
-        condition: service_healthy
+      litellm:
+        condition: service_started
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
+      start_period: 30s
     networks:
-      - lilo_network
+      - lilo_net
+    restart: unless-stopped
 
-  # ── Dashboard — Streamlit (acesso direto aos agentes) ─────────
-  dashboard:
-    build:
-      context: .
-      dockerfile: Dockerfile.dashboard
-    container_name: lilo_dashboard
-    volumes:
-      - .:/app
-      - ollama_models:/root/.ollama
-    ports:
-      - "8506:8501"
-    environment:
-      - OLLAMA_HOST=http://ollama:11434
-      - LITELLM_PROXY_URL=http://ollama:11434
-    depends_on:
-      ollama:
-        condition: service_healthy
-    networks:
-      - lilo_network
-
-  # ── Frontend — React (interface completa) ─────────────────────
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: lilo_frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - REACT_APP_API_URL=http://localhost:8000
-    depends_on:
-      backend:
-        condition: service_healthy
-    networks:
-      - lilo_network
+networks:
+  lilo_net:
+    driver: bridge
 
 volumes:
   ollama_models:
-    driver: local
-  chroma_data:
-    driver: local
-  backend_logs:
-    driver: local
-
-networks:
-  lilo_network:
-    driver: bridge
+  lilo_logs:

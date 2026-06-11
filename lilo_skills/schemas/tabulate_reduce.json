@@ -1,0 +1,16 @@
+{
+  "name": "tabulate_reduce",
+  "description": "reduce(function, iterable[, initial]) -> value\n\nApply a function of two arguments cumulatively to the items of a sequence\nor iterable, from left to right, so as to reduce the iterable to a single\nvalu",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "args": {
+        "type": "string",
+        "description": "args (Any)"
+      }
+    },
+    "required": [
+      "args"
+    ]
+  }
+}

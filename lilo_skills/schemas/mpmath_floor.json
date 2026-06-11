@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_floor",
+  "description": "Computes the floor of `x`, `\\lfloor x \\rfloor`, defined as\nthe largest integer less than or equal to `x`::\n\n    >>> from mpmath import *\n    >>> mp.pretty = False\n    >>> floor(3.5)\n    mpf('3.0')\n\n..",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}

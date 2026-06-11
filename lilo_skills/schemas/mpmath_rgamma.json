@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_rgamma",
+  "description": "Computes the reciprocal of the gamma function, `1/\\Gamma(z)`. This\nfunction evaluates to zero at the poles\nof the gamma function, `z = 0, -1, -2, \\ldots`.\n\n**Examples**\n\nBasic examples::\n\n    >>> from",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}

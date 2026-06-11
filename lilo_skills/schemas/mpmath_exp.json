@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_exp",
+  "description": "Computes the exponential function,\n\n.. math ::\n\n    \\exp(x) = e^x = \\sum_{k=0}^{\\infty} \\frac{x^k}{k!}.\n\nFor complex numbers, the exponential function also satisfies\n\n.. math ::\n\n    \\exp(x+yi) = e^x ",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}

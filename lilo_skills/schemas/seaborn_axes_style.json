@@ -1,0 +1,18 @@
+{
+  "name": "seaborn_axes_style",
+  "description": "Get the parameters that control the general style of the plots.\n\nThe style parameters control properties like the color of the background and\nwhether a grid is enabled by default. This is accomplished",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "style": {
+        "type": "string",
+        "description": "style (Any)"
+      },
+      "rc": {
+        "type": "string",
+        "description": "rc (Any)"
+      }
+    },
+    "required": []
+  }
+}

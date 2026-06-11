@@ -1,0 +1,16 @@
+{
+  "name": "numpy_isfortran",
+  "description": "Check if the array is Fortran contiguous but *not* C contiguous.\n\nThis function is obsolete. If you only want to check if an array is Fortran\ncontiguous use ``a.flags.f_contiguous`` instead.\n\nParamete",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "a": {
+        "type": "string",
+        "description": "a (Any)"
+      }
+    },
+    "required": [
+      "a"
+    ]
+  }
+}

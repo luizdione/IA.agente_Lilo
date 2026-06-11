@@ -1,0 +1,16 @@
+{
+  "name": "compat_urlunsplit",
+  "description": "Combine the elements of a tuple as returned by urlsplit() into a\ncomplete URL as a string. The data argument can be any five-item iterable.\nThis may result in a slightly different, but equivalent URL,",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "components": {
+        "type": "string",
+        "description": "components (Any)"
+      }
+    },
+    "required": [
+      "components"
+    ]
+  }
+}

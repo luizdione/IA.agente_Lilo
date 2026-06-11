@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_tan",
+  "description": "Computes the tangent of `x`, `\\tan(x) = \\frac{\\sin(x)}{\\cos(x)}`.\nThe tangent function is singular at `x = (n+1/2)\\pi`, but\n``tan(x)`` always returns a finite result since `(n+1/2)\\pi`\ncannot be repre",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}

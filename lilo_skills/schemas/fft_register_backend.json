@@ -1,0 +1,16 @@
+{
+  "name": "fft_register_backend",
+  "description": "Register a backend for permanent use.\n\nRegistered backends have the lowest priority and will be tried after the\nglobal backend.\n\nParameters\n----------\nbackend : {object, 'scipy'}\n    The backend to us",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "backend": {
+        "type": "string",
+        "description": "backend (Any)"
+      }
+    },
+    "required": [
+      "backend"
+    ]
+  }
+}

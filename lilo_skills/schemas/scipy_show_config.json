@@ -1,0 +1,15 @@
+{
+  "name": "scipy_show_config",
+  "description": "Show libraries and system information on which SciPy was built\nand is being used\n\nParameters\n----------\nmode : {`'stdout'`, `'dicts'`}, optional.\n    Indicates how to display the config information.\n ",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "mode": {
+        "type": "string",
+        "description": "mode (Any)",
+        "default": "stdout"
+      }
+    },
+    "required": []
+  }
+}

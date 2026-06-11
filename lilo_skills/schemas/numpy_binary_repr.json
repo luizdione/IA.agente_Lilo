@@ -1,0 +1,20 @@
+{
+  "name": "numpy_binary_repr",
+  "description": "Return the binary representation of the input number as a string.\n\nFor negative numbers, if width is not given, a minus sign is added to the\nfront. If width is given, the two's complement of the numbe",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "num": {
+        "type": "string",
+        "description": "num (Any)"
+      },
+      "width": {
+        "type": "string",
+        "description": "width (Any)"
+      }
+    },
+    "required": [
+      "num"
+    ]
+  }
+}

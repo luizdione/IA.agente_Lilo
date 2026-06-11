@@ -1,0 +1,16 @@
+{
+  "name": "gen_coroutine",
+  "description": "Decorator for asynchronous generators.\n\nFor compatibility with older versions of Python, coroutines may\nalso \"return\" by raising the special exception `Return(value)\n<Return>`.\n\nFunctions with this de",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "func": {
+        "type": "string",
+        "description": "func (Union)"
+      }
+    },
+    "required": [
+      "func"
+    ]
+  }
+}

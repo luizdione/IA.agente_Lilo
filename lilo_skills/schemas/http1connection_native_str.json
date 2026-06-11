@@ -1,0 +1,16 @@
+{
+  "name": "http1connection_native_str",
+  "description": "Converts a string argument to a unicode string.\n\nIf the argument is already a unicode string or None, it is returned\nunchanged.  Otherwise it must be a byte string and is decoded as utf8.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "value": {
+        "type": "string",
+        "description": "value (Union)"
+      }
+    },
+    "required": [
+      "value"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "datasets_ascent",
+  "description": "Get an 8-bit grayscale bit-depth, 512 x 512 derived image for easy\nuse in demos.\n\nThe image is derived from\nhttps://pixnio.com/people/accent-to-the-top\n\nParameters\n----------\nNone\n\nReturns\n-------\nasc",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}

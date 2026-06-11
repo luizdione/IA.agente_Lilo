@@ -1,0 +1,21 @@
+{
+  "name": "gen_chain_future",
+  "description": "Chain two futures together so that when one completes, so does the other.\n\nThe result (success or failure) of ``a`` will be copied to ``b``, unless\n``b`` has already been completed or cancelled by the",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "a": {
+        "type": "string",
+        "description": "a (Future[_T])"
+      },
+      "b": {
+        "type": "string",
+        "description": "b (Future[_T])"
+      }
+    },
+    "required": [
+      "a",
+      "b"
+    ]
+  }
+}

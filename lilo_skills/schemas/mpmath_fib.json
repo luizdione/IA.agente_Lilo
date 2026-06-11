@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_fib",
+  "description": "``fibonacci(n)`` computes the `n`-th Fibonacci number, `F(n)`. The\nFibonacci numbers are defined by the recurrence `F(n) = F(n-1) + F(n-2)`\nwith the initial values `F(0) = 0`, `F(1) = 1`. :func:`~mpma",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}

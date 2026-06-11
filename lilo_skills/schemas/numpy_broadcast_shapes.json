@@ -1,0 +1,16 @@
+{
+  "name": "numpy_broadcast_shapes",
+  "description": "Broadcast the input shapes into a single shape.\n\n:ref:`Learn more about broadcasting here <basics.broadcasting>`.\n\n.. versionadded:: 1.20.0\n\nParameters\n----------\n*args : tuples of ints, or ints\n    T",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "args": {
+        "type": "string",
+        "description": "args (Any)"
+      }
+    },
+    "required": [
+      "args"
+    ]
+  }
+}

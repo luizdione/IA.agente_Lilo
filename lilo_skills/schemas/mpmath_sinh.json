@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_sinh",
+  "description": "Computes the hyperbolic sine of `x`,\n`\\sinh(x) = (e^x - e^{-x})/2`. Values and limits include::\n\n    >>> from mpmath import *\n    >>> mp.dps = 25; mp.pretty = True\n    >>> sinh(0)\n    0.0\n    >>> sinh",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}

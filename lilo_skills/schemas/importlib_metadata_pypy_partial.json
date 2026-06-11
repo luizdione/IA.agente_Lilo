@@ -1,0 +1,16 @@
+{
+  "name": "importlib_metadata_pypy_partial",
+  "description": "Adjust for variable stacklevel on partial under PyPy.\n\nWorkaround for #327.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "val": {
+        "type": "string",
+        "description": "val (Any)"
+      }
+    },
+    "required": [
+      "val"
+    ]
+  }
+}

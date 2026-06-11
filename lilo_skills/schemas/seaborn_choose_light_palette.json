@@ -1,0 +1,20 @@
+{
+  "name": "seaborn_choose_light_palette",
+  "description": "Launch an interactive widget to create a light sequential palette.\n\nThis corresponds with the :func:`light_palette` function. This kind\nof palette is good for data that range between relatively uninte",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "input": {
+        "type": "string",
+        "description": "input (Any)",
+        "default": "husl"
+      },
+      "as_cmap": {
+        "type": "string",
+        "description": "as_cmap (Any)",
+        "default": false
+      }
+    },
+    "required": []
+  }
+}

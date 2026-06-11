@@ -55,8 +55,11 @@ TIER_MODELS = {
     ExecutionTier.OLLAMA_FAST: get_env("OLLAMA_MODEL_FAST", "qwen2.5-coder:7b-instruct"),
     ExecutionTier.OLLAMA: get_env("OLLAMA_MODEL", "llama3.1:8b-instruct-q8_0"),
     ExecutionTier.OLLAMA_HEAVY: get_env("OLLAMA_MODEL_CODE", "qwen2.5-coder:14b"),
-    ExecutionTier.CLAUDE_SONNET: "claude-sonnet-4-20250514",
-    ExecutionTier.CLAUDE_OPUS: "claude-opus-4-20250514",
+    # Atualizado 2026-05-07 para Claude 4.5/4.6 (familia atual).
+    # Variavel LILO_CLAUDE_SONNET / LILO_CLAUDE_OPUS permitem override
+    # sem editar codigo (importante quando Anthropic publicar novas versoes).
+    ExecutionTier.CLAUDE_SONNET: get_env("LILO_CLAUDE_SONNET", "claude-sonnet-4-5"),
+    ExecutionTier.CLAUDE_OPUS: get_env("LILO_CLAUDE_OPUS", "claude-opus-4-5"),
 }
 
 
@@ -105,9 +108,24 @@ COMPLEX_INDICATORS = [
     # Bioinformática
     "blast", "alinhamento", "docking", "molecular dynamics",
     "phylogen", "transcriptom", "proteom", "genom",
+    # Dinâmica molecular / química computacional (adicionado 2026-05-06)
+    "openmm", "gromacs", "amber", "namd", "charmm",
+    "nvt", "npt", "equilibration", "minimization",
+    "force field", "forcefield", "trajectory",
+    "rmsd", "rmsf", "radius of gyration", "sasa",
+    "mmgbsa", "mmpbsa", "umbrella sampling", "free energy",
+    "steered md", "metadynamics", "pmf", "well-tempered",
+    "particle coordinate",
     # Análise complexa
     "analise completa", "analise estatistica",
     "multiple", "multivariada",
+    # Prism AI / Análise científica
+    "prism", "graphpad", "pzfx", "publicacao cientifica",
+    "grafico cientifico", "boxplot com pontos",
+    "shapiro-wilk", "levene", "mann-whitney",
+    "kruskal-wallis", "post-hoc", "bonferroni",
+    "effect size", "tamanho de efeito", "cohen",
+    "dados experimentais", "comparar grupos",
 ]
 
 # Palavras que indicam tarefa simples
@@ -340,6 +358,14 @@ class PolicyEngine:
         if subagent == "pdf" and ctx.get("mode") in ("introduction", "methods"):
             if tier in (ExecutionTier.OLLAMA_FAST, ExecutionTier.OLLAMA):
                 return ExecutionTier.OLLAMA_HEAVY, "Análise profunda de PDF → modelo pesado"
+
+        if subagent == "prism":
+            # Prism AI: estatística é local (scipy), LLM só para writing
+            if ctx.get("enhance_with_llm", True):
+                if tier in (ExecutionTier.OLLAMA_FAST,):
+                    return ExecutionTier.OLLAMA, "Prism AI + escrita científica → Ollama"
+            else:
+                return ExecutionTier.NO_LLM, "Prism AI sem LLM — scipy local"
 
         return tier, reason
 

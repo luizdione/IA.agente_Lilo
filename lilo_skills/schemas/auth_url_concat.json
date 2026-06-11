@@ -1,0 +1,21 @@
+{
+  "name": "auth_url_concat",
+  "description": "Concatenate url and arguments regardless of whether\nurl has existing query parameters.\n\n``args`` may be either a dictionary or a list of key-value pairs\n(the latter allows for multiple values with the",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "url": {
+        "type": "string",
+        "description": "url (str)"
+      },
+      "args": {
+        "type": "string",
+        "description": "args (Union)"
+      }
+    },
+    "required": [
+      "url",
+      "args"
+    ]
+  }
+}

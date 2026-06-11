@@ -1,0 +1,16 @@
+{
+  "name": "numpy_array",
+  "description": "array(object, dtype=None, *, copy=True, order='K', subok=False, ndmin=0,\n      like=None)\n\nCreate an array.\n\nParameters\n----------\nobject : array_like\n    An array, any object exposing the array inter",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "args": {
+        "type": "string",
+        "description": "args (Any)"
+      }
+    },
+    "required": [
+      "args"
+    ]
+  }
+}

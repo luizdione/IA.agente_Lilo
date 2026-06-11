@@ -1,0 +1,16 @@
+{
+  "name": "autoreload_add_reload_hook",
+  "description": "Add a function to be called before reloading the process.\n\nNote that for open file and socket handles it is generally\npreferable to set the ``FD_CLOEXEC`` flag (using `fcntl` or\n`os.set_inheritable`) ",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "fn": {
+        "type": "string",
+        "description": "fn (Callable)"
+      }
+    },
+    "required": [
+      "fn"
+    ]
+  }
+}

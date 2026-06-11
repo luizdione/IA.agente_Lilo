@@ -1,0 +1,21 @@
+{
+  "name": "numpy_isdtype",
+  "description": "Determine if a provided dtype is of a specified data type ``kind``.\n\nThis function only supports built-in NumPy's data types.\nThird-party dtypes are not yet supported.\n\nParameters\n----------\ndtype : d",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "dtype": {
+        "type": "string",
+        "description": "dtype (Any)"
+      },
+      "kind": {
+        "type": "string",
+        "description": "kind (Any)"
+      }
+    },
+    "required": [
+      "dtype",
+      "kind"
+    ]
+  }
+}

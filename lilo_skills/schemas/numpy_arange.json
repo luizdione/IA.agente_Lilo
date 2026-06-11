@@ -1,0 +1,16 @@
+{
+  "name": "numpy_arange",
+  "description": "arange([start,] stop[, step,], dtype=None, *, device=None, like=None)\n\nReturn evenly spaced values within a given interval.\n\n``arange`` can be called with a varying number of positional arguments:\n\n* ",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "args": {
+        "type": "string",
+        "description": "args (Any)"
+      }
+    },
+    "required": [
+      "args"
+    ]
+  }
+}

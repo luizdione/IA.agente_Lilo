@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScholarAgent — Análise de PDFs Científicos</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2235;
+            --bg-hover: #243049;
+            --border: #2a3a55;
+            --border-active: #0A7E47;
+            --text-primary: #e8ecf4;
+            --text-secondary: #8899b4;
+            --text-muted: #5a6b85;
+            --accent: #0A7E47;
+            --accent-glow: rgba(10, 126, 71, 0.15);
+            --success: #0A7E47;
+            --warning: #fbbf24;
+            --error: #f87171;
+            --serif: 'Source Serif 4', Georgia, serif;
+            --mono: 'IBM Plex Mono', 'Consolas', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--mono);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ── Header ───────────────────────────────────── */
+        header {
+            border-bottom: 1px solid var(--border);
+            padding: 1.25rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-secondary);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-ifrj {
+            height: 50px;
+            width: auto;
+        }
+
+        .logo {
+            font-family: var(--serif);
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .logo span { color: var(--accent); }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            padding: 0.4rem 0.8rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--error);
+        }
+
+        .status-dot.online { background: var(--success); }
+
+        /* ── Layout ───────────────────────────────────── */
+        .container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            min-height: calc(100vh - 60px);
+        }
+
+        /* ── Sidebar ──────────────────────────────────── */
+        .sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Upload area */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 2rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        .upload-zone.has-file {
+            border-color: var(--success);
+            border-style: solid;
+        }
+
+        .upload-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .upload-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .file-info {
+            font-size: 0.75rem;
+            color: var(--success);
+            margin-top: 0.5rem;
+        }
+
+        #file-input { display: none; }
+
+        /* Model select */
+        .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+
+        .form-group label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+        }
+
+        select, input[type="text"], textarea {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-family: var(--mono);
+            font-size: 0.85rem;
+            padding: 0.6rem 0.75rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        select:focus, input:focus, textarea:focus {
+            border-color: var(--accent);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* Metadata display */
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+
+        .meta-item {
+            background: var(--bg-card);
+            padding: 0.5rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+        }
+
+        .meta-item .label { color: var(--text-muted); display: block; }
+        .meta-item .value { color: var(--text-primary); font-weight: 500; }
+
+        /* ── Main Content ─────────────────────────────── */
+        .main {
+            padding: 1.5rem 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+        }
+
+        /* Mode tabs */
+        .mode-tabs {
+            display: flex;
+            gap: 0;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .mode-tab {
+            flex: 1;
+            padding: 0.8rem 0.5rem;
+            text-align: center;
+            font-size: 0.72rem;
+            font-family: var(--mono);
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            border: none;
+            border-right: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-tab:last-child { border-right: none; }
+
+        .mode-tab:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+        .mode-tab.active {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .mode-tab .tab-icon {
+            display: block;
+            font-size: 1.2rem;
+            margin-bottom: 0.25rem;
+        }
+
+        /* Panels */
+        .panel {
+            display: none;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        .panel.active { display: block; }
+
+        .panel-title {
+            font-family: var(--serif);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .panel-desc {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-bottom: 1.25rem;
+            line-height: 1.5;
+        }
+
+        /* Image selector for graphs */
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .image-thumb {
+            aspect-ratio: 1;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            overflow: hidden;
+        }
+
+        .image-thumb:hover { border-color: var(--accent); }
+        .image-thumb.selected { border-color: var(--accent); background: var(--accent-glow); }
+
+        .image-thumb img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* Reference ISSN panel */
+        .issn-input-row {
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-end;
+        }
+
+        .issn-input-row .form-group { flex: 1; }
+
+        .journal-info-bar {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 0.6rem 0.8rem;
+            font-size: 0.78rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .journal-info-bar .jname {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* Action button */
+        .btn-run {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 0.75rem 1.5rem;
+            font-family: var(--mono);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            margin-top: 0.5rem;
+        }
+
+        .btn-run:hover { filter: brightness(1.15); transform: translateY(-1px); }
+        .btn-run:active { transform: translateY(0); }
+        .btn-run:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-secondary {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        /* Result area */
+        .result-area {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            min-height: 200px;
+            display: none;
+        }
+
+        .result-area.visible { display: block; }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .result-header h3 {
+            font-family: var(--serif);
+            font-size: 1rem;
+        }
+
+        .btn-copy {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 0.35rem 0.7rem;
+            border-radius: 4px;
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-copy:hover { color: var(--accent); border-color: var(--accent); }
+
+        .result-content {
+            font-family: var(--serif);
+            font-size: 0.95rem;
+            line-height: 1.8;
+            color: var(--text-primary);
+            white-space: pre-wrap;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: none;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .spinner.visible { display: flex; }
+
+        .spinner-ring {
+            width: 20px; height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.75rem 1.25rem;
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            z-index: 1000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .toast.visible { transform: translateY(0); opacity: 1; }
+        .toast.error { border-color: var(--error); }
+        .toast.success { border-color: var(--success); }
+
+        /* ── Footer ───────────────────────────────────── */
+        footer {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            padding: 2rem;
+            margin-top: auto;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-title {
+            font-family: var(--serif);
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .models-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .model-category {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+        }
+
+        .model-category h4 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+
+        .model-item {
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .model-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .model-name {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 0.25rem;
+        }
+
+        .model-best {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.15rem;
+        }
+
+        .model-spec {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* ── Responsive ───────────────────────────────── */
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+            .mode-tabs {
+                flex-wrap: wrap;
+            }
+            .mode-tab {
+                flex: 1 1 45%;
+            }
+            .models-grid {
+                grid-template-columns: 1fr;
+            }
+            .logo-ifrj {
+                height: 40px;
+            }
+            .logo {
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────── -->
+<header>
+    <div class="header-left">
+        <img src="https://www.ifrj.edu.br/img2/logo-ifrj.png" alt="IFRJ Logo" class="logo-ifrj">
+        <div class="logo">Scholar<span>Agent</span></div>
+    </div>
+    <div class="status-badge">
+        <div class="status-dot" id="ollama-dot"></div>
+        <span id="ollama-status">Verificando Ollama...</span>
+    </div>
+</header>
+
+<!-- ── Layout ──────────────────────────────────────────── -->
+<div class="container">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div>
+            <h3>Upload do PDF</h3>
+            <div class="upload-zone" id="upload-zone">
+                <span class="upload-icon">📄</span>
+                <div class="upload-label">Arraste o PDF ou clique para selecionar</div>
+                <div class="file-info" id="file-info"></div>
+            </div>
+            <input type="file" id="file-input" accept=".pdf">
+        </div>
+
+        <div class="form-group">
+            <label>Modelo LLM (Texto)</label>
+            <select id="model-select">
+                <option value="">Carregando modelos...</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Modelo Multimodal (Gráficos)</label>
+            <select id="vision-model-select">
+                <option value="llava:13b">llava:13b</option>
+                <option value="llava:7b">llava:7b</option>
+                <option value="llava-llama3:8b">llava-llama3:8b</option>
+            </select>
+        </div>
+
+        <div id="pdf-meta" style="display: none;">
+            <h3>Metadados do PDF</h3>
+            <div class="meta-grid" id="meta-grid"></div>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+        <!-- Mode tabs -->
+        <nav class="mode-tabs">
+            <button class="mode-tab active" data-mode="simple">
+                <span class="tab-icon">📋</span>
+                Resumo Simples
+            </button>
+            <button class="mode-tab" data-mode="introduction">
+                <span class="tab-icon">📖</span>
+                Introdução
+            </button>
+            <button class="mode-tab" data-mode="methods">
+                <span class="tab-icon">🔬</span>
+                Métodos
+            </button>
+            <button class="mode-tab" data-mode="graph">
+                <span class="tab-icon">📊</span>
+                Gráficos
+            </button>
+            <button class="mode-tab" data-mode="references">
+                <span class="tab-icon">📚</span>
+                Referências
+            </button>
+        </nav>
+
+        <!-- Panel: Resumo Simples -->
+        <div class="panel active" id="panel-simple">
+            <div class="panel-title">Resumo Geral do Artigo</div>
+            <div class="panel-desc">
+                Gera um resumo conciso destacando objetivo, metodologia, resultados-chave e conclusão.
+            </div>
+            <button class="btn-run" onclick="runSummarize('simple')">
+                ▶ Gerar Resumo
+            </button>
+        </div>
+
+        <!-- Panel: Introdução -->
+        <div class="panel" id="panel-introduction">
+            <div class="panel-title">Resumo para Introdução</div>
+            <div class="panel-desc">
+                Extrai contexto, lacuna de conhecimento, hipótese e relevância — material analítico
+                para redigir a seção de Introdução do seu artigo.
+            </div>
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label>Filtrar por seção do PDF</label>
+                <select id="intro-section">
+                    <option value="">Texto completo</option>
+                    <option value="abstract">Abstract / Resumo</option>
+                    <option value="introduction">Introduction</option>
+                </select>
+            </div>
+            <button class="btn-run" onclick="runSummarize('introduction', document.getElementById('intro-section').value)">
+                ▶ Analisar para Introdução
+            </button>
+        </div>
+
+        <!-- Panel: Métodos -->
+        <div class="panel" id="panel-methods">
+            <div class="panel-title">Extração de Métodos</div>
+            <div class="panel-desc">
+                Organiza informações metodológicas: desenho experimental, modelos biológicos,
+                técnicas analíticas, softwares e parâmetros, controles e estatística.
+            </div>
+            <button class="btn-run" onclick="runSummarize('methods', 'methods')">
+                ▶ Extrair Métodos
+            </button>
+        </div>
+
+        <!-- Panel: Gráficos -->
+        <div class="panel" id="panel-graph">
+            <div class="panel-title">Interpretação de Gráficos</div>
+            <div class="panel-desc">
+                Selecione uma figura extraída do PDF para análise com modelo multimodal (LLaVA).
+                Gera descrição, tendências, valores notáveis e sugestão de texto para Resultados.
+            </div>
+            <div class="image-grid" id="image-grid">
+                <div style="color: var(--text-muted); font-size: 0.78rem; grid-column: 1/-1;">
+                    Faça upload de um PDF para ver as figuras extraídas.
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 0.75rem;">
+                <label>Contexto adicional (opcional)</label>
+                <textarea id="graph-context" placeholder="Ex: Ensaio de viabilidade celular com MTT sobre linhagem Vero tratada com naftoquinonas..."></textarea>
+            </div>
+            <button class="btn-run" onclick="runGraphInterpret()">
+                ▶ Interpretar Gráfico
+            </button>
+        </div>
+
+        <!-- Panel: Referências -->
+        <div class="panel" id="panel-references">
+            <div class="panel-title">Formatação de Referências por ISSN</div>
+            <div class="panel-desc">
+                Informe o ISSN da revista-alvo. O sistema busca o estilo de citação via CrossRef
+                e formata suas referências automaticamente.
+            </div>
+            <div class="issn-input-row">
+                <div class="form-group">
+                    <label>ISSN da Revista</label>
+                    <input type="text" id="issn-input" placeholder="0000-0000">
+                </div>
+                <button class="btn-run btn-secondary" onclick="lookupISSN()" style="height: 38px; margin-top: 0;">
+                    🔍 Buscar
+                </button>
+            </div>
+            <div class="journal-info-bar" id="journal-info-bar">
+                Revista: <span class="jname" id="journal-name"></span>
+                — <span id="journal-publisher"></span>
+            </div>
+            <div class="form-group" style="margin-top: 0.75rem;">
+                <label>Referências (cole aqui ou extraia do PDF)</label>
+                <textarea id="refs-input" rows="8" placeholder="Cole as referências brutas aqui..."></textarea>
+            </div>
+            <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem;">
+                <button class="btn-run btn-secondary" onclick="extractRefsFromPDF()">
+                    📄 Extrair do PDF
+                </button>
+                <button class="btn-run" onclick="runFormatRefs()">
+                    ▶ Formatar Referências
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="spinner" id="spinner">
+            <div class="spinner-ring"></div>
+            <span id="spinner-text">Processando com LLM local...</span>
+        </div>
+
+        <!-- Result -->
+        <div class="result-area" id="result-area">
+            <div class="result-header">
+                <h3 id="result-title">Resultado</h3>
+                <button class="btn-copy" onclick="copyResult()">📋 Copiar</button>
+            </div>
+            <div class="result-content" id="result-content"></div>
+        </div>
+    </main>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Footer -->
+<footer>
+    <div class="footer-content">
+        <h3 class="footer-title">📚 Guia de Modelos Disponíveis</h3>
+        <div class="models-grid">
+            <!-- Resumos de Texto -->
+            <div class="model-category">
+                <h4>📝 Resumos de Texto</h4>
+
+                <div class="model-item">
+                    <div class="model-name">mistral-large-3:675b-cloud</div>
+                    <div class="model-best"><strong>Melhor para:</strong> Resumos complexos, análises profundas, introduções acadêmicas</div>
+                    <div class="model-spec">Modelo muito grande (675B), excelente compreensão contextual e raciocínio avançado</div>
+                </div>
+
+                <div class="model-item">
+                    <div class="model-name">gpt-oss:120b-cloud</div>
+                    <div class="model-best"><strong>Melhor para:</strong> Resumos detalhados, análise metodológica complexa</div>
+                    <div class="model-spec">Grande capacidade contextual, bom para textos longos</div>
+                </div>
+
+                <div class="model-item">
+                    <div class="model-name">deepseek-coder-v2:16b</div>
+                    <div class="model-best"><strong>Melhor para:</strong> Análise de métodos computacionais, pipelines bioinformáticos</div>
+                    <div class="model-spec">Especializado em código/métodos técnicos</div>
+                </div>
+
+                <div class="model-item">
+                    <div class="model-name">qwen2.5-coder:14b</div>
+                    <div class="model-best"><strong>Melhor para:</strong> Extração de métodos, protocolos experimentais estruturados</div>
+                    <div class="model-spec">Boa estruturação lógica de informações</div>
+                </div>
+
+                <div class="model-item">
+                    <div class="model-name">llama3.1:8b-instruct-q8_0</div>
+                    <div class="model-best"><strong>Melhor para:</strong> Resumos rápidos e simples</div>
+                    <div class="model-spec">Balanceado, rápido, boa qualidade geral (⭐ Recomendado)</div>
+                </div>
+
+                <div class="model-item">
+                    <div class="model-name">mistral:7b-instruct-q5_K_M</div>
+                    <div class="model-best"><strong>Melhor para:</strong> Resumos gerais com baixa latência</div>
+                    <div class="model-spec">Rápido e eficiente</div>
+                </div>
+            </div>
+
+            <!-- Análise de Gráficos -->
+            <div class="model-category">
+                <h4>📊 Análise de Gráficos (Multimodal)</h4>
+
+                <div class="model-item">
+                    <div class="model-name">llava:7b</div>
+                    <div class="model-best"><strong>Melhor para:</strong> Análise de gráficos e figuras científicas</div>
+                    <div class="model-spec">⭐ Recomendado para RTX 3060 12GB - rápido e eficiente</div>
+                </div>
+
+                <div class="model-item">
+                    <div class="model-name">llava:13b</div>
+                    <div class="model-best"><strong>Melhor para:</strong> Análise detalhada de imagens complexas</div>
+                    <div class="model-spec">Maior precisão, mas requer mais VRAM (⚠️ pode ser lento)</div>
+                </div>
+
+                <div class="model-item" style="border-left: 3px solid var(--warning); padding-left: 0.5rem;">
+                    <div class="model-spec" style="color: var(--warning);">
+                        ⚠️ <strong>Importante:</strong> Modelos multimodais (LLaVA) precisam ser instalados separadamente com: <code style="color: var(--accent);">ollama pull llava:7b</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formatação de Referências -->
+            <div class="model-category">
+                <h4>📚 Formatação de Referências</h4>
+
+                <div class="model-item">
+                    <div class="model-name">mistral-large-3:675b-cloud</div>
+                    <div class="model-best"><strong>Melhor para:</strong> Máxima precisão na formatação</div>
+                    <div class="model-spec">Compreensão superior de estilos de citação complexos</div>
+                </div>
+
+                <div class="model-item">
+                    <div class="model-name">llama3.1:8b-instruct-q8_0</div>
+                    <div class="model-best"><strong>Melhor para:</strong> Boa relação custo/benefício</div>
+                    <div class="model-spec">⭐ Qualidade adequada com velocidade superior</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let currentFile = null;
+let pdfImages = [];
+let selectedImageIndex = null;
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    checkOllamaStatus();
+    setupUpload();
+    setupTabs();
+});
+
+// ─── Ollama Status ───────────────────────────────────────────────────────────
+async function checkOllamaStatus() {
+    try {
+        const resp = await fetch('/api/status');
+        const data = await resp.json();
+        const dot = document.getElementById('ollama-dot');
+        const label = document.getElementById('ollama-status');
+        const select = document.getElementById('model-select');
+
+        if (data.online) {
+            dot.classList.add('online');
+            label.textContent = `Ollama ✓ (${data.models.length} modelos)`;
+            select.innerHTML = data.models
+                .map(m => `<option value="${m}">${m}</option>`)
+                .join('');
+
+            // Pré-selecionar modelos multimodais no select de visão
+            const visionSelect = document.getElementById('vision-model-select');
+            const visionModels = data.models.filter(m =>
+                m.includes('llava') || m.includes('bakllava') || m.includes('moondream')
+            );
+            if (visionModels.length > 0) {
+                visionSelect.innerHTML = visionModels
+                    .map(m => `<option value="${m}">${m}</option>`)
+                    .join('');
+            }
+        } else {
+            label.textContent = 'Ollama offline';
+            select.innerHTML = '<option value="">Execute: ollama serve</option>';
+        }
+    } catch {
+        document.getElementById('ollama-status').textContent = 'Erro de conexão';
+    }
+}
+
+// ─── Upload ──────────────────────────────────────────────────────────────────
+function setupUpload() {
+    const zone = document.getElementById('upload-zone');
+    const input = document.getElementById('file-input');
+
+    zone.addEventListener('click', () => input.click());
+
+    zone.addEventListener('dragover', e => {
+        e.preventDefault();
+        zone.classList.add('dragover');
+    });
+
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+
+    zone.addEventListener('drop', e => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+
+    input.addEventListener('change', () => {
+        if (input.files.length) handleFile(input.files[0]);
+    });
+}
+
+async function handleFile(file) {
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+        showToast('Selecione um arquivo PDF', 'error');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const zone = document.getElementById('upload-zone');
+    const info = document.getElementById('file-info');
+    info.textContent = 'Enviando...';
+
+    try {
+        const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+        const data = await resp.json();
+
+        if (data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        currentFile = data.filename;
+        zone.classList.add('has-file');
+        info.textContent = `✓ ${data.filename} (${data.metadata.page_count} págs)`;
+
+        // Metadados
+        const metaGrid = document.getElementById('meta-grid');
+        metaGrid.innerHTML = `
+            <div class="meta-item"><span class="label">Páginas</span><span class="value">${data.metadata.page_count}</span></div>
+            <div class="meta-item"><span class="label">Figuras</span><span class="value">${data.image_count}</span></div>
+            <div class="meta-item"><span class="label">Seções</span><span class="value">${data.sections_found.join(', ') || 'N/I'}</span></div>
+            <div class="meta-item"><span class="label">Título</span><span class="value">${data.metadata.title || 'N/I'}</span></div>
+        `;
+        document.getElementById('pdf-meta').style.display = 'block';
+
+        // Imagens para tab de gráficos
+        pdfImages = data.images;
+        updateImageGrid();
+
+        showToast('PDF carregado com sucesso', 'success');
+    } catch (e) {
+        showToast('Erro no upload: ' + e.message, 'error');
+    }
+}
+
+function updateImageGrid() {
+    const grid = document.getElementById('image-grid');
+    if (pdfImages.length === 0) {
+        grid.innerHTML = '<div style="color: var(--text-muted); font-size: 0.78rem; grid-column: 1/-1;">Nenhuma figura encontrada neste PDF.</div>';
+        return;
+    }
+    grid.innerHTML = pdfImages.map((img, i) => `
+        <div class="image-thumb ${i === selectedImageIndex ? 'selected' : ''}"
+             onclick="selectImage(${i})"
+             title="Página ${img.page} — ${img.width}×${img.height}">
+            <span style="font-size: 1.5rem;">🖼</span>
+            <span>Fig. ${i + 1}</span>
+            <span>p. ${img.page}</span>
+        </div>
+    `).join('');
+}
+
+function selectImage(idx) {
+    selectedImageIndex = idx;
+    updateImageGrid();
+}
+
+// ─── Tabs ────────────────────────────────────────────────────────────────────
+function setupTabs() {
+    document.querySelectorAll('.mode-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(`panel-${tab.dataset.mode}`).classList.add('active');
+        });
+    });
+}
+
+// ─── API Calls ───────────────────────────────────────────────────────────────
+function showLoading(text) {
+    document.getElementById('spinner-text').textContent = text || 'Processando...';
+    document.getElementById('spinner').classList.add('visible');
+    document.getElementById('result-area').classList.remove('visible');
+}
+
+function hideLoading() {
+    document.getElementById('spinner').classList.remove('visible');
+}
+
+function showResult(title, content) {
+    document.getElementById('result-title').textContent = title;
+    document.getElementById('result-content').textContent = content;
+    document.getElementById('result-area').classList.add('visible');
+}
+
+// Resumo (simple, introduction, methods)
+async function runSummarize(mode, section = '') {
+    if (!currentFile) { showToast('Faça upload de um PDF primeiro', 'error'); return; }
+
+    const titles = {
+        simple: 'Resumo Geral',
+        introduction: 'Análise para Introdução',
+        methods: 'Extração de Métodos',
+    };
+
+    showLoading(`Gerando ${titles[mode] || 'resumo'} via LLM local...`);
+
+    try {
+        const resp = await fetch('/api/summarize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filename: currentFile,
+                mode: mode,
+                model: document.getElementById('model-select').value,
+                section: section || null,
+            }),
+        });
+
+        const data = await resp.json();
+        hideLoading();
+
+        if (data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        showResult(`${titles[mode]} — ${data.model}`, data.result);
+    } catch (e) {
+        hideLoading();
+        showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+// Interpretação de gráfico
+async function runGraphInterpret() {
+    if (!currentFile) { showToast('Faça upload de um PDF primeiro', 'error'); return; }
+    if (selectedImageIndex === null) { showToast('Selecione uma figura', 'error'); return; }
+
+    showLoading('Interpretando gráfico com modelo multimodal...');
+
+    try {
+        const resp = await fetch('/api/interpret-graph', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filename: currentFile,
+                image_index: selectedImageIndex,
+                model: document.getElementById('vision-model-select').value,
+                context: document.getElementById('graph-context').value,
+            }),
+        });
+
+        const data = await resp.json();
+        hideLoading();
+
+        if (data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        showResult(`Interpretação — Fig. ${selectedImageIndex + 1} (p. ${data.image_page})`, data.result);
+    } catch (e) {
+        hideLoading();
+        showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+// Buscar ISSN
+async function lookupISSN() {
+    const issn = document.getElementById('issn-input').value.trim();
+    if (!issn) { showToast('Informe o ISSN', 'error'); return; }
+
+    try {
+        const resp = await fetch(`/api/journal-info/${encodeURIComponent(issn)}`);
+        const data = await resp.json();
+
+        if (data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        document.getElementById('journal-name').textContent = data.title;
+        document.getElementById('journal-publisher').textContent = data.publisher;
+        document.getElementById('journal-info-bar').style.display = 'block';
+        showToast(`Revista encontrada: ${data.title}`, 'success');
+    } catch (e) {
+        showToast('Erro na busca: ' + e.message, 'error');
+    }
+}
+
+// Extrair referências do PDF
+async function extractRefsFromPDF() {
+    if (!currentFile) { showToast('Faça upload de um PDF primeiro', 'error'); return; }
+
+    showLoading('Extraindo seção de referências do PDF...');
+
+    try {
+        const resp = await fetch('/api/summarize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filename: currentFile,
+                mode: 'simple',
+                model: document.getElementById('model-select').value,
+                section: 'references',
+            }),
+        });
+
+        // Na verdade, vamos pegar o texto cru — hack via summary com section=references
+        // Melhor: buscar direto a seção
+        const resp2 = await fetch('/api/upload', { method: 'POST', body: (() => {
+            const fd = new FormData();
+            // Reusar arquivo já no server... simplificar: mostrar texto
+            return fd;
+        })() });
+
+        hideLoading();
+        showToast('Use a extração de seções do upload. Cole as referências manualmente por enquanto.', 'warning');
+    } catch (e) {
+        hideLoading();
+        // Fallback simples
+        document.getElementById('refs-input').placeholder = 'Cole as referências do artigo aqui...';
+    }
+}
+
+// Formatar referências
+async function runFormatRefs() {
+    const issn = document.getElementById('issn-input').value.trim();
+    const refs = document.getElementById('refs-input').value.trim();
+
+    if (!issn) { showToast('Informe o ISSN da revista-alvo', 'error'); return; }
+    if (!refs && !currentFile) { showToast('Cole as referências ou faça upload de um PDF', 'error'); return; }
+
+    showLoading('Formatando referências no estilo da revista...');
+
+    try {
+        const resp = await fetch('/api/format-references', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                issn: issn,
+                references: refs,
+                model: document.getElementById('model-select').value,
+                filename: currentFile,
+            }),
+        });
+
+        const data = await resp.json();
+        hideLoading();
+
+        if (data.error) {
+            showToast(data.error, 'error');
+            return;
+        }
+
+        showResult(`Referências — ${data.journal} (ISSN: ${data.issn})`, data.result);
+    } catch (e) {
+        hideLoading();
+        showToast('Erro: ' + e.message, 'error');
+    }
+}
+
+// ─── Util ────────────────────────────────────────────────────────────────────
+function copyResult() {
+    const text = document.getElementById('result-content').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Copiado para a área de transferência', 'success');
+    });
+}
+
+function showToast(msg, type = '') {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = 'toast visible ' + type;
+    setTimeout(() => toast.classList.remove('visible'), 3500);
+}
+</script>
+
+</body>
+</html>

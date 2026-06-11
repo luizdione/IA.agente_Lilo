@@ -1,0 +1,16 @@
+{
+  "name": "matplotlib_validate_backend",
+  "description": "[*Deprecated*] \n\nNotes\n-----\n.. deprecated:: 3.10\n   Use matplotlib.rcsetup.validate_backend instead.\\ ",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "s": {
+        "type": "string",
+        "description": "s (Any)"
+      }
+    },
+    "required": [
+      "s"
+    ]
+  }
+}

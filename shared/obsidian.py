@@ -40,7 +40,18 @@ def _get_vault_folder() -> Optional[Path]:
     """Retorna a pasta LILO no vault Obsidian, ou None se não configurado."""
     if not OBSIDIAN_VAULT:
         return None
-    folder = Path(OBSIDIAN_VAULT) / OBSIDIAN_FOLDER
+    vault = Path(OBSIDIAN_VAULT)
+    # 2026-05-23: guarda multiplataforma. No .env o vault e um caminho Windows
+    # (ex. "C:/Users/..."). No Windows isso e absoluto e funciona normalmente;
+    # porem quando o LILO roda FORA do Windows (ex. tarefa agendada em sandbox
+    # Linux), Path("C:/..") vira RELATIVO e mkdir cria uma pasta-lixo "C:" dentro
+    # do repositorio. So persiste em vault com caminho ABSOLUTO no SO atual.
+    if not vault.is_absolute():
+        log.warning(
+            "Obsidian vault '%s' nao e absoluto neste SO; pulando "
+            "(normal fora do Windows, evita pasta-lixo no repo).", OBSIDIAN_VAULT)
+        return None
+    folder = vault / OBSIDIAN_FOLDER
     try:
         folder.mkdir(parents=True, exist_ok=True)
         return folder

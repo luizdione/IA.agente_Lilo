@@ -1,0 +1,16 @@
+{
+  "name": "numpy_asarray",
+  "description": "asarray(a, dtype=None, order=None, *, device=None, copy=None, like=None)\n\nConvert the input to an array.\n\nParameters\n----------\na : array_like\n    Input data, in any form that can be converted to an a",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "args": {
+        "type": "string",
+        "description": "args (Any)"
+      }
+    },
+    "required": [
+      "args"
+    ]
+  }
+}

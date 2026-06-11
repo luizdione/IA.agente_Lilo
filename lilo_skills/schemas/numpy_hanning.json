@@ -1,0 +1,16 @@
+{
+  "name": "numpy_hanning",
+  "description": "Return the Hanning window.\n\nThe Hanning window is a taper formed by using a weighted cosine.\n\nParameters\n----------\nM : int\n    Number of points in the output window. If zero or less, an\n    empty arr",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "M": {
+        "type": "string",
+        "description": "M (Any)"
+      }
+    },
+    "required": [
+      "M"
+    ]
+  }
+}

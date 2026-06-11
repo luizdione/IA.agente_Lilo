@@ -1,0 +1,16 @@
+{
+  "name": "numpy_fromstring",
+  "description": "fromstring(string, dtype=float, count=-1, *, sep, like=None)\n\nA new 1-D array initialized from text data in a string.\n\nParameters\n----------\nstring : str\n    A string containing the data.\ndtype : data",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "args": {
+        "type": "string",
+        "description": "args (Any)"
+      }
+    },
+    "required": [
+      "args"
+    ]
+  }
+}

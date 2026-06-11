@@ -1,0 +1,16 @@
+{
+  "name": "mpmath_bernfrac",
+  "description": "Returns a tuple of integers `(p, q)` such that `p/q = B_n` exactly,\nwhere `B_n` denotes the `n`-th Bernoulli number. The fraction is\nalways reduced to lowest terms. Note that for `n > 1` and `n` odd,\n",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "n": {
+        "type": "string",
+        "description": "n (Any)"
+      }
+    },
+    "required": [
+      "n"
+    ]
+  }
+}

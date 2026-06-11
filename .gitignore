@@ -85,3 +85,9 @@ build/
 dist/
 node_modules/
 frontend/build/
+
+# -- Artefatos locais acidentais (nao versionar) --
+backups/
+_mount_probe_*.txt
+_sentinel_test.txt
+/C/

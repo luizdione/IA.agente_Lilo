@@ -1,0 +1,18 @@
+# Streamlit config — LILO Dashboard
+# Trava a porta em 8100 (8501 default e 8506 anterior estao em uso por outras APIs)
+
+[server]
+port = 8100
+headless = true
+runOnSave = false
+fileWatcherType = "auto"
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+primaryColor = "#FF4B4B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+font = "sans serif"

@@ -1,0 +1,14 @@
+{
+  "name": "datasets_download_all",
+  "description": "Utility method to download all the dataset files\nfor `scipy.datasets` module.\n\nParameters\n----------\npath : str, optional\n    Directory path to download all the dataset files.\n    If None, default to ",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "path": {
+        "type": "string",
+        "description": "path (Any)"
+      }
+    },
+    "required": []
+  }
+}
