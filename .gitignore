@@ -95,3 +95,6 @@ pytest-cache-files-*/
 
 # Documentos gerados pelo docgen (V13.2)
 data/docgen/
+
+# Biometria de voz (voiceprint do dono) - NAO versionar
+data/voiceprint/
