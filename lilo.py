@@ -61,6 +61,7 @@ def _load_agents() -> dict:
         ("desktop", "agents.desktop",             "DesktopAgent"),
         ("paper",   "agents.paper.agent",         "PaperAgent"),
         ("docgen",  "agents.docgen.agent",        "DocGenAgent"),
+        ("skillsmith", "agents.skillsmith.agent",  "SkillSmithAgent"),
     ]
 
     for name, module_path, class_name in _AGENT_REGISTRY:
@@ -103,6 +104,8 @@ _KEYWORD_MAP = {
     "docgen":  ["gerar documento", "criar documento", "relatorio word", "docx",
                 "planilha", "xlsx", "excel", "apresentacao", "slides", "pptx",
                 "powerpoint", "gerar relatorio", "exportar para word"],
+    "skillsmith": ["criar agente", "novo subagente", "criar skill", "nova skill",
+                   "scaffold", "gerar agente", "skill creator", "criar capacidade"],
 }
 
 
@@ -348,6 +351,9 @@ def get_tool_map():
         "make_docx":          ("docgen",  lambda a: {"mode": "docx", "content": a.get("content",""), "name": a.get("name","")}),
         "make_xlsx":          ("docgen",  lambda a: {"mode": "xlsx", "csv_path": a.get("csv_path",""), "tsv": a.get("tsv",""), "csv": a.get("csv",""), "name": a.get("name","")}),
         "make_pptx":          ("docgen",  lambda a: {"mode": "pptx", "outline": a.get("outline",""), "name": a.get("name","")}),
+        # skillsmith (criador de subagentes)
+        "propose_agent":      ("skillsmith", lambda a: {"description": a.get("query","")}),
+        "create_agent_scaffold": ("skillsmith", lambda a: {"name": a.get("name",""), "description": a.get("description",""), "keywords": a.get("keywords"), "tools": a.get("tools")}),
         # Prism AI
         "prism_analyze":      ("prism",  lambda a: {"file_path": a.get("file_path",""), "output_dir": a.get("output_dir",""), "language": a.get("language","en"), "alpha": a.get("alpha",0.05)}),
         "prism_classify":     ("prism",  lambda a: {"file_path": a.get("file_path","")}),

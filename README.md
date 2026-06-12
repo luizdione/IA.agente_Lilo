@@ -11,14 +11,14 @@
 - **Claude API** (Sonnet/Opus) como fallback para tarefas complexas
 - **Policy Engine** que decide automaticamente o tier de execução pelo conteúdo da query (NO_LLM → Ollama_fast → Ollama → Ollama_heavy → Claude_sonnet → Claude_opus)
 - **Roteamento semântico (V12)** — uma porta única (Villa Lobos) escolhe o melhor subagente pela semântica da pergunta e, em tarefas multi-etapa, **encadeia vários especialistas em sequência**
-- **8 subagentes especializados** — cada um com sua expertise
+- **10 subagentes especializados** — cada um com sua expertise
 - **Busca na internet** — web geral (DuckDuckGo) + 10 fontes estruturadas (PubMed, OpenAlex, Europe PMC, Crossref, Semantic Scholar, Google Books, Wikipedia, arXiv, ClinicalTrials, Open Targets…)
 - **MCP server unificado** com integração nativa ao Claude Desktop e PyCharm
 - **Dashboard Streamlit** local em http://localhost:8100 (tema Claude Desktop, modo **Auto**)
 
 ---
 
-## Subagentes (8)
+## Subagentes (10)
 
 | Agente | Especialidade | Tools MCP |
 |---|---|---|
@@ -30,6 +30,8 @@
 | **Gateway** (`agents/gateway/`) | Fallback genérico via LiteLLM proxy ou Ollama direto | `lilo_chat`, `lilo_models` |
 | **Desktop Commander** (`agents/desktop/`) | Filesystem + shell com allow-list de segurança | `fs_read`, `fs_write`, `fs_list`, `fs_stat`, `fs_search`, `run_shell`, `run_python` |
 | **Paper** (`agents/paper/`) | Redação científica (skill build_paper): outline, seções com referências reais, build DOCX/TEX/PDF. Escritor via Ollama Cloud | `paper_outline`, `paper_section`, `paper_references`, `paper_draft`, `paper_build` |
+| **DocGen** (`agents/docgen/`) | Documentos de escritório: relatórios `.docx`, planilhas `.xlsx`, apresentações `.pptx` | `make_report_docx`, `make_docx`, `make_xlsx`, `make_pptx` |
+| **SkillSmith** (`agents/skillsmith/`) | Cria o scaffold de novos subagentes/skills do LILO (meta-skill) | `propose_agent`, `create_agent_scaffold` |
 
 ---
 
@@ -82,7 +84,7 @@ de verdade** é `_PROFILE_TOOLS` em [`lilo_mcp.py`](lilo_mcp.py); o servidor log
 
 ```cmd
 python lilo_mcp.py --profile opus       # recomendado p/ Claude Desktop
-python lilo_mcp.py --profile desktop    # todas as 35 tools
+python lilo_mcp.py --profile desktop    # todas as tools
 python lilo_mcp.py --profile bio        # subset biomolecular
 python lilo_mcp.py --profile pycharm    # subset PyCharm
 ```
@@ -137,7 +139,7 @@ Saída esperada:
 [SUCCESS] Servidor MCP LILO esta funcional via stdio.
 ```
 
-#### Como reverter (voltar a expor todas as 35 tools no Claude Desktop)
+#### Como reverter (voltar a expor todas as tools no Claude Desktop)
 
 No `claude_desktop_config.json`, troque `"--profile", "opus"` por
 `"--profile", "desktop"` e reinicie o Claude Desktop.
@@ -201,7 +203,7 @@ IA.agente/
 ├── lilo_api.py                API HTTP FastAPI :8088 (plataforma híbrida)
 ├── lilo_serve.py              Multiplexer de transporte (stdio/http/sse)
 ├── dashboard.py               Streamlit UI :8100 (tema Claude Desktop)
-├── agents/                    8 subagentes (sql, pdf, scholar, prism, villa, gateway, desktop, paper)
+├── agents/                    10 subagentes (sql, pdf, scholar, prism, villa, gateway, desktop, paper, docgen, skillsmith)
 ├── shared/                    Cliente LLM, Policy Engine, base_agent, chat_memory, web_search
 ├── lilo_skills/               199 skills auto-geradas + bio/openmm_nvt_equilibration_safe
 ├── config/
