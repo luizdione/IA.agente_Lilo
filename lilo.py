@@ -352,6 +352,7 @@ def get_tool_map():
         "prism_analyze":      ("prism",  lambda a: {"file_path": a.get("file_path",""), "output_dir": a.get("output_dir",""), "language": a.get("language","en"), "alpha": a.get("alpha",0.05)}),
         "prism_classify":     ("prism",  lambda a: {"file_path": a.get("file_path","")}),
         "prism_audit":        ("prism",  lambda a: {"file_path": a.get("file_path",""), "claimed_test": a.get("claimed_test","")}),
+        "prism_eda":          ("prism",  lambda a: {"mode": "eda", "file_path": a.get("file_path",""), "output_dir": a.get("output_dir","")}),
         # Villa Lobos
         "villa_pipeline":     ("villa",  lambda a: {"iterations": a.get("iterations",1), "use_reader": a.get("use_reader",True), "base_path": a.get("base_path",".")}),
         "villa_quick_ask":    ("villa",  lambda a: {"agent": a.get("agent","worker")}),

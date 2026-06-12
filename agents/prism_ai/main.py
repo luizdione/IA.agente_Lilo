@@ -145,6 +145,15 @@ class PrismAgent(BaseAgent):
             "export_csv": context.get("export_csv", True),
         }
 
+        # V13.3: modo EDA (perfil exploratório rápido), antes do pipeline pesado.
+        _q = (query or "").strip().lower()
+        if context.get("mode") == "eda" or _q.startswith(("eda", "perfil", "profile")):
+            try:
+                return self._eda(file_path, output_dir, config)
+            except Exception as e:
+                log.error(f"EDA falhou: {e}", exc_info=True)
+                return f"## ❌ Erro no EDA\n\n{e}"
+
         # Detectar modo parcial
         mode = self._detect_mode(query)
 
@@ -228,6 +237,24 @@ class PrismAgent(BaseAgent):
                     "required": ["file_path"],
                 },
             },
+            {
+                "name": "prism_eda",
+                "description": (
+                    "Perfil exploratório RÁPIDO de um dataset (.csv/.xlsx): "
+                    "dimensões, tipos, %nulos, cardinalidade, describe das "
+                    "numéricas, histogramas e heatmap de correlação. Visão "
+                    "inicial leve (sem teste estatístico — use prism_analyze p/ isso)."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {"type": "string",
+                                      "description": "Caminho .csv/.xlsx"},
+                        "output_dir": {"type": "string"},
+                    },
+                    "required": ["file_path"],
+                },
+            },
         ]
 
     def health(self) -> dict:
@@ -249,6 +276,68 @@ class PrismAgent(BaseAgent):
                 "visualization", "writing", "export",
             ],
         }
+
+    # ── EDA / perfil exploratório (V13.3) ────────────────────────────────
+    def _eda(self, file_path: str, output_dir: str, config: dict) -> str:
+        """Perfil exploratório RÁPIDO de um dataset (.csv/.xlsx), determinístico
+        (pandas + matplotlib, sem LLM): dimensões, tipos/%nulos/cardinalidade,
+        describe das numéricas, histogramas e heatmap de correlação. Complementa
+        prism_analyze (pipeline estatístico pesado) com uma visão inicial leve.
+        """
+        import pandas as pd
+        from pathlib import Path as _P
+        _P(output_dir).mkdir(parents=True, exist_ok=True)
+        fp = str(file_path)
+        try:
+            df = (pd.read_excel(fp) if fp.lower().endswith((".xlsx", ".xls"))
+                  else pd.read_csv(fp))
+        except Exception as e:
+            return "## ❌ EDA — erro ao ler %s\n\n%s" % (fp, e)
+        n, m = df.shape
+        num = df.select_dtypes("number")
+        lines = ["## 📊 Prism AI — EDA (perfil exploratório)\n",
+                 "**Arquivo:** %s" % fp,
+                 "**Dimensões:** %d linhas × %d colunas\n" % (n, m),
+                 "### Colunas", "| coluna | tipo | %nulos | n_únicos |",
+                 "|---|---|---|---|"]
+        for c in df.columns:
+            lines.append("| %s | %s | %.1f%% | %d |" % (
+                c, df[c].dtype, 100 * df[c].isna().mean(), df[c].nunique()))
+        if not num.empty:
+            lines += ["", "### Estatística descritiva (numéricas)", "```",
+                      num.describe().round(3).to_string(), "```"]
+        figs = []
+        try:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+            for c in list(num.columns)[:6]:
+                fig, ax = plt.subplots(figsize=(4, 3))
+                num[c].dropna().hist(ax=ax, bins=20)
+                ax.set_title(str(c))
+                pth = _P(output_dir) / ("eda_hist_%s.png" % str(c)[:30])
+                fig.savefig(pth, dpi=120, bbox_inches="tight")
+                plt.close(fig)
+                figs.append(str(pth))
+            if num.shape[1] >= 2:
+                corr = num.corr()
+                fig, ax = plt.subplots(figsize=(5, 4))
+                im = ax.imshow(corr, cmap="coolwarm", vmin=-1, vmax=1)
+                ax.set_xticks(range(len(corr)))
+                ax.set_xticklabels(corr.columns, rotation=90, fontsize=7)
+                ax.set_yticks(range(len(corr)))
+                ax.set_yticklabels(corr.columns, fontsize=7)
+                fig.colorbar(im)
+                ax.set_title("Correlação (Pearson)")
+                pth = _P(output_dir) / "eda_corr.png"
+                fig.savefig(pth, dpi=120, bbox_inches="tight")
+                plt.close(fig)
+                figs.append(str(pth))
+        except Exception as e:
+            lines.append("\n(gráficos: falha — %s)" % e)
+        if figs:
+            lines += ["", "### Gráficos (%d)" % len(figs)] + ["- %s" % f for f in figs]
+        return "\n".join(lines)
 
     # ── Pipeline ─────────────────────────────────────────────────────────
 
