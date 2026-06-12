@@ -206,6 +206,40 @@ def test_route_target_unavailable_domain_falls_to_villa(villa):
 
 
 # --------------------------------------------------------------------------
+# V12: delegação por etapa -- worker_agent no JSON do Orchestrator, validado.
+# --------------------------------------------------------------------------
+class _FakeClientWorkerAgent:
+    backend = "ollama"
+
+    def __init__(self, wa):
+        self._wa = wa
+
+    def chat(self, *a, **k):
+        return ('{"complexity":"moderate","needs_planning":true,'
+                '"needs_reader":false,"needs_worker":true,"iterations":1,'
+                '"skip_to_reporter":false,"worker_agent":"%s",'
+                '"reasoning":"x"}' % self._wa)
+
+    def health(self):
+        return {"backend": "ollama"}
+
+
+@pytest.mark.parametrize("wa,expected", [
+    ("scholar", "scholar"),     # especialista valido -> preservado
+    ("prism", "prism"),
+    ("banana", None),           # alucinacao -> rejeitada
+    ("villa", None),            # nao e stage-agent (evita recursao)
+    ("gateway", None),          # chat raso nao executa etapa
+])
+def test_worker_agent_validation(wa, expected):
+    from agents.villa_lobos.agent import VillaLobosAgent
+    v = VillaLobosAgent()
+    v.client = _FakeClientWorkerAgent(wa)
+    d = v._orchestrate_decision("analise os dados do experimento", use_cache=False)
+    assert d.get("worker_agent") == expected
+
+
+# --------------------------------------------------------------------------
 # _orchestrate_decision (heuristica, pois client e mock)
 # --------------------------------------------------------------------------
 def test_decision_simple_query_skips_to_reporter(villa):

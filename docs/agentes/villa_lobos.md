@@ -2,7 +2,15 @@
 
 **Path:** `agents/villa_lobos/agent.py`
 **Tools MCP:** `villa_pipeline`, `villa_quick_ask`, `villa_explain_routing`
-**Smart routing:** v10.1 (2026-05-07) · **roteamento atual: V11.2 (2026-06-11)**
+**Smart routing:** v10.1 (2026-05-07) · **roteamento atual: V12 (2026-06-11)**
+
+> **V12 — porta única + delegação por etapa:**
+> - `route_target(query, available)` é a **porta única** de roteamento do LILO:
+>   decide qual subagente assume a query (LLM → heurística → capabilities).
+>   `lilo.route()` o usa no lugar do keyword-router (desligável: `LILO_SEMANTIC_ROUTER=0`).
+> - O Orchestrator pode indicar `worker_agent` no JSON (∈ [scholar, sql, prism,
+>   pdf, desktop]); a etapa **Worker** do pipeline é então executada por esse
+>   especialista e o Reporter sintetiza (desligável: `LILO_STAGE_DELEGATION=0`).
 
 > **Melhorias V10.9–V11.2** (além do descrito abaixo, que cobre a v10.1):
 > - **`_block_fast_path` (V11.2):** guarda anti-fast-path unificada nos ramos

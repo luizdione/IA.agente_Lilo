@@ -177,6 +177,11 @@ _PROOF_MARKERS = (
     "derive ", "enuncie",
 )
 
+# V12 (2026-06-11): especialistas de FERRAMENTA que podem executar a etapa
+# Worker do pipeline (delegacao por etapa). Exclui gateway (chat raso) e villa
+# (evita recursao). Usado para validar o campo worker_agent do Orchestrator.
+_STAGE_WORKER_AGENTS = frozenset({"scholar", "sql", "prism", "pdf", "desktop"})
+
 
 def _block_fast_path(query):
     """V11.2: classifica a guarda anti-fast-path UNIFICADA (ramo LLM + ramo
@@ -580,6 +585,27 @@ class VillaLobosAgent(BaseAgent):
                 )
                 if _mp_nudge:
                     log.info("    V11.1: nudge multi-parte ATIVO")
+                # V12 (2026-06-11): delegacao por ETAPA. Se o Orchestrator
+                # indicou um especialista (worker_agent), a 1a iteracao do
+                # Worker e executada por ELE (ex.: scholar busca literatura,
+                # prism analisa .xlsx) e o Reporter sintetiza -- "compartilhar
+                # etapas entre subagentes". Desligavel via LILO_STAGE_DELEGATION=0.
+                _stage_agent = decision.get("worker_agent")
+                _stage_map = None
+                if _stage_agent and _os.getenv("LILO_STAGE_DELEGATION", "1") == "1":
+                    try:
+                        from lilo import _load_agents
+                        _stage_map = _load_agents()
+                        if _stage_agent not in _stage_map:
+                            _stage_agent = None
+                    except Exception as _le:
+                        log.warning("    V12: _load_agents falhou (%s)", _le)
+                        _stage_agent = None
+                else:
+                    _stage_agent = None
+                if _stage_agent:
+                    log.info("    V12: Worker delega a especialista '%s'",
+                             _stage_agent)
                 for i in range(effective_iterations):
                     iter_ctx = (
                         " (iteracao %d/%d)" % (i + 1, effective_iterations)
@@ -611,7 +637,19 @@ class VillaLobosAgent(BaseAgent):
                             "RESULTADO ANTERIOR:\n" + work_results[-1][:400] + "\n\n"
                         )
                     _wi = time.time()
-                    w_result = self._call_agent("worker", worker_prompt)
+                    if _stage_agent and i == 0:
+                        # 1a iteracao executada pelo especialista indicado.
+                        try:
+                            w_result = _stage_map[_stage_agent].run(
+                                query, dict(context or {}))
+                            log.info("    Worker[it1] via especialista '%s'",
+                                     _stage_agent)
+                        except Exception as _se:
+                            log.warning("    especialista %s falhou (%s); "
+                                        "Worker LLM", _stage_agent, _se)
+                            w_result = self._call_agent("worker", worker_prompt)
+                    else:
+                        w_result = self._call_agent("worker", worker_prompt)
                     work_results.append(w_result)
                     # V10.3: emite cada iteracao do Worker assim que conclui
                     # (granularidade que o Reporter/cliente pode ir consumindo).
@@ -713,11 +751,20 @@ class VillaLobosAgent(BaseAgent):
             "- needs_planning=false: tarefa direta sem necessidade de plano.\n"
             "- needs_reader=false: nao referencia arquivos/dados.\n"
             "- needs_worker=false: Reporter sozinho responde.\n\n"
+            "Delegacao de especialista (V12, opcional):\n"
+            "- worker_agent: se a EXECUCAO (Worker) se beneficiar de um "
+            "especialista, indique UM dentre [scholar, sql, prism, pdf, "
+            "desktop]; senao null. scholar=buscar literatura (PubMed/arXiv); "
+            "sql=consulta/estatistica em banco; prism=analise estatistica de "
+            ".xlsx/.csv; pdf=sumarizar PDF; desktop=arquivos/shell. Para "
+            "perguntas de conhecimento geral use null.\n\n"
             "TAREFA: " + query + "\n\n"
             "Responda APENAS JSON valido:\n"
             '{"complexity":"trivial|simple|moderate|complex",'
             '"needs_planning":bool,"needs_reader":bool,"needs_worker":bool,'
-            '"iterations":int,"skip_to_reporter":bool,"reasoning":"frase"}'
+            '"iterations":int,"skip_to_reporter":bool,'
+            '"worker_agent":"scholar|sql|prism|pdf|desktop|null",'
+            '"reasoning":"frase"}'
         )
         try:
             raw = self.client.chat(
@@ -734,6 +781,12 @@ class VillaLobosAgent(BaseAgent):
                 m = re.search(r"\{.*\}", raw, re.DOTALL)
                 if m:
                     data = json.loads(m.group(0))
+                    # V12: especialista do Worker, validado contra a lista
+                    # conhecida (LLM pode alucinar nome) -> None se invalido.
+                    _wa = data.get("worker_agent")
+                    _wa = str(_wa).strip().lower() if _wa else None
+                    if _wa not in _STAGE_WORKER_AGENTS:
+                        _wa = None
                     out = {
                         "complexity": str(data.get("complexity", "moderate")).lower(),
                         "needs_planning": bool(data.get("needs_planning", True)),
@@ -741,6 +794,7 @@ class VillaLobosAgent(BaseAgent):
                         "needs_worker": bool(data.get("needs_worker", True)),
                         "iterations": max(1, min(3, int(data.get("iterations", 1)))),
                         "skip_to_reporter": bool(data.get("skip_to_reporter", False)),
+                        "worker_agent": _wa,
                         "reasoning": str(data.get("reasoning", ""))[:200],
                     }
                     # V11.2 (2026-06-11): guarda anti-fast-path-raso UNIFICADA

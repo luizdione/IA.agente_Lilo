@@ -1,5 +1,29 @@
 # LILO — Changelog
 
+## v10.6 — 2026-06-11 (V12: orquestração unificada — porta única + delegação por etapa)
+
+Villa Lobos vira a **porta única** de roteamento; os subagentes continuam
+módulos independentes, mas agora um só orquestrador semântico decide quem
+assume — e pode **dividir as etapas** entre especialistas.
+
+1. **Roteador semântico como porta única.** `lilo.route()` em modo auto delega
+   a decisão a `VillaLobosAgent.route_target()` (LLM router → heurística →
+   capabilities) em vez do keyword-router raso (`_detect_tab`, agora fallback).
+   Domínio claro → especialista; ambíguo/complexo → pipeline. Desligável via
+   `LILO_SEMANTIC_ROUTER=0`. Validado (Ollama): capital→gateway, ANOVA→prism,
+   pubmed→scholar, arquivos→desktop, SQL→sql, incerteza→villa.
+2. **Modo IA → "Auto" (default) + override.** O seletor manual
+   chat/code/bioinfo/sql vira "Auto" (o roteador decide); os modos antigos
+   permanecem como override opcional (`sql` força o agente SQL; chat/code/
+   bioinfo forçam o gateway no modo).
+3. **Delegação por etapa.** O Orchestrator pode indicar `worker_agent` no JSON
+   (validado contra [scholar, sql, prism, pdf, desktop]); a etapa Worker do
+   pipeline é então executada por esse especialista e o Reporter sintetiza.
+   Validado e2e (Ollama): "busque artigos no pubmed e resuma" → Worker via
+   ScholarAgent. Desligável via `LILO_STAGE_DELEGATION=0`.
+
+Testes: +10 (58 passam).
+
 ## v10.5 — 2026-06-11 (plataforma híbrida, dashboard Claude Desktop, Villa V11.2)
 
 ### Arquitetura híbrida (v10)
