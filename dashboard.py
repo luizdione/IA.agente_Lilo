@@ -1383,6 +1383,33 @@ with main_col:
         # Anexos via popover (+) -- substitui sidebar 'Anexos'
         _render_attachments_popover("chat")
 
+        # V14.1: microfone -- fala -> texto (faster-whisper local). O audio e
+        # captado pelo navegador (st.audio_input), transcrito localmente e
+        # injetado como prompt do chat (reusa o mecanismo _resend_text).
+        try:
+            from shared import transcribe as _tx
+            if _tx.is_available():
+                _mc1, _mc2 = st.columns([3, 5])
+                with _mc1:
+                    _audio = st.audio_input("🎤 Falar com o LILO",
+                                            key="mic_input",
+                                            label_visibility="collapsed")
+                if _audio is not None:
+                    _ab = _audio.getvalue()
+                    _sig = "%d:%s" % (len(_ab), hash(_ab[:2048]))
+                    if st.session_state.get("_last_audio_sig") != _sig:
+                        st.session_state["_last_audio_sig"] = _sig
+                        with st.spinner("Transcrevendo (local)..."):
+                            _txt = _tx.transcribe(_ab)
+                        if _txt:
+                            st.session_state["_resend_text"] = _txt
+                            st.rerun()
+                        else:
+                            with _mc2:
+                                st.caption("Não entendi o áudio — tente de novo.")
+        except Exception as _mic_e:
+            log.debug("Microfone indisponivel: %s", _mic_e)
+
         # Input com slash commands
         _placeholder = (
             "Digite uma instrucao para o LILO executar... (/ para skills)"
