@@ -786,7 +786,7 @@ with st.sidebar:
              "pergunta. chat/code/bioinfo forcam o modo do gateway; sql forca "
              "o agente SQL.")
 
-    st.caption("LILO v10.5 -- " + datetime.now().strftime("%H:%M"))
+    st.caption("LILO v10.6 -- roteamento Auto -- " + datetime.now().strftime("%H:%M"))
 
 
 # -- Pagina ativa -------------------------------------------------------------
@@ -1296,12 +1296,56 @@ with main_col:
 
     # == CHAT =================================================================
     if page == "Chat":
-        st.header("Chat LILO")
-
-        # Mostrar mensagens
-        for msg in st.session_state.messages:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
+        # V12: tela de boas-vindas (empty state) estilo Claude Desktop quando
+        # ainda nao ha conversa -- saudacao serifada + capacidades atuais.
+        if st.session_state.messages:
+            st.header("Chat LILO")
+            for msg in st.session_state.messages:
+                with st.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
+        else:
+            st.markdown("""
+<style>
+.lilo-welcome { text-align:center; max-width:720px; margin:6vh auto 1rem auto; }
+.lilo-welcome .lw-logo { font-size:2.6rem; }
+.lilo-welcome h1 {
+    font-family: var(--lilo-serif, Georgia, serif) !important;
+    font-size:2rem !important; font-weight:600; color:var(--lilo-text,#3D3929) !important;
+    border:none !important; margin:.4rem 0 .2rem 0 !important;
+}
+.lilo-welcome .lw-sub {
+    color:var(--lilo-text-dim,#73705F); font-size:1rem; line-height:1.6;
+    margin:0 auto 1.6rem auto; max-width:620px;
+}
+.lilo-welcome .lw-sub b { color:var(--lilo-accent-dark,#C96442); }
+.lw-cards {
+    display:grid; grid-template-columns:repeat(2,1fr); gap:12px;
+    text-align:left; margin:0 auto;
+}
+.lwc {
+    background:var(--lilo-bg-card,#fff); border:1px solid var(--lilo-border,#E3E1D7);
+    border-radius:12px; padding:12px 14px; transition:border-color .15s ease;
+}
+.lwc:hover { border-color:var(--lilo-accent,#D97757); }
+.lwc b { display:block; color:var(--lilo-text,#3D3929); font-size:.92rem; margin-bottom:3px; }
+.lwc span { color:var(--lilo-text-dim,#73705F); font-size:.82rem; line-height:1.45; }
+.lw-hint { color:var(--lilo-text-dim,#73705F); font-size:.85rem; margin-top:1.4rem; }
+</style>
+<div class="lilo-welcome">
+  <div class="lw-logo">🧬</div>
+  <h1>Olá! Eu sou o LILO</h1>
+  <div class="lw-sub">Seu orquestrador de IA local sobre Ollama. Pergunte em
+    linguagem natural — no modo <b>Auto</b> eu escolho o melhor especialista pela
+    semântica e, se a tarefa exigir, <b>encadeio vários em sequência</b>.</div>
+  <div class="lw-cards">
+    <div class="lwc"><b>🔎 Pesquisa</b><span>PubMed, OpenAlex, Europe PMC, Google Books, arXiv, Crossref, Wikipedia…</span></div>
+    <div class="lwc"><b>📊 Análise</b><span>Estatística (Prism), SQL e dados tabulares</span></div>
+    <div class="lwc"><b>📄 Documentos</b><span>Sumarização de PDFs científicos</span></div>
+    <div class="lwc"><b>🛠️ Sistema</b><span>Arquivos e shell local (allow-list)</span></div>
+  </div>
+  <div class="lw-hint">Digite abaixo para começar — ou use <b>/</b> para skills.</div>
+</div>
+            """, unsafe_allow_html=True)
 
         # ---- Toolbar acima do input (Agir / Perguntar + Anexos) -------------
         # Estilo Claude Desktop: dois "modos" do agente.
