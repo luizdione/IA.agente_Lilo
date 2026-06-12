@@ -1,0 +1,11 @@
+# Dependências da pipeline de perfis de revista (ml/build_journal_profile.py)
+# Núcleo (obrigatório):
+requests>=2.31
+# Opcionais (o script degrada com elegância se faltarem):
+pdfplumber>=0.11        # extrair texto de PDFs locais (acesso legítimo seu)
+lxml>=5.0               # parse de JATS XML (texto integral OA via Europe PMC)
+numpy>=1.26             # estatística vetorizada
+scikit-learn>=1.4       # TF-IDF / padrões semânticos (opcional)
+# Mais pesados / só se quiser embeddings semânticos profundos:
+# sentence-transformers>=3.0
+# spacy>=3.7   (depois: python -m spacy download en_core_web_sm)

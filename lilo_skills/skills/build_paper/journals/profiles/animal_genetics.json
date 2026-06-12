@@ -1,0 +1,76 @@
+{
+  "journal": "Animal Genetics",
+  "issn": [
+    "0268-9146",
+    "1365-2052"
+  ],
+  "area": "genetica_animal",
+  "oa": "hybrid",
+  "provenance": {
+    "built": "2026-06-03 22:58",
+    "sources": [
+      "OpenAlex",
+      "Europe PMC (OA)"
+    ],
+    "n_sampled": 10,
+    "n_fulltext": 0,
+    "note": "section_norms são NORMAS EMPÍRICAS observadas, não regras da revista. Confirme limites no Guide for Authors."
+  },
+  "abstract_stats": {
+    "words": {
+      "n": 9,
+      "min": 203,
+      "p25": 208.0,
+      "median": 247,
+      "p75": 262.0,
+      "max": 276
+    },
+    "chars": {
+      "n": 9,
+      "min": 1331,
+      "p25": 1422.0,
+      "median": 1520,
+      "p75": 1739.0,
+      "max": 2130
+    }
+  },
+  "section_norms": {},
+  "references_stats": {
+    "count_per_article": {
+      "n": 9,
+      "min": 9,
+      "p25": 18.0,
+      "median": 27,
+      "p75": 38.0,
+      "max": 48
+    }
+  },
+  "citation": {
+    "in_text": "unknown",
+    "ordering": "unknown",
+    "_counts": {
+      "numeric": 0,
+      "author_year": 0
+    }
+  },
+  "semantics": {
+    "avg_sentence_words": 23.1,
+    "connectives": {
+      "however": 3,
+      "consistent with": 2,
+      "therefore": 1,
+      "notably": 1,
+      "taken together": 1
+    },
+    "common_openers": {
+      "the ag genotype": 2,
+      "abstract the silver‐gold": 1,
+      "however, the emergence": 1,
+      "the genetic basis": 1,
+      "to address this,": 1,
+      "our analysis identified": 1,
+      "the top absolute": 1,
+      "this study identifies": 1
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "journal": "International Journal for Parasitology",
+  "issn": [
+    "0020-7519"
+  ],
+  "area": "parasitologia",
+  "oa": "hybrid",
+  "provenance": {
+    "built": "2026-06-03 22:56",
+    "sources": [
+      "OpenAlex",
+      "Europe PMC (OA)"
+    ],
+    "n_sampled": 10,
+    "n_fulltext": 0,
+    "note": "section_norms são NORMAS EMPÍRICAS observadas, não regras da revista. Confirme limites no Guide for Authors."
+  },
+  "abstract_stats": {
+    "words": {
+      "n": 5,
+      "min": 181,
+      "p25": 224.0,
+      "median": 253,
+      "p75": 265.0,
+      "max": 316
+    },
+    "chars": {
+      "n": 5,
+      "min": 1361,
+      "p25": 1541.0,
+      "median": 1739,
+      "p75": 1820.0,
+      "max": 2361
+    }
+  },
+  "section_norms": {},
+  "references_stats": {
+    "count_per_article": {
+      "n": 8,
+      "min": 35,
+      "p25": 43.0,
+      "median": 58.5,
+      "p75": 93.8,
+      "max": 173
+    }
+  },
+  "citation": {
+    "in_text": "unknown",
+    "ordering": "unknown",
+    "_counts": {
+      "numeric": 0,
+      "author_year": 0
+    }
+  },
+  "semantics": {
+    "avg_sentence_words": 19.9,
+    "connectives": {
+      "furthermore": 1,
+      "notably": 1,
+      "importantly": 1,
+      "consistent with": 1
+    },
+    "common_openers": {
+      "the protozoan parasite": 1,
+      "current control strategies": 1,
+      "suis have been": 1,
+      "to address the": 1,
+      "we evaluated the": 1,
+      "suis: cstyrp, csowp1": 1,
+      "sows were vaccinated": 1,
+      "suis on the": 1
+    }
+  }
+}

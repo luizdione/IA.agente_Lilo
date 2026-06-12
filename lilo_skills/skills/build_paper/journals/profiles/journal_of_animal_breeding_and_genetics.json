@@ -1,0 +1,75 @@
+{
+  "journal": "Journal of Animal Breeding and Genetics",
+  "issn": [
+    "0931-2668",
+    "1439-0388"
+  ],
+  "area": "genetica_animal",
+  "oa": "hybrid",
+  "provenance": {
+    "built": "2026-06-03 22:58",
+    "sources": [
+      "OpenAlex",
+      "Europe PMC (OA)"
+    ],
+    "n_sampled": 10,
+    "n_fulltext": 0,
+    "note": "section_norms são NORMAS EMPÍRICAS observadas, não regras da revista. Confirme limites no Guide for Authors."
+  },
+  "abstract_stats": {
+    "words": {
+      "n": 9,
+      "min": 238,
+      "p25": 282.0,
+      "median": 325,
+      "p75": 410.0,
+      "max": 487
+    },
+    "chars": {
+      "n": 9,
+      "min": 1708,
+      "p25": 1951.0,
+      "median": 2197,
+      "p75": 2577.0,
+      "max": 3182
+    }
+  },
+  "section_norms": {},
+  "references_stats": {
+    "count_per_article": {
+      "n": 7,
+      "min": 15,
+      "p25": 23.5,
+      "median": 35,
+      "p75": 38.0,
+      "max": 83
+    }
+  },
+  "citation": {
+    "in_text": "unknown",
+    "ordering": "unknown",
+    "_counts": {
+      "numeric": 0,
+      "author_year": 0
+    }
+  },
+  "semantics": {
+    "avg_sentence_words": 27.2,
+    "connectives": {
+      "however": 4,
+      "therefore": 2,
+      "furthermore": 1,
+      "consistent with": 1
+    },
+    "common_openers": {
+      "this study aimed": 2,
+      "a total of": 2,
+      "the genetic correlations": 2,
+      "the resilience indicators": 2,
+      "genetic correlations of": 2,
+      "during the last": 1,
+      "they can also": 1,
+      "to better preserve": 1
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "journal": "ACS Infectious Diseases",
+  "issn": [
+    "2373-8227"
+  ],
+  "area": "farmacologia/infectologia",
+  "oa": "hybrid",
+  "provenance": {
+    "built": "2026-06-03 23:00",
+    "sources": [
+      "OpenAlex",
+      "Europe PMC (OA)"
+    ],
+    "n_sampled": 10,
+    "n_fulltext": 0,
+    "note": "section_norms são NORMAS EMPÍRICAS observadas, não regras da revista. Confirme limites no Guide for Authors."
+  },
+  "abstract_stats": {
+    "words": {
+      "n": 9,
+      "min": 22,
+      "p25": 152.0,
+      "median": 182,
+      "p75": 231.0,
+      "max": 263
+    },
+    "chars": {
+      "n": 9,
+      "min": 162,
+      "p25": 1256.0,
+      "median": 1379,
+      "p75": 1753.0,
+      "max": 1803
+    }
+  },
+  "section_norms": {},
+  "references_stats": {
+    "count_per_article": {
+      "n": 9,
+      "min": 32,
+      "p25": 38.0,
+      "median": 54,
+      "p75": 61.0,
+      "max": 113
+    }
+  },
+  "citation": {
+    "in_text": "unknown",
+    "ordering": "unknown",
+    "_counts": {
+      "numeric": 0,
+      "author_year": 0
+    }
+  },
+  "semantics": {
+    "avg_sentence_words": 21.2,
+    "connectives": {
+      "however": 3,
+      "furthermore": 2,
+      "notably": 2,
+      "importantly": 1
+    },
+    "common_openers": {
+      "in this context,": 2,
+      "nα-aroyl-n-aryl-phenylalanine amides (aaps)": 1,
+      "further development of": 1,
+      "the present study": 1,
+      "rapid oxidation of": 1,
+      "additionally, we demonstrated": 1,
+      "identification of metabolites": 1,
+      "short-chain fatty acids": 1
+    }
+  }
+}

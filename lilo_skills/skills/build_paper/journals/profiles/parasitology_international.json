@@ -1,0 +1,68 @@
+{
+  "journal": "Parasitology International",
+  "issn": [
+    "1383-5769",
+    "1873-0329"
+  ],
+  "area": "parasitologia",
+  "oa": "hybrid",
+  "provenance": {
+    "built": "2026-06-03 22:57",
+    "sources": [
+      "OpenAlex",
+      "Europe PMC (OA)"
+    ],
+    "n_sampled": 10,
+    "n_fulltext": 0,
+    "note": "section_norms são NORMAS EMPÍRICAS observadas, não regras da revista. Confirme limites no Guide for Authors."
+  },
+  "abstract_stats": {
+    "words": {
+      "n": 1,
+      "min": 150,
+      "p25": 150,
+      "median": 150,
+      "p75": 150,
+      "max": 150
+    },
+    "chars": {
+      "n": 1,
+      "min": 1135,
+      "p25": 1135,
+      "median": 1135,
+      "p75": 1135,
+      "max": 1135
+    }
+  },
+  "section_norms": {},
+  "references_stats": {
+    "count_per_article": {
+      "n": 9,
+      "min": 11,
+      "p25": 18.0,
+      "median": 26,
+      "p75": 41.0,
+      "max": 59
+    }
+  },
+  "citation": {
+    "in_text": "unknown",
+    "ordering": "unknown",
+    "_counts": {
+      "numeric": 0,
+      "author_year": 0
+    }
+  },
+  "semantics": {
+    "avg_sentence_words": 25.0,
+    "connectives": {},
+    "common_openers": {
+      "this study describes": 1,
+      "(characiformes, triportheidae) from": 1,
+      "these new species": 1,
+      "despite the broad": 1,
+      "this research expands": 1,
+      "the findings highlight": 1
+    }
+  }
+}

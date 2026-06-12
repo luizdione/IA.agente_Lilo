@@ -1,0 +1,69 @@
+{
+  "journal": "Journal of Animal Science",
+  "issn": [
+    "0021-8812",
+    "1525-3163"
+  ],
+  "area": "genetica_animal",
+  "oa": "hybrid",
+  "provenance": {
+    "built": "2026-06-03 22:59",
+    "sources": [
+      "OpenAlex",
+      "Europe PMC (OA)"
+    ],
+    "n_sampled": 10,
+    "n_fulltext": 0,
+    "note": "section_norms são NORMAS EMPÍRICAS observadas, não regras da revista. Confirme limites no Guide for Authors."
+  },
+  "abstract_stats": {
+    "words": {
+      "n": 10,
+      "min": 233,
+      "p25": 314.8,
+      "median": 355.5,
+      "p75": 384.8,
+      "max": 411
+    },
+    "chars": {
+      "n": 10,
+      "min": 1593,
+      "p25": 2087.0,
+      "median": 2224.0,
+      "p75": 2428.5,
+      "max": 2635
+    }
+  },
+  "section_norms": {},
+  "references_stats": {
+    "count_per_article": null
+  },
+  "citation": {
+    "in_text": "unknown",
+    "ordering": "unknown",
+    "_counts": {
+      "numeric": 0,
+      "author_year": 0
+    }
+  },
+  "semantics": {
+    "avg_sentence_words": 25.9,
+    "connectives": {
+      "in addition": 3,
+      "however": 2,
+      "therefore": 2,
+      "moreover": 1,
+      "furthermore": 1
+    },
+    "common_openers": {
+      "the association of": 3,
+      "a total of": 3,
+      "pregnancy loss was": 2,
+      "data were analyzed": 2,
+      "the interaction between": 2,
+      "these findings suggest": 2,
+      "these results suggest": 2,
+      "control; p <": 2
+    }
+  }
+}

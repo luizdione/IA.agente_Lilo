@@ -1,0 +1,77 @@
+{
+  "journal": "International Journal for Parasitology: Drugs and Drug Resistance",
+  "issn": [
+    "2211-3207"
+  ],
+  "area": "parasitologia/farmacologia",
+  "oa": "oa",
+  "provenance": {
+    "built": "2026-06-03 22:57",
+    "sources": [
+      "OpenAlex",
+      "Europe PMC (OA)"
+    ],
+    "n_sampled": 10,
+    "n_fulltext": 0,
+    "note": "section_norms são NORMAS EMPÍRICAS observadas, não regras da revista. Confirme limites no Guide for Authors."
+  },
+  "abstract_stats": {
+    "words": {
+      "n": 10,
+      "min": 62,
+      "p25": 166.0,
+      "median": 257.5,
+      "p75": 306.2,
+      "max": 356
+    },
+    "chars": {
+      "n": 10,
+      "min": 480,
+      "p25": 1198.5,
+      "median": 1851.5,
+      "p75": 2261.8,
+      "max": 2473
+    }
+  },
+  "section_norms": {},
+  "references_stats": {
+    "count_per_article": {
+      "n": 10,
+      "min": 25,
+      "p25": 32.5,
+      "median": 41.5,
+      "p75": 59.2,
+      "max": 85
+    }
+  },
+  "citation": {
+    "in_text": "unknown",
+    "ordering": "unknown",
+    "_counts": {
+      "numeric": 0,
+      "author_year": 0
+    }
+  },
+  "semantics": {
+    "avg_sentence_words": 20.7,
+    "connectives": {
+      "however": 4,
+      "moreover": 2,
+      "consistent with": 2,
+      "furthermore": 1,
+      "therefore": 1,
+      "in addition": 1,
+      "in contrast": 1
+    },
+    "common_openers": {
+      "trichinellosis is a": 1,
+      "to identify new": 1,
+      "spiralis agents from": 1,
+      "among them, the": 1,
+      "preliminary chemical characterization": 1,
+      "in a murine": 1,
+      "spiralis infection, oral": 1,
+      "amee treatment also": 1
+    }
+  }
+}

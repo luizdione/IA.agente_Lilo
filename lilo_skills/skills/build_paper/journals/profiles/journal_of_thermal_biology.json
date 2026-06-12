@@ -1,0 +1,74 @@
+{
+  "journal": "Journal of Thermal Biology",
+  "issn": [
+    "0306-4565"
+  ],
+  "area": "fisiologia/genetica_animal",
+  "oa": "hybrid",
+  "provenance": {
+    "built": "2026-06-09 23:24",
+    "sources": [
+      "OpenAlex",
+      "Europe PMC (OA)"
+    ],
+    "n_sampled": 18,
+    "n_fulltext": 0,
+    "note": "section_norms são NORMAS EMPÍRICAS observadas, não regras da revista. Confirme limites no Guide for Authors."
+  },
+  "abstract_stats": {
+    "words": {
+      "n": 6,
+      "min": 58,
+      "p25": 145.0,
+      "median": 249.0,
+      "p75": 252.5,
+      "max": 298
+    },
+    "chars": {
+      "n": 6,
+      "min": 467,
+      "p25": 986.2,
+      "median": 1663.0,
+      "p75": 1769.8,
+      "max": 2157
+    }
+  },
+  "section_norms": {},
+  "references_stats": {
+    "count_per_article": {
+      "n": 18,
+      "min": 42,
+      "p25": 50.5,
+      "median": 71.0,
+      "p75": 88.0,
+      "max": 111
+    }
+  },
+  "citation": {
+    "in_text": "unknown",
+    "ordering": "unknown",
+    "_counts": {
+      "numeric": 0,
+      "author_year": 0
+    }
+  },
+  "semantics": {
+    "avg_sentence_words": 23.4,
+    "connectives": {
+      "however": 3,
+      "moreover": 1,
+      "therefore": 1,
+      "interestingly": 1
+    },
+    "common_openers": {
+      "climate change is": 2,
+      "ectotherms, which rely": 1,
+      "understanding the range": 1,
+      "yet, point-source temperature": 1,
+      "infrared thermography (irt)": 1,
+      "using irt, we": 1,
+      "we found that": 1,
+      "we further measured": 1
+    }
+  }
+}

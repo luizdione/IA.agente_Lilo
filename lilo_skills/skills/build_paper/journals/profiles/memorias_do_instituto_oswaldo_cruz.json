@@ -1,0 +1,76 @@
+{
+  "journal": "Memorias do Instituto Oswaldo Cruz",
+  "issn": [
+    "0074-0276",
+    "1678-8060"
+  ],
+  "area": "parasitologia",
+  "oa": "oa",
+  "provenance": {
+    "built": "2026-06-03 22:58",
+    "sources": [
+      "OpenAlex",
+      "Europe PMC (OA)"
+    ],
+    "n_sampled": 10,
+    "n_fulltext": 0,
+    "note": "section_norms são NORMAS EMPÍRICAS observadas, não regras da revista. Confirme limites no Guide for Authors."
+  },
+  "abstract_stats": {
+    "words": {
+      "n": 10,
+      "min": 155,
+      "p25": 189.2,
+      "median": 216.5,
+      "p75": 278.2,
+      "max": 302
+    },
+    "chars": {
+      "n": 10,
+      "min": 907,
+      "p25": 1470.8,
+      "median": 1562.5,
+      "p75": 1928.8,
+      "max": 2232
+    }
+  },
+  "section_norms": {},
+  "references_stats": {
+    "count_per_article": {
+      "n": 10,
+      "min": 3,
+      "p25": 29.2,
+      "median": 32.0,
+      "p75": 51.0,
+      "max": 77
+    }
+  },
+  "citation": {
+    "in_text": "unknown",
+    "ordering": "unknown",
+    "_counts": {
+      "numeric": 0,
+      "author_year": 0
+    }
+  },
+  "semantics": {
+    "avg_sentence_words": 16.5,
+    "connectives": {
+      "however": 1,
+      "therefore": 1,
+      "in addition": 1,
+      "interestingly": 1,
+      "remarkably": 1
+    },
+    "common_openers": {
+      "objectives: to investigate": 2,
+      "background: trypanosomatid infections": 1,
+      "brazil has a": 1,
+      "objectives: to characterise": 1,
+      "methods: we performed": 1,
+      "data items included": 1,
+      "descriptive statistics and": 1,
+      "findings: from 21,713": 1
+    }
+  }
+}

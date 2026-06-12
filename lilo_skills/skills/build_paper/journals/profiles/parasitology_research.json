@@ -1,0 +1,68 @@
+{
+  "journal": "Parasitology Research",
+  "issn": [
+    "0932-0113",
+    "1432-1955"
+  ],
+  "area": "parasitologia",
+  "oa": "hybrid",
+  "provenance": {
+    "built": "2026-06-03 22:56",
+    "sources": [
+      "OpenAlex",
+      "Europe PMC (OA)"
+    ],
+    "n_sampled": 10,
+    "n_fulltext": 0,
+    "note": "section_norms são NORMAS EMPÍRICAS observadas, não regras da revista. Confirme limites no Guide for Authors."
+  },
+  "abstract_stats": {
+    "words": {
+      "n": 10,
+      "min": 1,
+      "p25": 167.2,
+      "median": 195.0,
+      "p75": 234.5,
+      "max": 262
+    },
+    "chars": {
+      "n": 10,
+      "min": 1,
+      "p25": 1213.5,
+      "median": 1401.0,
+      "p75": 1541.0,
+      "max": 1898
+    }
+  },
+  "section_norms": {},
+  "references_stats": {
+    "count_per_article": null
+  },
+  "citation": {
+    "in_text": "author-year",
+    "ordering": "unknown",
+    "_counts": {
+      "numeric": 0,
+      "author_year": 2
+    }
+  },
+  "semantics": {
+    "avg_sentence_words": 21.0,
+    "connectives": {
+      "however": 4,
+      "consistent with": 1,
+      "in contrast": 1,
+      "interestingly": 1
+    },
+    "common_openers": {
+      "this study aimed": 3,
+      "in this study,": 2,
+      "cystic echinococcosis (ce)": 2,
+      "these findings indicate": 2,
+      "freshwater turtles represent": 1,
+      "our analyses, including": 1,
+      "in north america,": 1,
+      "non-native species such": 1
+    }
+  }
+}

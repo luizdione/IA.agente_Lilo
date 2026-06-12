@@ -1,0 +1,70 @@
+{
+  "journal": "Molecular and Biochemical Parasitology",
+  "issn": [
+    "0166-6851",
+    "1872-9428"
+  ],
+  "area": "parasitologia/bioquimica",
+  "oa": "hybrid",
+  "provenance": {
+    "built": "2026-06-03 22:56",
+    "sources": [
+      "OpenAlex",
+      "Europe PMC (OA)"
+    ],
+    "n_sampled": 10,
+    "n_fulltext": 0,
+    "note": "section_norms são NORMAS EMPÍRICAS observadas, não regras da revista. Confirme limites no Guide for Authors."
+  },
+  "abstract_stats": {
+    "words": {
+      "n": 2,
+      "min": 96,
+      "p25": 135.8,
+      "median": 175.5,
+      "p75": 215.2,
+      "max": 255
+    },
+    "chars": {
+      "n": 2,
+      "min": 723,
+      "p25": 995.5,
+      "median": 1268.0,
+      "p75": 1540.5,
+      "max": 1813
+    }
+  },
+  "section_norms": {},
+  "references_stats": {
+    "count_per_article": {
+      "n": 9,
+      "min": 17,
+      "p25": 29.0,
+      "median": 35,
+      "p75": 42.0,
+      "max": 54
+    }
+  },
+  "citation": {
+    "in_text": "unknown",
+    "ordering": "unknown",
+    "_counts": {
+      "numeric": 0,
+      "author_year": 0
+    }
+  },
+  "semantics": {
+    "avg_sentence_words": 23.4,
+    "connectives": {},
+    "common_openers": {
+      "the modified nucleotide": 1,
+      "accumulating evidence has": 1,
+      "recent studies suggest": 1,
+      "this review provides": 1,
+      "the necessity of": 1,
+      "plasmodium falciparum merozoites": 1,
+      "important ligands encoded": 1,
+      "analyses of clinical": 1
+    }
+  }
+}

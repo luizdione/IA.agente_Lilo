@@ -1,5 +1,25 @@
 # LILO — Changelog
 
+## v11.0 — 2026-06-12 (V13: subagente `paper` — redação científica)
+
+Porta a skill `build_paper` (antes só no Claude) para o LILO como **8º
+subagente**, tornando o LILO autossuficiente em redação científica.
+
+- **`agents/paper/`** (`PaperAgent`): outline IMRaD, redige seções, monta a
+  fonte Markdown e builda DOCX/TEX/PDF (pandoc + tectonic). Escritor forte via
+  Ollama Cloud (`LILO_PAPER_MODEL`=gpt-oss:120b-cloud — **não usa GPU local**).
+- **Referências REAIS** (anti-invenção): via `research_sources` (OpenAlex/
+  PubMed/Europe PMC/Crossref); o modelo nunca fabrica citações — sinaliza lacuna.
+- **Perfil de revista** inferido das fontes reais (calibre do periódico-alvo).
+- Tools: `paper_outline`, `paper_section`, `paper_references`, `paper_draft`,
+  `paper_build`. Integrado ao roteamento (porta única + keywords específicas que
+  não capturam leitura de PDF).
+- Infraestrutura da skill portada para `lilo_skills/skills/build_paper/`
+  (autossuficiência); **tectonic** instalado (PDF).
+- Validado e2e: refs reais com DOI + outline técnico p/ *Acta Tropica* (cloud, 30s).
+
+Testes: +6 (70 passam).
+
 ## v10.7 — 2026-06-12 (V12.3: alavancas de qualidade do Worker, configuráveis)
 
 Ataca o gargalo real apontado pelo juiz LLM (variância factual do Worker local,

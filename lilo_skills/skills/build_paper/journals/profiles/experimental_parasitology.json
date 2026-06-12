@@ -1,0 +1,73 @@
+{
+  "journal": "Experimental Parasitology",
+  "issn": [
+    "0014-4894",
+    "1090-2449"
+  ],
+  "area": "parasitologia",
+  "oa": "hybrid",
+  "provenance": {
+    "built": "2026-06-03 22:57",
+    "sources": [
+      "OpenAlex",
+      "Europe PMC (OA)"
+    ],
+    "n_sampled": 10,
+    "n_fulltext": 0,
+    "note": "section_norms são NORMAS EMPÍRICAS observadas, não regras da revista. Confirme limites no Guide for Authors."
+  },
+  "abstract_stats": {
+    "words": {
+      "n": 3,
+      "min": 178,
+      "p25": 181.0,
+      "median": 184,
+      "p75": 228.0,
+      "max": 272
+    },
+    "chars": {
+      "n": 3,
+      "min": 1251,
+      "p25": 1265.0,
+      "median": 1279,
+      "p75": 1598.0,
+      "max": 1917
+    }
+  },
+  "section_norms": {},
+  "references_stats": {
+    "count_per_article": {
+      "n": 8,
+      "min": 16,
+      "p25": 21.5,
+      "median": 26.0,
+      "p75": 41.8,
+      "max": 73
+    }
+  },
+  "citation": {
+    "in_text": "unknown",
+    "ordering": "unknown",
+    "_counts": {
+      "numeric": 0,
+      "author_year": 0
+    }
+  },
+  "semantics": {
+    "avg_sentence_words": 20.4,
+    "connectives": {
+      "notably": 1,
+      "taken together": 1
+    },
+    "common_openers": {
+      "among the virulence": 1,
+      "this study analyzed": 1,
+      "structural analysis of": 1,
+      "sequences similar to": 1,
+      "(l.) major were": 1,
+      "(v.) braziliensis sequences": 1,
+      "the genes lbrm.10.0530,": 1,
+      "the standardized and": 1
+    }
+  }
+}

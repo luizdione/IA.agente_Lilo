@@ -1,0 +1,65 @@
+{
+  "journal": "European Journal of Medicinal Chemistry",
+  "issn": [
+    "0223-5234"
+  ],
+  "area": "farmacologia/quimica_medicinal",
+  "oa": "hybrid",
+  "provenance": {
+    "built": "2026-06-03 22:59",
+    "sources": [
+      "OpenAlex",
+      "Europe PMC (OA)"
+    ],
+    "n_sampled": 10,
+    "n_fulltext": 0,
+    "note": "section_norms são NORMAS EMPÍRICAS observadas, não regras da revista. Confirme limites no Guide for Authors."
+  },
+  "abstract_stats": {
+    "words": {
+      "n": 1,
+      "min": 124,
+      "p25": 124,
+      "median": 124,
+      "p75": 124,
+      "max": 124
+    },
+    "chars": {
+      "n": 1,
+      "min": 910,
+      "p25": 910,
+      "median": 910,
+      "p75": 910,
+      "max": 910
+    }
+  },
+  "section_norms": {},
+  "references_stats": {
+    "count_per_article": {
+      "n": 8,
+      "min": 24,
+      "p25": 36.0,
+      "median": 65.5,
+      "p75": 80.2,
+      "max": 166
+    }
+  },
+  "citation": {
+    "in_text": "unknown",
+    "ordering": "unknown",
+    "_counts": {
+      "numeric": 0,
+      "author_year": 0
+    }
+  },
+  "semantics": {
+    "avg_sentence_words": 31.0,
+    "connectives": {},
+    "common_openers": {
+      "type-2 diabetes mellitus": 1,
+      "the 1,2,3-triazole scaffolds": 1,
+      "this review provides": 1,
+      "such new derivatives": 1
+    }
+  }
+}

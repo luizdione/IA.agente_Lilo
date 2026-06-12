@@ -1,0 +1,219 @@
+{
+  "_nota": "Portfólio de revistas-alvo. 'oa' = acesso aberto (full text via Europe PMC); 'hybrid' = pago com artigos OA esparsos. 'citation_style' começa null e é detectado pelo profiler a partir de texto OA; confirme sempre no Guide for Authors. 'section_norms' são preenchidos por ml/build_journal_profile.py (normas empíricas, não regras).",
+  "_atualizado": "2026-06-03 (17 perfis aprendidos via OpenAlex)",
+  "journals": [
+    {
+      "name": "International Journal for Parasitology",
+      "issn": [
+        "0020-7519"
+      ],
+      "publisher": "Elsevier",
+      "area": "parasitologia",
+      "oa": "hybrid",
+      "if": 3.2,
+      "qualis": "A1",
+      "citation_style": null
+    },
+    {
+      "name": "Parasitology Research",
+      "issn": [
+        "0932-0113",
+        "1432-1955"
+      ],
+      "publisher": "Springer",
+      "area": "parasitologia",
+      "oa": "hybrid",
+      "if": 2.0,
+      "qualis": "A1",
+      "citation_style": null
+    },
+    {
+      "name": "Molecular and Biochemical Parasitology",
+      "issn": [
+        "0166-6851",
+        "1872-9428"
+      ],
+      "publisher": "Elsevier",
+      "area": "parasitologia/bioquimica",
+      "oa": "hybrid",
+      "if": null,
+      "qualis": null,
+      "citation_style": null
+    },
+    {
+      "name": "Experimental Parasitology",
+      "issn": [
+        "0014-4894",
+        "1090-2449"
+      ],
+      "publisher": "Elsevier",
+      "area": "parasitologia",
+      "oa": "hybrid",
+      "if": null,
+      "qualis": null,
+      "citation_style": null
+    },
+    {
+      "name": "Parasitology International",
+      "issn": [
+        "1383-5769",
+        "1873-0329"
+      ],
+      "publisher": "Elsevier",
+      "area": "parasitologia",
+      "oa": "hybrid",
+      "if": null,
+      "qualis": null,
+      "citation_style": null
+    },
+    {
+      "name": "International Journal for Parasitology: Drugs and Drug Resistance",
+      "issn": [
+        "2211-3207"
+      ],
+      "publisher": "Elsevier",
+      "area": "parasitologia/farmacologia",
+      "oa": "oa",
+      "if": null,
+      "qualis": null,
+      "citation_style": null
+    },
+    {
+      "name": "Memorias do Instituto Oswaldo Cruz",
+      "issn": [
+        "0074-0276",
+        "1678-8060"
+      ],
+      "publisher": "Fiocruz/SciELO",
+      "area": "parasitologia",
+      "oa": "oa",
+      "if": null,
+      "qualis": null,
+      "citation_style": null
+    },
+    {
+      "name": "BMC Genomics",
+      "issn": [
+        "1471-2164"
+      ],
+      "publisher": "Springer/BMC",
+      "area": "omicas/genomica",
+      "oa": "oa",
+      "if": 3.7,
+      "qualis": null,
+      "citation_style": null
+    },
+    {
+      "name": "Journal of Animal Breeding and Genetics",
+      "issn": [
+        "0931-2668",
+        "1439-0388"
+      ],
+      "publisher": "Wiley",
+      "area": "genetica_animal",
+      "oa": "hybrid",
+      "if": 1.9,
+      "qualis": null,
+      "citation_style": null
+    },
+    {
+      "name": "Animal Genetics",
+      "issn": [
+        "0268-9146",
+        "1365-2052"
+      ],
+      "publisher": "Wiley",
+      "area": "genetica_animal",
+      "oa": "hybrid",
+      "if": 2.1,
+      "qualis": null,
+      "citation_style": null
+    },
+    {
+      "name": "Journal of Thermal Biology",
+      "issn": [
+        "0306-4565"
+      ],
+      "publisher": "Elsevier",
+      "area": "fisiologia/genetica_animal",
+      "oa": "hybrid",
+      "if": 2.9,
+      "qualis": "A2",
+      "citation_style": null
+    },
+    {
+      "name": "Frontiers in Genetics",
+      "issn": [
+        "1664-8021"
+      ],
+      "publisher": "Frontiers",
+      "area": "omicas/genomica",
+      "oa": "oa",
+      "if": 3.7,
+      "qualis": "A2",
+      "citation_style": null,
+      "section_hint": "Livestock Genomics"
+    },
+    {
+      "name": "Journal of Animal Science",
+      "issn": [
+        "0021-8812",
+        "1525-3163"
+      ],
+      "publisher": "Oxford University Press",
+      "area": "genetica_animal",
+      "oa": "hybrid",
+      "if": 3.0,
+      "qualis": "A1",
+      "citation_style": null
+    },
+    {
+      "name": "European Journal of Medicinal Chemistry",
+      "issn": [
+        "0223-5234"
+      ],
+      "publisher": "Elsevier",
+      "area": "farmacologia/quimica_medicinal",
+      "oa": "hybrid",
+      "if": 4.8,
+      "qualis": null,
+      "citation_style": null
+    },
+    {
+      "name": "Molecules",
+      "issn": [
+        "1420-3049"
+      ],
+      "publisher": "MDPI",
+      "area": "farmacologia/quimica",
+      "oa": "oa",
+      "if": 4.2,
+      "qualis": null,
+      "citation_style": null
+    },
+    {
+      "name": "Acta Tropica",
+      "issn": [
+        "0001-706X"
+      ],
+      "publisher": "Elsevier",
+      "area": "parasitologia",
+      "oa": "hybrid",
+      "if": 2.2,
+      "qualis": null,
+      "citation_style": "author-year"
+    },
+    {
+      "name": "ACS Infectious Diseases",
+      "issn": [
+        "2373-8227"
+      ],
+      "publisher": "American Chemical Society",
+      "area": "farmacologia/infectologia",
+      "oa": "hybrid",
+      "if": 3.8,
+      "qualis": null,
+      "citation_style": null
+    }
+  ]
+}

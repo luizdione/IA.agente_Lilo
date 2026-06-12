@@ -1,0 +1,70 @@
+{
+  "journal": "BMC Genomics",
+  "issn": [
+    "1471-2164"
+  ],
+  "area": "omicas/genomica",
+  "oa": "oa",
+  "provenance": {
+    "built": "2026-06-03 22:58",
+    "sources": [
+      "OpenAlex",
+      "Europe PMC (OA)"
+    ],
+    "n_sampled": 10,
+    "n_fulltext": 0,
+    "note": "section_norms são NORMAS EMPÍRICAS observadas, não regras da revista. Confirme limites no Guide for Authors."
+  },
+  "abstract_stats": {
+    "words": {
+      "n": 9,
+      "min": 141,
+      "p25": 210.0,
+      "median": 267,
+      "p75": 287.0,
+      "max": 332
+    },
+    "chars": {
+      "n": 9,
+      "min": 1084,
+      "p25": 1666.0,
+      "median": 1908,
+      "p75": 2131.0,
+      "max": 2421
+    }
+  },
+  "section_norms": {},
+  "references_stats": {
+    "count_per_article": null
+  },
+  "citation": {
+    "in_text": "unknown",
+    "ordering": "unknown",
+    "_counts": {
+      "numeric": 0,
+      "author_year": 0
+    }
+  },
+  "semantics": {
+    "avg_sentence_words": 22.8,
+    "connectives": {
+      "however": 5,
+      "notably": 2,
+      "importantly": 2,
+      "consistent with": 2,
+      "moreover": 1,
+      "furthermore": 1,
+      "in contrast": 1
+    },
+    "common_openers": {
+      "this study investigated": 2,
+      "results: we present": 2,
+      "abstract background staphylococcus": 1,
+      "despite increasing reports": 1,
+      "results the species": 1,
+      "agnetis possesses an": 1,
+      "evolutionary reconstruction indicated": 1,
+      "agnetis pan-genome, with": 1
+    }
+  }
+}
