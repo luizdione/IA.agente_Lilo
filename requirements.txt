@@ -46,3 +46,4 @@ lxml>=5.0.0             # backend rápido p/ bs4
 python-docx
 python-pptx
 openpyxl
+faster-whisper

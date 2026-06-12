@@ -16,8 +16,11 @@ Feature pedida: os modos de interação do Claude no LILO. Política escolhida:
   e executar** (concede o grant e reenvia). Modo planejamento exibe aviso e não
   executa nada. Configurável também por `LILO_EXEC_MODE`.
 
-Testes: +6 (101 passam). Em construção na mesma leva: microfone (voz→texto) e
-reconhecimento de locutor.
+- **V14.1 — Microfone (voz→texto):** `shared/transcribe.py` (faster-whisper
+  local, CPU/int8, nenhum áudio sai da máquina) + `st.audio_input` no dashboard.
+  Você fala, o LILO transcreve e injeta como prompt. Config por `LILO_WHISPER_*`.
+
+Testes: +9 (104 passam). Em construção na mesma leva: reconhecimento de locutor.
 
 ## v11.1 — 2026-06-12 (V13.1–13.4: leva de importação de skills do Claude)
 
