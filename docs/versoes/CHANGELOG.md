@@ -1,5 +1,27 @@
 # LILO — Changelog
 
+## v11.1 — 2026-06-12 (V13.1–13.4: leva de importação de skills do Claude)
+
+Proposta de importação aprovada pelo Dione — 4 capacidades novas, todas
+testadas e com escritor cloud (gpt-oss:120b, sem GPU local) onde redigem:
+
+- **V13.1 — Revisão de literatura** (`scholar_review`): busca ampla nas 10
+  fontes + dedup (DOI/título) + revisão estruturada (estado da arte/consensos/
+  lacunas/direções) com referências reais. Validado e2e.
+- **V13.2 — Geração de documentos** (`docgen`, 9º subagente): relatórios `.docx`
+  (LLM→pandoc), planilhas `.xlsx` (openpyxl) e apresentações `.pptx`
+  (python-pptx). Validado offline nos 3 formatos.
+- **V13.3 — EDA** (`prism_eda`): perfil exploratório rápido (dimensões, tipos/
+  nulos, describe, histogramas, heatmap de correlação) — determinístico,
+  complementa o pipeline estatístico do `prism_analyze`.
+- **V13.4 — Criador de skills** (`skillsmith`, 10º subagente): gera o scaffold
+  de um novo subagente LILO (BaseAgent que compila), valida, e devolve as
+  instruções de registro — não auto-modifica o roteamento. Validado: o scaffold
+  carrega de fato.
+
+Todos integrados ao roteamento (porta única + keywords + tool_map).
+**LILO agora tem 10 subagentes.** Testes: +18 (87 passam).
+
 ## v11.0 — 2026-06-12 (V13: subagente `paper` — redação científica)
 
 Porta a skill `build_paper` (antes só no Claude) para o LILO como **8º
