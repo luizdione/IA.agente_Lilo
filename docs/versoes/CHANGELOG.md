@@ -21,8 +21,14 @@ assume — e pode **dividir as etapas** entre especialistas.
    pipeline é então executada por esse especialista e o Reporter sintetiza.
    Validado e2e (Ollama): "busque artigos no pubmed e resuma" → Worker via
    ScholarAgent. Desligável via `LILO_STAGE_DELEGATION=0`.
+4. **Decomposição em CADEIA (V12.1).** `_decompose_chain()` quebra uma tarefa
+   multi-ação em até 4 sub-tarefas SEQUENCIAIS, cada uma para um especialista,
+   encadeando as saídas (contexto acumulado) no lugar do loop do Worker. Gatilho
+   leve (`_looks_multi_step`: ≥2 verbos de ação + conjunção). Validado e2e
+   (Ollama): "busque no pubmed … e depois analise" → cadeia `scholar → prism`
+   → Reporter sintetiza. Desligável via `LILO_CHAIN_DELEGATION=0`.
 
-Testes: +10 (58 passam).
+Testes: +14 (61 passam).
 
 ## v10.5 — 2026-06-11 (plataforma híbrida, dashboard Claude Desktop, Villa V11.2)
 

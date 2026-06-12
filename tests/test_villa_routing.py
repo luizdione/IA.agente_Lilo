@@ -240,6 +240,52 @@ def test_worker_agent_validation(wa, expected):
 
 
 # --------------------------------------------------------------------------
+# V12.1: decomposicao em CADEIA (stage_agents) -- valida steps do LLM.
+# --------------------------------------------------------------------------
+class _FakeClientChain:
+    backend = "ollama"
+
+    def __init__(self, payload):
+        self._payload = payload
+
+    def chat(self, *a, **k):
+        return self._payload
+
+    def health(self):
+        return {"backend": "ollama"}
+
+
+def test_decompose_chain_valid():
+    from agents.villa_lobos.agent import VillaLobosAgent
+    v = VillaLobosAgent()
+    v.client = _FakeClientChain(
+        '{"steps":[{"agent":"scholar","task":"buscar papers de X"},'
+        '{"agent":"prism","task":"analisar os dados"}]}')
+    chain = v._decompose_chain("busque e analise", {"scholar", "prism", "villa"})
+    assert [c["agent"] for c in chain] == ["scholar", "prism"]
+    assert all(c["task"] for c in chain)
+
+
+def test_decompose_chain_filters_invalid_and_unavailable():
+    from agents.villa_lobos.agent import VillaLobosAgent
+    v = VillaLobosAgent()
+    v.client = _FakeClientChain(
+        '{"steps":[{"agent":"scholar","task":"x"},'
+        '{"agent":"banana","task":"y"},'          # invalido
+        '{"agent":"villa","task":"z"},'            # nao e stage-agent
+        '{"agent":"desktop","task":"w"}]}')        # valido mas indisponivel abaixo
+    chain = v._decompose_chain("t", {"scholar", "prism"})  # desktop nao disponivel
+    assert [c["agent"] for c in chain] == ["scholar"]
+
+
+def test_decompose_chain_empty_when_not_applicable():
+    from agents.villa_lobos.agent import VillaLobosAgent
+    v = VillaLobosAgent()
+    v.client = _FakeClientChain('{"steps":[]}')
+    assert v._decompose_chain("explique a fotossintese", {"scholar", "prism"}) == []
+
+
+# --------------------------------------------------------------------------
 # _orchestrate_decision (heuristica, pois client e mock)
 # --------------------------------------------------------------------------
 def test_decision_simple_query_skips_to_reporter(villa):

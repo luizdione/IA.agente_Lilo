@@ -182,6 +182,27 @@ _PROOF_MARKERS = (
 # (evita recursao). Usado para validar o campo worker_agent do Orchestrator.
 _STAGE_WORKER_AGENTS = frozenset({"scholar", "sql", "prism", "pdf", "desktop"})
 
+# V12.1: verbos de ACAO de ferramenta -- gatilho da CADEIA multi-especialista.
+_CHAIN_TRIGGER_VERBS = (
+    "busque", "buscar", "procure", "pesquise", "consulte", "analise",
+    "analisar", "leia", "ler", "compare", "comparar", "calcule", "resuma",
+    "resumir", "sumarize", "liste", "listar", "extraia", "gere", "gerar",
+    "plote", "plotar", "rode", "rodar", "execute",
+)
+
+
+def _looks_multi_step(text):
+    """V12.1: True quando a query ENCADEIA acoes (>=2 verbos de ferramenta)
+    com uma conjuncao sequencial -- gatilho da decomposicao em cadeia. Ex.:
+    "busque artigos sobre X E analise os dados". Conservadora: na duvida
+    False, para nao gastar uma chamada LLM de decomposicao em query simples.
+    """
+    t = _strip_accents((text or "").lower())
+    if not any(c in t for c in (" e ", " e depois", " entao", " em seguida",
+                                "; ", " apos ", " e, ")):
+        return False
+    return sum(1 for v in _CHAIN_TRIGGER_VERBS if v in t) >= 2
+
 
 def _block_fast_path(query):
     """V11.2: classifica a guarda anti-fast-path UNIFICADA (ramo LLM + ramo
@@ -606,7 +627,48 @@ class VillaLobosAgent(BaseAgent):
                 if _stage_agent:
                     log.info("    V12: Worker delega a especialista '%s'",
                              _stage_agent)
-                for i in range(effective_iterations):
+
+                # V12.1 (2026-06-11): CADEIA multi-especialista. Quando a tarefa
+                # decompoe em >=2 sub-tarefas de especialistas distintos, elas
+                # sao executadas EM SEQUENCIA (encadeando saidas) no lugar do
+                # loop do Worker -- "compartilhar cada etapa entre subagentes".
+                # Gatilho leve (so multi-parte, p/ evitar 1 chamada LLM extra em
+                # query simples). Desligavel via LILO_CHAIN_DELEGATION=0.
+                _ran_chain = False
+                if (_stage_map is not None
+                        and _os.getenv("LILO_CHAIN_DELEGATION", "1") == "1"
+                        and (_looks_multi_step(query)
+                             or _is_multipart_query(query))):
+                    _chain = self._decompose_chain(query, set(_stage_map))
+                    if len(_chain) >= 2:
+                        log.info("    V12.1: CADEIA de %d etapas: %s",
+                                 len(_chain),
+                                 " -> ".join(c["agent"] for c in _chain))
+                        _acc = ""
+                        for _ci, _step in enumerate(_chain, 1):
+                            _sa, _stask = _step["agent"], _step["task"]
+                            _sprompt = _stask
+                            if _acc:
+                                _sprompt += ("\n\n[CONTEXTO das etapas "
+                                             "anteriores]\n" + _acc[-1500:])
+                            _wi = time.time()
+                            try:
+                                _sres = _stage_map[_sa].run(
+                                    _sprompt, dict(context or {}))
+                            except Exception as _ce:
+                                _sres = "[etapa %d (%s) falhou: %s]" % (
+                                    _ci, _sa, _ce)
+                                log.warning("    V12.1: %s", _sres)
+                            _label = "### Etapa %d -- %s\n%s" % (_ci, _sa, _sres)
+                            work_results.append(_label)
+                            _acc += "\n" + _label
+                            log.info("    Cadeia[%d/%d] '%s' concluida",
+                                     _ci, len(_chain), _sa)
+                            _emit("worker", "iteration",
+                                  round((time.time() - _wi) * 1000), _sres)
+                        _ran_chain = True
+
+                for i in range(0 if _ran_chain else effective_iterations):
                     iter_ctx = (
                         " (iteracao %d/%d)" % (i + 1, effective_iterations)
                         if effective_iterations > 1 else ""
@@ -1192,6 +1254,61 @@ class VillaLobosAgent(BaseAgent):
         if available and domain not in available:
             return "villa", method
         return domain, method
+
+    def _decompose_chain(self, query, available=None, max_steps=4):
+        """V12.1 (2026-06-11): decompõe a tarefa em sub-tarefas SEQUENCIAIS,
+        cada uma para um especialista de ferramenta -- a "cadeia" que
+        compartilha etapas entre subagentes (scholar busca -> prism analisa ->
+        ...). Retorna lista [{agent, task}] (0..max_steps), VALIDADA contra
+        _STAGE_WORKER_AGENTS e os agentes disponíveis. Lista vazia/única =>
+        não há cadeia multi-especialista (o pipeline segue o caminho normal).
+        Isolado de _orchestrate_decision (não polui a decisão cacheada/crítica).
+        """
+        specs = sorted(_STAGE_WORKER_AGENTS & set(available)) if available \
+            else sorted(_STAGE_WORKER_AGENTS)
+        prompt = (
+            "Decomponha a TAREFA em ATÉ %d sub-tarefas SEQUENCIAIS, cada uma "
+            "executada por UM especialista, encadeando as saídas. Use SOMENTE "
+            "se a tarefa exigir MAIS DE UM especialista em sequência (ex.: "
+            "buscar literatura E DEPOIS analisar dados). Se um único "
+            "especialista ou nenhum resolve, retorne lista VAZIA.\n\n"
+            "Especialistas disponíveis: %s.\n"
+            "  scholar=buscar literatura (PubMed/arXiv); sql=consulta/"
+            "estatística em banco; prism=análise estatística de .xlsx/.csv; "
+            "pdf=sumarizar PDF; desktop=arquivos/shell.\n\n"
+            "TAREFA: %s\n\n"
+            'Responda APENAS JSON: {"steps":[{"agent":"<nome>","task":"<sub'
+            '-tarefa objetiva>"}]}  (steps vazio se não aplicável)'
+            % (max_steps, ", ".join(specs), query)
+        )
+        try:
+            raw = self.client.chat(
+                prompt=prompt,
+                system="Planejador de cadeia multi-agente. Apenas JSON válido.",
+                model=MODELS.get("autocomplete", MODELS.get("chat")),
+                temperature=0.0, max_tokens=400,
+            )
+        except Exception as e:
+            log.debug("decompose_chain falhou (%s)", e)
+            return []
+        if not raw or raw.startswith("[MOCK]"):
+            return []
+        m = re.search(r"\{.*\}", raw, re.DOTALL)
+        if not m:
+            return []
+        try:
+            data = json.loads(m.group(0))
+        except Exception:
+            return []
+        out = []
+        for s in (data.get("steps") or [])[:max_steps]:
+            if not isinstance(s, dict):
+                continue
+            a = str(s.get("agent", "")).strip().lower()
+            t = str(s.get("task", "")).strip()
+            if a in _STAGE_WORKER_AGENTS and t and (not available or a in available):
+                out.append({"agent": a, "task": t})
+        return out
 
     def explain_routing(self, query, allow_delegate=True):
         """V7 (2026-05-12): retorna a decisao de roteamento sem executar pipeline."""

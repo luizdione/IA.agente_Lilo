@@ -11,6 +11,10 @@
 > - O Orchestrator pode indicar `worker_agent` no JSON (∈ [scholar, sql, prism,
 >   pdf, desktop]); a etapa **Worker** do pipeline é então executada por esse
 >   especialista e o Reporter sintetiza (desligável: `LILO_STAGE_DELEGATION=0`).
+> - **Cadeia (V12.1):** `_decompose_chain()` quebra uma tarefa multi-ação em até
+>   4 sub-tarefas sequenciais, cada uma para um especialista, encadeando as
+>   saídas (ex.: `scholar → prism → ...`). Gatilho `_looks_multi_step`
+>   (≥2 verbos de ação + conjunção). Desligável: `LILO_CHAIN_DELEGATION=0`.
 
 > **Melhorias V10.9–V11.2** (além do descrito abaixo, que cobre a v10.1):
 > - **`_block_fast_path` (V11.2):** guarda anti-fast-path unificada nos ramos
