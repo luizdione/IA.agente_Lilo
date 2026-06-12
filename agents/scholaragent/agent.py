@@ -93,6 +93,11 @@ class ScholarAgent(BaseAgent):
         max_res    = int(context.get("max_results", 5))
         synthesize = context.get("synthesize", True)
 
+        # V13.1: modo REVISAO de literatura (busca ampla + dedup + revisao
+        # estruturada). Acionado por context mode/source == "review".
+        if context.get("mode") == "review" or source == "review":
+            return self._review(query, int(context.get("max_results", 20)))
+
         self.log.info(f"Scholar query: {truncate(query, 80)} | source={source}")
 
         # Fontes delegadas ao módulo research_sources (públicas).
@@ -181,6 +186,21 @@ class ScholarAgent(BaseAgent):
                     "properties": {
                         "query": {"type": "string", "description": "Tema ou hipótese a investigar"},
                         "max_results": {"type": "integer", "description": "Número de artigos (padrão: 5)"},
+                    },
+                    "required": ["query"],
+                },
+            },
+            {
+                "name": "scholar_review",
+                "description": ("Revisao de literatura ESTRUTURADA: busca ampla "
+                                "multi-fonte + deduplicacao + estado da arte/"
+                                "consensos/lacunas/direcoes, com referencias reais. "
+                                "Ideal para Introducao/Discussao de um paper."),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Tema da revisao"},
+                        "max_results": {"type": "integer", "description": "Max artigos (padrão: 20)"},
                     },
                     "required": ["query"],
                 },
@@ -292,3 +312,68 @@ class ScholarAgent(BaseAgent):
         except Exception as e:
             self.log.error(f"Erro síntese LLM: {e}")
             return formatted
+
+    # ── Revisão de literatura (V13.1) ─────────────────────────────────────────
+    @staticmethod
+    def _dedup(results: list[dict]) -> list[dict]:
+        """Deduplica artigos entre fontes por DOI normalizado, senão por
+        prefixo do título (minusculo, alfanumerico)."""
+        import re as _re
+        seen, out = set(), []
+        for r in results:
+            doi = (r.get("id", "") or "").lower()
+            doi = doi.split("doi.org/")[-1].strip("/ ") if "10." in doi else ""
+            title = _re.sub(r"[^a-z0-9]", "", (r.get("title", "") or "").lower())[:50]
+            key = doi or title
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(r)
+        return out
+
+    def _review(self, query: str, max_results: int = 20) -> str:
+        """Revisão de literatura: busca ampla nas fontes academicas, deduplica
+        e sintetiza uma REVISAO estruturada (estado da arte, consensos,
+        controversias, lacunas) com referencias REAIS numeradas. Escritor
+        configuravel (LILO_REVIEW_MODEL; default = cloud, sem GPU local)."""
+        import os as _os
+        results = []
+        try:
+            from shared import research_sources as rs
+            per = max(2, max_results // 5)
+            agg = rs.search_all(query, ["pubmed", "europepmc", "openalex",
+                                        "crossref", "semanticscholar"],
+                                max_results=per)
+            results += agg.get("results", [])
+        except Exception as e:
+            self.log.warning(f"review: research_sources falhou: {e}")
+        results += self._search_arxiv(query, 5)
+        for r in results:
+            r.setdefault("authors", "")
+            r.setdefault("year", "")
+            r.setdefault("source", "")
+        results = self._dedup(results)[:max_results]
+        if not results:
+            return f"[ScholarAgent] Nenhum artigo para revisar: '{query}'"
+        formatted = self._format_results(results)
+        model = _os.getenv("LILO_REVIEW_MODEL", "gpt-oss:120b-cloud")
+        system = (
+            "Voce e um pesquisador senior redigindo uma REVISAO DE LITERATURA "
+            "para a secao de Introducao/Discussao de um artigo. Use SOMENTE os "
+            "artigos fornecidos; cite como [n]. NUNCA invente dados ou refs. "
+            "Distinga consenso de controversia; aponte lacunas. PT-BR tecnico."
+        )
+        prompt = (
+            f"TEMA DA REVISAO: {query}\n\nARTIGOS (use so estes, cite [n]):\n"
+            f"{formatted}\n\nEscreva a revisao estruturada em 4 blocos: "
+            "**Estado da arte**, **Consensos**, **Controversias/lacunas**, "
+            "**Direcoes futuras**. Densa e tecnica."
+        )
+        try:
+            review = self.llm.chat(prompt, system=system, model=model,
+                                   temperature=0.3, max_tokens=6144)
+        except Exception as e:
+            self.log.error(f"review LLM ({model}) falhou: {e}")
+            return formatted
+        return (f"# Revisao de literatura: {query}\n\n{review}\n\n---\n\n"
+                f"## Referencias ({len(results)})\n\n{formatted}")

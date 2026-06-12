@@ -337,6 +337,7 @@ def get_tool_map():
         # Scholar
         "scholar_search":     ("scholar", lambda a: {"source": a.get("source","auto"), "max_results": a.get("max_results",5), "synthesize": False}),
         "scholar_synthesize": ("scholar", lambda a: {"max_results": a.get("max_results",5), "synthesize": True}),
+        "scholar_review":     ("scholar", lambda a: {"mode": "review", "max_results": a.get("max_results",20)}),
         # Prism AI
         "prism_analyze":      ("prism",  lambda a: {"file_path": a.get("file_path",""), "output_dir": a.get("output_dir",""), "language": a.get("language","en"), "alpha": a.get("alpha",0.05)}),
         "prism_classify":     ("prism",  lambda a: {"file_path": a.get("file_path","")}),
