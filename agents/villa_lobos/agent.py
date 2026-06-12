@@ -58,6 +58,10 @@ _DOMAIN_DEFAULTS = {
                 "shell", "bash", "powershell"],
     "gateway": ["chat geral", "duvida rapida", "explique", "o que e",
                 "definicao", "conceito"],
+    "paper":   ["manuscrito", "redacao cientifica", "escrever o paper",
+                "redigir o manuscrito", "montar o artigo", "build_paper",
+                "responder revisores", "redigir a introducao",
+                "redigir a discussao", "escrever o abstract", "submissao"],
 }
 
 _DOMAINS_YAML = _ROOT / "config" / "villa" / "domains.yaml"
@@ -993,12 +997,14 @@ class VillaLobosAgent(BaseAgent):
             "- pdf: sumarizar/extrair conteudo de PDFs cientificos\n"
             "- scholar: buscar/sintetizar artigos PubMed, arXiv, Google Scholar\n"
             "- desktop: operacoes em arquivos locais ou execucao de codigo\n"
+            "- paper: REDIGIR/montar manuscrito cientifico, escrever secoes "
+            "(intro/metodos/resultados/discussao/abstract), responder revisores\n"
             "- gateway: chat geral, duvida factual, explicacao conceitual\n"
             "- none: tarefa generica que precisa de pipeline completo"
         )
         prompt = (
             "Classifique a tarefa abaixo escolhendo UM rotulo dentre: "
-            "prism, sql, pdf, scholar, desktop, gateway, none.\n\n"
+            "prism, sql, pdf, scholar, desktop, paper, gateway, none.\n\n"
             "Definicoes:\n" + domains_doc + "\n\n"
             "Tarefa: " + query + "\n\n"
             "Responda APENAS JSON: "
@@ -1021,7 +1027,8 @@ class VillaLobosAgent(BaseAgent):
             domain = (data.get("domain") or "").strip().lower()
             conf = float(data.get("confidence", 0))
             log.info("LLM router: domain=%s conf=%.2f", domain, conf)
-            valid = ("prism", "sql", "pdf", "scholar", "desktop", "gateway")
+            valid = ("prism", "sql", "pdf", "scholar", "desktop", "paper",
+                     "gateway")
             if domain in valid and conf >= 0.55:
                 return domain
             if domain == "none":

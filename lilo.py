@@ -59,6 +59,7 @@ def _load_agents() -> dict:
         ("villa",   "agents.villa_lobos",         "VillaLobosAgent"),
         ("gateway", "agents.gateway",             "GatewayAgent"),
         ("desktop", "agents.desktop",             "DesktopAgent"),
+        ("paper",   "agents.paper.agent",         "PaperAgent"),
     ]
 
     for name, module_path, class_name in _AGENT_REGISTRY:
@@ -90,6 +91,13 @@ _KEYWORD_MAP = {
     "villa":   ["villa", "pipeline completo", "planejar e executar",
                 "ler e executar", "projeto completo", "orquestrar",
                 "multi-step", "etapas", "plan and execute"],
+    # paper: redacao cientifica (keywords ESPECIFICAS p/ nao capturar leitura
+    # de PDF -> que vai ao 'pdf'). "escrever/redigir/montar o paper", manuscrito.
+    "paper":   ["escrever o paper", "escrever paper", "redigir o manuscrito",
+                "redigir manuscrito", "montar o artigo", "redacao cientifica",
+                "build_paper", "manuscrito", "responder revisores",
+                "preparar o artigo para", "submissao", "redigir a introducao",
+                "redigir a discussao", "escrever o abstract"],
 }
 
 
