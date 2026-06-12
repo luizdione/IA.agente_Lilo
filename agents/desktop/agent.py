@@ -134,7 +134,15 @@ def fs_write(path: str, content: str, append: bool = False) -> str:
     p = Path(path)
     ok, why = _is_path_allowed(p)
     if not ok:
-        return f"[ERRO] {why}"
+        # V14: escrita FORA da allow-list -> ação de risco sujeita aos modos.
+        from shared import exec_mode as _xm
+        g = _xm.gate("write_outside", str(p))
+        return g if g else f"[ERRO] {why}"
+    # V14: gating por modo (plan bloqueia; ask confirma; accept_edits/auto passam).
+    from shared import exec_mode as _xm
+    _g = _xm.gate("write", "%s (%d chars)" % (p, len(content)))
+    if _g:
+        return _g
     p.parent.mkdir(parents=True, exist_ok=True)
     try:
         if append:
@@ -253,6 +261,11 @@ def run_shell(cmd: str, cwd: Optional[str] = None, timeout: int = 60) -> str:
     danger = _is_cmd_dangerous(cmd)
     if danger:
         return f"[ERRO] comando perigoso bloqueado (pattern: {danger})"
+    # V14: shell e acao de RISCO -> sujeita aos modos (plan/ask confirmam/bloqueiam).
+    from shared import exec_mode as _xm
+    _g = _xm.gate("shell", cmd)
+    if _g:
+        return _g
     if cwd:
         ok, why = _is_path_allowed(Path(cwd))
         if not ok:
@@ -279,6 +292,11 @@ def run_shell(cmd: str, cwd: Optional[str] = None, timeout: int = 60) -> str:
 
 def run_python(code: str, timeout: int = 60) -> str:
     """Executa snippet Python em subprocess isolado (nao no proc do MCP)."""
+    # V14: execucao de codigo e RISCO -> sujeita aos modos.
+    from shared import exec_mode as _xm
+    _g = _xm.gate("python", code[:200])
+    if _g:
+        return _g
     if any(b in code for b in ["os.system", "subprocess.call", "subprocess.run"]):
         # snippets podem chamar shell, mas avisamos
         pass
