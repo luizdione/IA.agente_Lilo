@@ -1347,63 +1347,38 @@ with main_col:
 </div>
             """, unsafe_allow_html=True)
 
-        # ---- Toolbar acima do input (Agir / Perguntar + Anexos) -------------
-        # Estilo Claude Desktop: dois "modos" do agente.
-        #   - act  (✋  mao): LILO executa direto a tarefa (uso de tools/skills)
-        #   - ask  (⚠️ placa): LILO responde sem tomar acao (so consulta/explica)
-        if "lilo_mode" not in st.session_state:
-            st.session_state.lilo_mode = "act"
-
-        st.markdown("""
-<style>
-div[class*="st-key-lilo_mode_"] button {
-    border-radius: 999px !important;
-    padding: 4px 14px !important;
-    font-size: 0.85rem !important;
-    border: 1px solid var(--lilo-border, #E3E1D7) !important;
-    background: var(--lilo-bg-card, #FFFFFF) !important;
-    color: var(--lilo-text-dim, #73705F) !important;
-    transition: all 0.15s ease;
-    white-space: nowrap !important;
-    min-height: 30px !important;
-}
-div[class*="st-key-lilo_mode_"] button:hover {
-    background: var(--lilo-bg-soft, #F0EEE6) !important;
-    color: var(--lilo-text, #3D3929) !important;
-}
-</style>
-        """, unsafe_allow_html=True)
-
-        # Pilula ativa via .st-key (os wrappers <div> nao envolvem o botao
-        # no DOM do Streamlit — ver nav_button).
-        _active_mode_key = ("lilo_mode_act" if st.session_state.lilo_mode == "act"
-                            else "lilo_mode_ask")
-        st.markdown(
-            f'<style>div[class*="st-key-{_active_mode_key}"] button {{'
-            f'background: var(--lilo-accent, #D97757) !important;'
-            f'color: #fff !important;'
-            f'border-color: var(--lilo-accent, #D97757) !important;'
-            f'box-shadow: 0 2px 8px rgba(217,119,87,0.30); }}</style>',
-            unsafe_allow_html=True)
-        mc1, mc2, mc3 = st.columns([1.4, 1.8, 4.8])
-        with mc1:
-            if st.button("✋ Agir", key="lilo_mode_act",
-                          help="LILO executa diretamente a tarefa (usa tools, "
-                               "filesystem, shell, escreve arquivos). Modo padrao."):
-                st.session_state.lilo_mode = "act"
-                st.rerun()
-        with mc2:
-            if st.button("⚠️ Perguntar", key="lilo_mode_ask",
-                          help="LILO responde sem tomar acoes. Util para "
-                               "consultar, planejar, ou validar antes de agir."):
-                st.session_state.lilo_mode = "ask"
-                st.rerun()
-        with mc3:
-            _mode_label = ("Modo: AGIR -- LILO executa" if
-                           st.session_state.lilo_mode == "act"
-                           else "Modo: PERGUNTAR -- LILO so responde, sem agir")
-            st.caption(_mode_label)
-        st.markdown('</div>', unsafe_allow_html=True)
+        # ---- Modo de EXECUCAO (V14, estilo Claude) --------------------------
+        # 4 modos que controlam quanta confirmacao o LILO pede antes de AGIR.
+        # Ligados ao shared.exec_mode (gating no subagente desktop).
+        from shared import exec_mode as _xm
+        _MODE_LABELS = {
+            "🧭 Planejamento (só planeja)": "plan",
+            "🔐 Solicitar permissão": "ask",
+            "✏️ Aceitar edições": "accept_edits",
+            "⚡ Automático": "auto",
+        }
+        _labels = list(_MODE_LABELS)
+        _cur = _xm.get_mode()
+        _cur_label = next((l for l, m in _MODE_LABELS.items() if m == _cur),
+                          _labels[3])
+        _ec1, _ec2 = st.columns([2, 5])
+        with _ec1:
+            _sel_label = st.selectbox(
+                "Modo de execução", _labels, index=_labels.index(_cur_label),
+                label_visibility="collapsed",
+                help="Planejamento: só planeja, não executa. Solicitar "
+                     "permissão: confirma antes de rodar shell/python e de "
+                     "escrever fora da allow-list. Aceitar edições: edita "
+                     "arquivos sem pedir, confirma shell. Automático: executa tudo.")
+        _exec_mode = _MODE_LABELS[_sel_label]
+        _xm.set_mode(_exec_mode)
+        # lilo_mode (compat): plan = nao age; demais = age.
+        st.session_state.lilo_mode = "ask" if _exec_mode == "plan" else "act"
+        with _ec2:
+            st.caption({"plan": "Só planeja — nada é escrito/executado",
+                        "ask": "Confirma cada ação de risco",
+                        "accept_edits": "Edita arquivos direto; confirma shell",
+                        "auto": "Executa tudo sem pedir"}[_exec_mode])
 
         # Anexos via popover (+) -- substitui sidebar 'Anexos'
         _render_attachments_popover("chat")
@@ -1414,7 +1389,10 @@ div[class*="st-key-lilo_mode_"] button:hover {
             if st.session_state.lilo_mode == "act"
             else "Digite uma pergunta -- LILO nao tomara acoes (/ para skills)"
         )
-        prompt = st.chat_input(_placeholder)
+        # V14: reenvio automatico apos o usuario CONFIRMAR uma acao de risco
+        # (o grant one-shot ja foi concedido pelo botao "Confirmar e executar").
+        _resend = st.session_state.pop("_resend_text", None)
+        prompt = st.chat_input(_placeholder) or _resend
 
         if prompt:
             # Slash command: listar ou executar skill
@@ -1512,19 +1490,19 @@ div[class*="st-key-lilo_mode_"] button:hover {
                             # do gateway so e setado no override (ver abaixo);
                             # em "Auto" o roteador semantico decide o subagente.
                             ctx = {}
-                            # Modo Agir/Perguntar (estilo Claude Desktop):
-                            # - act: agente pode usar tools, executar, escrever.
-                            # - ask: agente apenas responde, sem tools.
-                            _lilo_mode = st.session_state.get("lilo_mode", "act")
-                            ctx["intent"] = _lilo_mode
-                            ctx["allow_tools"] = (_lilo_mode == "act")
+                            # V14: modo de EXECUCAO (plan/ask/accept_edits/auto).
+                            # O gating fino (confirmar/bloquear acoes de risco) e
+                            # feito por shared.exec_mode no subagente desktop; aqui
+                            # so passamos o hint e desligamos tools no modo plan.
+                            ctx["exec_mode"] = _exec_mode
+                            ctx["intent"] = "ask" if _exec_mode == "plan" else "act"
+                            ctx["allow_tools"] = (_exec_mode != "plan")
                             ctx["system_hint"] = (
-                                "Modo AGIR: voce pode executar a tarefa, usar "
-                                "tools/skills, escrever arquivos. Seja proativo."
-                                if _lilo_mode == "act"
-                                else "Modo PERGUNTAR: apenas responda. Nao "
-                                     "execute, nao escreva arquivos. Se a tarefa "
-                                     "exigir acao, descreva os passos sem fazer."
+                                "Modo PLANEJAMENTO: apenas planeje/responda. Nao "
+                                "execute, nao escreva arquivos. Descreva os passos."
+                                if _exec_mode == "plan"
+                                else "Voce pode executar a tarefa, usar tools/"
+                                     "skills e escrever arquivos. Seja proativo."
                             )
                             if st.session_state.attached_files:
                                 ctx["attached_files"] = [f.name for f in st.session_state.attached_files]
@@ -1559,8 +1537,19 @@ div[class*="st-key-lilo_mode_"] button:hover {
                             response = route(prompt, context=ctx, tab=_force_tab)
                         except Exception as e:
                             response = "Erro: " + str(e)
-                    # V10.5: exibicao progressiva (streaming visual) estilo Cowork.
-                    if cowork and st.session_state.get("stream_chat", True):
+                    # V14: trata pedido de confirmacao / bloqueio (modos de exec).
+                    from shared import exec_mode as _xmd
+                    _is_conf = _xmd.is_confirm(response)
+                    _is_blk = _xmd.is_block(response)
+                    if _is_conf:
+                        response = ("🔐 **Confirmação necessária**\n\n"
+                                    + response[len(_xmd.CONFIRM_PREFIX):])
+                    elif _is_blk:
+                        response = ("🧭 **Modo planejamento — nada foi executado**"
+                                    "\n\n" + response[len(_xmd.BLOCK_PREFIX):])
+                    # exibicao progressiva (estilo Cowork); direta em confirm/block.
+                    if (cowork and st.session_state.get("stream_chat", True)
+                            and not (_is_conf or _is_blk)):
                         try:
                             st.write_stream(cowork.stream_words(response))
                         except Exception:
@@ -1570,6 +1559,12 @@ div[class*="st-key-lilo_mode_"] button:hover {
                     st.session_state.messages.append(
                         {"role": "assistant", "content": response})
                     memory.add_message(st.session_state.current_chat_id, "assistant", response)
+                    if _is_conf:
+                        # Botao confirma -> grant one-shot + reenvio do mesmo prompt.
+                        if st.button("✅ Confirmar e executar", key="confirm_exec_btn"):
+                            _xmd.grant_once()
+                            st.session_state["_resend_text"] = prompt
+                            st.rerun()
                     # Auto-update das notas do projeto apos cada turno
                     # (Task 4) — sem gastar tokens (resumo heuristico).
                     if st.session_state.current_project:

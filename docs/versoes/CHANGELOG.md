@@ -1,5 +1,24 @@
 # LILO — Changelog
 
+## v11.2 — 2026-06-12 (V14: modos de execução estilo Claude)
+
+Feature pedida: os modos de interação do Claude no LILO. Política escolhida:
+**confirmar só ações de risco**.
+
+- **`shared/exec_mode.py`**: 4 modos — **plan** (só planeja), **ask** (confirma
+  todo risco), **accept_edits** (edita direto, confirma shell), **auto**
+  (executa tudo; DEFAULT). `gate(kind, preview)` + confirmação one-shot
+  (`grant_once`). Risco = shell, python, escrita fora da allow-list.
+- **`agents/desktop/agent.py`**: gating em `run_shell`/`run_python`/`fs_write`.
+  Default auto → zero mudança de comportamento.
+- **`dashboard.py`**: seletor visual dos 4 modos (substitui Agir/Perguntar);
+  quando uma ação precisa de confirmação, mostra a prévia + botão **✅ Confirmar
+  e executar** (concede o grant e reenvia). Modo planejamento exibe aviso e não
+  executa nada. Configurável também por `LILO_EXEC_MODE`.
+
+Testes: +6 (101 passam). Em construção na mesma leva: microfone (voz→texto) e
+reconhecimento de locutor.
+
 ## v11.1 — 2026-06-12 (V13.1–13.4: leva de importação de skills do Claude)
 
 Proposta de importação aprovada pelo Dione — 4 capacidades novas, todas
