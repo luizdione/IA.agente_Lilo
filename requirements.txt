@@ -43,3 +43,6 @@ lxml>=5.0.0             # backend rápido p/ bs4
 # mdtraj>=1.9
 # rdkit>=2024.3
 # biopython>=1.83
+python-docx
+python-pptx
+openpyxl
