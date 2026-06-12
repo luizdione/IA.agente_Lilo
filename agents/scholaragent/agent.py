@@ -48,6 +48,10 @@ class ScholarAgent(BaseAgent):
         "ensaio clínico", "ensaios clínicos", "clinical trial", "clinicaltrials",
         "alvo terapêutico", "open targets", "gene-doença", "target",
         "crossref", "doi", "semantic scholar", "npi", "provedor de saúde",
+        # V12.2: novas fontes
+        "openalex", "google scholar", "google acadêmico", "google academico",
+        "europe pmc", "europepmc", "google books", "livro", "livros",
+        "wikipedia", "wikipédia", "enciclopédia",
     ]
 
     # V9 (2026-05-22): roteamento cost-aware no Villa_Lobos.
@@ -91,12 +95,16 @@ class ScholarAgent(BaseAgent):
 
         self.log.info(f"Scholar query: {truncate(query, 80)} | source={source}")
 
-        # Fontes delegadas ao módulo research_sources (públicas, sem chave).
+        # Fontes delegadas ao módulo research_sources (públicas).
+        # V12.2 (2026-06-11): +openalex (substituto do Google Scholar),
+        # +europepmc, +googlebooks, +wikipedia.
         _EXTERNAL = {"clinicaltrials", "opentargets", "npi",
-                     "crossref", "semanticscholar"}
-        # source="all" => PubMed + todas as externas (cobertura máxima).
-        _ALL = ["pubmed", "clinicaltrials", "opentargets", "npi",
-                "crossref", "semanticscholar"]
+                     "crossref", "semanticscholar", "openalex", "europepmc",
+                     "googlebooks", "wikipedia"}
+        # source="all" => cobertura acadêmica máxima (sem arxiv, que é nativo).
+        _ALL = ["pubmed", "europepmc", "openalex", "crossref",
+                "semanticscholar", "googlebooks", "clinicaltrials",
+                "opentargets", "npi"]
 
         results = []
         if source == "all":
@@ -150,11 +158,15 @@ class ScholarAgent(BaseAgent):
                         "source": {
                             "type": "string",
                             "enum": ["auto", "all", "pubmed", "arxiv",
-                                     "clinicaltrials", "opentargets", "npi",
-                                     "crossref", "semanticscholar"],
+                                     "openalex", "europepmc", "googlebooks",
+                                     "wikipedia", "clinicaltrials",
+                                     "opentargets", "npi", "crossref",
+                                     "semanticscholar"],
                             "description": ("Fonte de busca (padrão: auto = "
-                                            "pubmed+arxiv). 'all' agrega todas; "
-                                            "as demais são públicas, sem chave."),
+                                            "pubmed+arxiv). 'all' agrega as "
+                                            "acadêmicas; openalex substitui o "
+                                            "Google Scholar; googlebooks=livros; "
+                                            "wikipedia=conhecimento geral."),
                         },
                         "max_results": {"type": "integer", "description": "Máximo de resultados (padrão: 5)"},
                     },

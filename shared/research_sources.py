@@ -6,11 +6,18 @@ externas como o Claude (ClinicalTrials, Open Targets, NPI, PubMed, etc.).
 Todas as fontes aqui são APIs PÚBLICAS e NÃO exigem credencial:
 
   * pubmed            -> NCBI E-utilities (eutils)            [chave opcional]
+  * europepmc         -> Europe PMC REST (PubMed + preprints + patentes)
+  * openalex          -> OpenAlex (250M+ works; substituto do Google Scholar)
+  * crossref          -> Crossref REST API
+  * semanticscholar   -> Semantic Scholar Graph API           [429 sem chave]
+  * googlebooks       -> Google Books API v1 (livros)
+  * wikipedia         -> MediaWiki API (conhecimento geral; LILO_WIKI_LANG)
   * clinicaltrials    -> ClinicalTrials.gov API v2
   * opentargets       -> Open Targets Platform GraphQL v4
   * npi               -> NPPES NPI Registry API v2.1
-  * crossref          -> Crossref REST API
-  * semanticscholar   -> Semantic Scholar Graph API           [429 sem chave]
+
+Nota: o Google Scholar NÃO tem API pública e bloqueia scraping (captcha/IP
+ban); OpenAlex é o substituto programático recomendado (mesma cobertura).
 
 Cada função `search_<fonte>(query, max_results)` devolve uma lista de dicts
 PADRONIZADOS para o ScholarAgent/MCP consumirem:
@@ -59,9 +66,10 @@ _EMAIL = os.getenv("LILO_RESEARCH_EMAIL", "lilo@localhost")
 _UA = "LILO/1.0 (research; %s)" % _EMAIL
 _NCBI_KEY = os.getenv("NCBI_API_KEY", "").strip()
 _S2_KEY = os.getenv("SEMANTIC_SCHOLAR_API_KEY", "").strip()
+_GBOOKS_KEY = os.getenv("GOOGLE_BOOKS_API_KEY", "").strip()
 
-SOURCES = ("pubmed", "clinicaltrials", "opentargets", "npi",
-           "crossref", "semanticscholar")
+SOURCES = ("pubmed", "europepmc", "openalex", "crossref", "semanticscholar",
+           "googlebooks", "wikipedia", "clinicaltrials", "opentargets", "npi")
 
 
 # ── HTTP helpers (com retry/backoff) ─────────────────────────────────────────
@@ -102,6 +110,17 @@ def _std(source, title, url, snippet="", authors="", year="", id=""):
     return {"source": source, "title": (title or "").strip(),
             "url": url or "", "snippet": (snippet or "").strip()[:500],
             "authors": authors or "", "year": str(year or ""), "id": str(id or "")}
+
+
+def _openalex_abstract(inv):
+    """Reconstrói o abstract do OpenAlex (vem como inverted index posicional)."""
+    if not isinstance(inv, dict):
+        return ""
+    try:
+        words = sorted((pos, w) for w, ps in inv.items() for pos in (ps or []))
+        return " ".join(w for _, w in words)
+    except Exception:
+        return ""
 
 
 # ── PubMed (NCBI E-utilities) ────────────────────────────────────────────────
@@ -265,13 +284,113 @@ def search_semanticscholar(query, max_results=5):
     return out
 
 
+# ── OpenAlex (substituto programático do Google Scholar) ─────────────────────
+def search_openalex(query, max_results=5):
+    """OpenAlex: 250M+ trabalhos acadêmicos, API gratuita SEM chave. É o
+    substituto correto do Google Scholar (que não tem API e bloqueia scraping).
+    """
+    url = "https://api.openalex.org/works"
+    params = {"search": query, "per-page": max_results}
+    if _EMAIL:
+        params["mailto"] = _EMAIL  # "polite pool" do OpenAlex
+    data = _req("GET", url, params=params)
+    if not data:
+        return []
+    out = []
+    for w in (data.get("results", []) or [])[:max_results]:
+        authors = "; ".join(
+            ((a.get("author", {}) or {}).get("display_name", ""))
+            for a in (w.get("authorships", []) or [])[:6])
+        doi = w.get("doi") or ""
+        out.append(_std(
+            "openalex", w.get("title", "") or w.get("display_name", ""),
+            doi or w.get("id", ""),
+            snippet=_openalex_abstract(w.get("abstract_inverted_index")),
+            authors=authors, year=w.get("publication_year", ""),
+            id=w.get("id", "")))
+    return out
+
+
+# ── Europe PMC (PubMed + preprints + patentes + texto completo) ──────────────
+def search_europepmc(query, max_results=5):
+    url = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
+    data = _req("GET", url, params={"query": query, "format": "json",
+                                    "pageSize": max_results, "resultType": "lite"})
+    if not data:
+        return []
+    out = []
+    for r in ((data.get("resultList", {}) or {}).get("result", []) or [])[:max_results]:
+        src, ext = r.get("source", ""), r.get("id", "")
+        doi = r.get("doi", "")
+        link = ("https://europepmc.org/article/%s/%s" % (src, ext)) if (src and ext) \
+            else (("https://doi.org/%s" % doi) if doi else "")
+        out.append(_std("europepmc", r.get("title", ""), link,
+                        snippet="%s %s" % (r.get("journalTitle", ""),
+                                           r.get("pubYear", "")),
+                        authors=r.get("authorString", ""),
+                        year=r.get("pubYear", ""), id=ext or doi))
+    return out
+
+
+# ── Google Books (API oficial v1) ───────────────────────────────────────────
+def search_googlebooks(query, max_results=5):
+    """Google Books API v1. SEM chave a quota anônima é compartilhada por IP e
+    satura facilmente (HTTP 429 -> [] por degradação graciosa). Defina
+    GOOGLE_BOOKS_API_KEY (gratuita, ~1000 req/dia) para uso confiável.
+    """
+    url = "https://www.googleapis.com/books/v1/volumes"
+    params = {"q": query, "maxResults": min(max_results, 40), "country": "BR"}
+    if _GBOOKS_KEY:
+        params["key"] = _GBOOKS_KEY
+    data = _req("GET", url, params=params)
+    if not data:
+        return []
+    out = []
+    for v in (data.get("items", []) or [])[:max_results]:
+        vi = v.get("volumeInfo", {}) or {}
+        authors = "; ".join(vi.get("authors", []) or [])
+        snippet = (vi.get("description", "") or "") or (
+            "%s %s" % (vi.get("publisher", ""), vi.get("publishedDate", "")))
+        out.append(_std("googlebooks", vi.get("title", ""),
+                        vi.get("infoLink", "") or vi.get("canonicalVolumeLink", ""),
+                        snippet=snippet, authors=authors,
+                        year=(vi.get("publishedDate", "") or "")[:4],
+                        id=v.get("id", "")))
+    return out
+
+
+# ── Wikipedia (conhecimento geral; idioma via LILO_WIKI_LANG) ────────────────
+def search_wikipedia(query, max_results=5):
+    import re as _re
+    lang = os.getenv("LILO_WIKI_LANG", "pt")
+    url = "https://%s.wikipedia.org/w/api.php" % lang
+    data = _req("GET", url, params={"action": "query", "list": "search",
+                "srsearch": query, "srlimit": max_results, "format": "json",
+                "srprop": "snippet"})
+    if not data:
+        return []
+    out = []
+    for r in (((data.get("query") or {}).get("search")) or [])[:max_results]:
+        title = r.get("title", "")
+        snip = _re.sub(r"<[^>]+>", "", r.get("snippet", "") or "")
+        out.append(_std("wikipedia", title,
+                        "https://%s.wikipedia.org/wiki/%s"
+                        % (lang, quote_plus(title.replace(" ", "_"))),
+                        snippet=snip, id=str(r.get("pageid", ""))))
+    return out
+
+
 _DISPATCH = {
     "pubmed": search_pubmed,
+    "europepmc": search_europepmc,
+    "openalex": search_openalex,
+    "crossref": search_crossref,
+    "semanticscholar": search_semanticscholar,
+    "googlebooks": search_googlebooks,
+    "wikipedia": search_wikipedia,
     "clinicaltrials": search_clinicaltrials,
     "opentargets": search_opentargets,
     "npi": search_npi,
-    "crossref": search_crossref,
-    "semanticscholar": search_semanticscholar,
 }
 
 

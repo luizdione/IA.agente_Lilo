@@ -9,12 +9,21 @@ Subagente do LILO (`agents/scholaragent/agent.py`, classe `ScholarAgent`,
 > arquivada em `_ARCHIVE_v10/`. Para ler/extrair conteúdo de PDFs hoje, use o
 > subagente **PDFs_library** (`pdf`).
 
-## Fontes (todas APIs públicas, sem chave)
+## Fontes (APIs públicas)
 
-- **PubMed** (E-utilities) — nativo no agente
-- **arXiv** (API pública) — nativo no agente
-- **ClinicalTrials.gov**, **Open Targets**, **NPI Registry**, **CrossRef**,
-  **Semantic Scholar** — via `shared/research_sources.py` (V10.4)
+- **PubMed** (E-utilities) e **arXiv** — nativos no agente
+- Via `shared/research_sources.py`:
+  - **OpenAlex** — 250M+ trabalhos; **substituto programático do Google
+    Scholar** (que não tem API e bloqueia scraping) — V12.2
+  - **Europe PMC** — PubMed + preprints + patentes + texto completo — V12.2
+  - **Google Books** — livros (API v1; defina `GOOGLE_BOOKS_API_KEY` p/ uso
+    confiável — a quota anônima satura com 429) — V12.2
+  - **Wikipedia** — conhecimento geral (idioma via `LILO_WIKI_LANG`) — V12.2
+  - **CrossRef**, **Semantic Scholar**, **ClinicalTrials.gov**,
+    **Open Targets**, **NPI Registry** — V10.4
+
+> Chaves OPCIONAIS (melhoram limites, não obrigatórias): `NCBI_API_KEY`,
+> `SEMANTIC_SCHOLAR_API_KEY`, `GOOGLE_BOOKS_API_KEY`, `LILO_RESEARCH_EMAIL`.
 
 ## Tools expostas (`get_tools`)
 

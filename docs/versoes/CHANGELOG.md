@@ -28,6 +28,13 @@ assume — e pode **dividir as etapas** entre especialistas.
    (Ollama): "busque no pubmed … e depois analise" → cadeia `scholar → prism`
    → Reporter sintetiza. Desligável via `LILO_CHAIN_DELEGATION=0`.
 
+5. **Busca na internet ampliada (V12.2).** `shared/research_sources.py` ganhou
+   4 fontes gratuitas: **OpenAlex** (substituto do Google Scholar — sem API/
+   anti-scraping), **Europe PMC**, **Google Books** (`GOOGLE_BOOKS_API_KEY`
+   opcional — quota anônima satura), **Wikipedia** (`LILO_WIKI_LANG`). Total: 10
+   fontes acadêmicas/conteúdo + web geral (DuckDuckGo). ScholarAgent: `source`
+   aceita as novas; `source="all"` agrega as acadêmicas.
+
 Testes: +14 (61 passam).
 
 ## v10.5 — 2026-06-11 (plataforma híbrida, dashboard Claude Desktop, Villa V11.2)
