@@ -979,13 +979,28 @@ class VillaLobosAgent(BaseAgent):
         # 404 (modelo inexistente), onde o fallback de modelo AINDA ajuda.
         _payload_error = False
         effective_retries = 1 if _circuit_open else MAX_RETRIES
+        # V11.3 (2026-06-11): temperatura por papel E por intencao. O bench com
+        # JUIZ LLM (quality_judge) revelou que o Worker em queries de
+        # CONHECIMENTO factual tinha variancia altissima de correcao (mesma
+        # pergunta de biologia: ora 86, ora 10 -- invencoes factuais
+        # intermitentes), invisivel ao _quality_score heuristico. temp=0.4
+        # alimenta essa invencao. Para conhecimento (nao-codigo) baixamos o
+        # Worker para 0.25 (factualidade > criatividade); codigo e planner
+        # seguem em 0.4 (onde alguma exploracao ajuda). HIPOTESE a validar com
+        # N>=5 corridas + juiz (ver relatorio 2026-06-11).
+        if role == "worker" and not getattr(self, "_cur_code_intent", False):
+            _temp = 0.25
+        elif role in ("worker", "planner"):
+            _temp = 0.4
+        else:
+            _temp = 0.3
         for attempt in range(1, effective_retries + 1):
             try:
-                log.info("    %s (%s, tier=%s) tentativa %d/%d",
-                         role, model, tier or "auto", attempt, effective_retries)
+                log.info("    %s (%s, tier=%s, temp=%.2f) tentativa %d/%d",
+                         role, model, tier or "auto", _temp, attempt, effective_retries)
                 result = self.client.chat(
                     prompt=prompt, system=system, model=model,
-                    temperature=0.4 if role in ("worker", "planner") else 0.3,
+                    temperature=_temp,
                     max_tokens=4096, tier=tier,
                 )
                 if result and not result.startswith("[MOCK]"):
