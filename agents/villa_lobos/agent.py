@@ -267,6 +267,23 @@ VILLA_WORKER_GENERAL_MODEL = _os.getenv(
 VILLA_WORKER_CODE_MODEL = _os.getenv(
     "VILLA_WORKER_CODE_MODEL", MODELS.get("code", "qwen2.5-coder:14b"))
 
+# V12.3 (2026-06-12): alavancas de QUALIDADE do Worker, todas configuraveis por
+# env para experimentacao+medicao com o juiz (gargalo real = variancia factual
+# do worker local, ver relatorio 2026-06-11_v3). NENHUMA muda o default vigente.
+#  1) Temperatura: conhecimento em 0.25 (factualidade > criatividade; era a
+#     V11.3 hardcoded), codigo/planner em 0.4. Agora overrideaveis.
+#  2) Self-consistency: LILO_WORKER_SC=k gera k respostas independentes do
+#     Worker e consolida mantendo so o corroborado (reduz invencao factual).
+#     Default 1 = desligado (comportamento atual).
+#  3) Modelo cloud: VILLA_WORKER_GENERAL_MODEL=gpt-oss:120b-cloud usa o Ollama
+#     Cloud (NAO a GPU local) -- maior capacidade factual sem custo de VRAM.
+WORKER_TEMP = float(_os.getenv("LILO_WORKER_TEMP", "0.25"))
+WORKER_TEMP_CODE = float(_os.getenv("LILO_WORKER_TEMP_CODE", "0.4"))
+try:
+    WORKER_SELF_CONSISTENCY = max(1, int(_os.getenv("LILO_WORKER_SC", "1")))
+except ValueError:
+    WORKER_SELF_CONSISTENCY = 1
+
 # Marcadores (ja sem acento, minusculos) de intencao de CODIGO/dados.
 _CODE_INTENT_MARKERS = (
     "codigo", "code", "python", "javascript", "typescript", "c++", "rust ",
@@ -710,6 +727,13 @@ class VillaLobosAgent(BaseAgent):
                             log.warning("    especialista %s falhou (%s); "
                                         "Worker LLM", _stage_agent, _se)
                             w_result = self._call_agent("worker", worker_prompt)
+                    elif WORKER_SELF_CONSISTENCY > 1 and i == 0:
+                        # V12.3: self-consistency na 1a iteracao (k respostas
+                        # independentes -> consolidacao do corroborado).
+                        log.info("    Worker[it1] self-consistency k=%d",
+                                 WORKER_SELF_CONSISTENCY)
+                        w_result = self._worker_self_consistency(
+                            query, worker_prompt, WORKER_SELF_CONSISTENCY)
                     else:
                         w_result = self._call_agent("worker", worker_prompt)
                     work_results.append(w_result)
@@ -1054,6 +1078,38 @@ class VillaLobosAgent(BaseAgent):
             log.warning("Falha na delegacao: %s", e)
             return None
 
+    def _worker_self_consistency(self, query, worker_prompt, k):
+        """V12.3: gera k respostas INDEPENDENTES do Worker e CONSOLIDA mantendo
+        só o corroborado por >=2 versões -- reduz a invenção factual do modelo
+        local (self-consistency aplicado a prosa científica). Custo: k chamadas
+        + 1 de consolidação. Ativado por LILO_WORKER_SC>1 (default 1=off).
+        """
+        drafts = []
+        for _j in range(k):
+            d = self._call_agent("worker", worker_prompt)
+            if d and not d.lstrip().startswith("["):  # ignora stub de erro
+                drafts.append(d)
+        if not drafts:
+            return "[worker self-consistency: nenhuma resposta valida]"
+        if len(drafts) == 1:
+            return drafts[0]
+        blocks = "\n\n".join("=== VERSAO %d ===\n%s" % (i + 1, d[:2500])
+                             for i, d in enumerate(drafts))
+        cons_prompt = (
+            "Abaixo estao %d respostas INDEPENDENTES a MESMA pergunta. Produza a "
+            "resposta FINAL consolidada com regras estritas:\n"
+            "1. INCLUA apenas afirmacoes corroboradas por PELO MENOS 2 versoes.\n"
+            "2. DESCARTE o que aparece em só UMA versao (provavel invencao).\n"
+            "3. Se as versoes DIVERGEM num ponto factual, SINALIZE a incerteza "
+            "em vez de escolher arbitrariamente.\n"
+            "4. Mantenha rigor tecnico; NAO adicione fatos novos.\n\n"
+            "PERGUNTA: %s\n\n%s" % (len(drafts), query, blocks)
+        )
+        consolidated = self._call_agent("worker", cons_prompt)
+        if consolidated and not consolidated.lstrip().startswith("["):
+            return consolidated
+        return drafts[0]
+
     def _call_agent(self, role, prompt, tier=None):
         """Executa um estagio do pipeline com fallback automatico.
 
@@ -1105,9 +1161,9 @@ class VillaLobosAgent(BaseAgent):
         # seguem em 0.4 (onde alguma exploracao ajuda). HIPOTESE a validar com
         # N>=5 corridas + juiz (ver relatorio 2026-06-11).
         if role == "worker" and not getattr(self, "_cur_code_intent", False):
-            _temp = 0.25
+            _temp = WORKER_TEMP            # conhecimento (LILO_WORKER_TEMP, def 0.25)
         elif role in ("worker", "planner"):
-            _temp = 0.4
+            _temp = WORKER_TEMP_CODE       # codigo/planner (LILO_WORKER_TEMP_CODE, def 0.4)
         else:
             _temp = 0.3
         for attempt in range(1, effective_retries + 1):

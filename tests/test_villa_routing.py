@@ -286,6 +286,51 @@ def test_decompose_chain_empty_when_not_applicable():
 
 
 # --------------------------------------------------------------------------
+# V12.3: self-consistency do Worker (gera k respostas + consolida).
+# --------------------------------------------------------------------------
+class _FakeClientCounter:
+    backend = "ollama"
+
+    def __init__(self):
+        self.calls = 0
+
+    def chat(self, *a, **k):
+        self.calls += 1
+        return ("Resposta %d com conteudo tecnico suficiente, varios termos e "
+                "frases para nao parecer stub de erro." % self.calls)
+
+    def health(self):
+        return {"backend": "ollama"}
+
+
+def test_worker_self_consistency_generates_k_plus_consolidation():
+    from agents.villa_lobos.agent import VillaLobosAgent
+    v = VillaLobosAgent()
+    v.client = _FakeClientCounter()
+    out = v._worker_self_consistency("pergunta", "prompt do worker", 3)
+    # 3 drafts + 1 consolidacao = 4 chamadas ao LLM
+    assert v.client.calls == 4
+    assert out and not out.startswith("[")
+
+
+def test_worker_self_consistency_k1_no_consolidation():
+    from agents.villa_lobos.agent import VillaLobosAgent
+    v = VillaLobosAgent()
+    v.client = _FakeClientCounter()
+    out = v._worker_self_consistency("pergunta", "prompt", 1)
+    assert v.client.calls == 1   # 1 draft, sem passo de consolidacao
+    assert out
+
+
+def test_worker_temp_constants_configurable():
+    # As alavancas de temperatura existem e sao floats (default seguro).
+    from agents.villa_lobos import agent as A
+    assert isinstance(A.WORKER_TEMP, float)
+    assert isinstance(A.WORKER_TEMP_CODE, float)
+    assert A.WORKER_SELF_CONSISTENCY >= 1
+
+
+# --------------------------------------------------------------------------
 # _orchestrate_decision (heuristica, pois client e mock)
 # --------------------------------------------------------------------------
 def test_decision_simple_query_skips_to_reporter(villa):

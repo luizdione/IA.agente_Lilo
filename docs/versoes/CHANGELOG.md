@@ -1,5 +1,23 @@
 # LILO — Changelog
 
+## v10.7 — 2026-06-12 (V12.3: alavancas de qualidade do Worker, configuráveis)
+
+Ataca o gargalo real apontado pelo juiz LLM (variância factual do Worker local,
+não o roteamento). Tudo **configurável por env** e medível com o juiz; **nenhum
+default muda** o comportamento vigente. Implementado e testado **sem GPU** (mock).
+
+- **Temperatura configurável** (`LILO_WORKER_TEMP`=0.25 conhecimento /
+  `LILO_WORKER_TEMP_CODE`=0.4 código) — antes a V11.3 era hardcoded.
+- **Self-consistency** (`LILO_WORKER_SC`=k, default 1=off): o Worker gera k
+  respostas independentes e **consolida só o corroborado por ≥2** (descarta o
+  que aparece em uma só → menos invenção factual). Custo ~k+1 chamadas.
+- **Worker na nuvem** (`VILLA_WORKER_GENERAL_MODEL=gpt-oss:120b-cloud`): roda no
+  Ollama Cloud, **sem usar a GPU local**.
+- `.env.example`: documenta as alavancas + chaves de pesquisa opcionais
+  (`GOOGLE_BOOKS_API_KEY`, `NCBI_API_KEY`, `LILO_WIKI_LANG`) com onde obtê-las.
+
+Testes: +3 (64 passam). **Medição com juiz (N≥5) pendente** — requer GPU livre.
+
 ## v10.6 — 2026-06-11 (V12: orquestração unificada — porta única + delegação por etapa)
 
 Villa Lobos vira a **porta única** de roteamento; os subagentes continuam
