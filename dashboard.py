@@ -775,12 +775,18 @@ with st.sidebar:
     nav_button("Ajuda", "nav_help", "help")
 
     st.markdown("---")
+    # V12 (2026-06-11): "Auto" e o default -- o roteador semantico do Villa
+    # escolhe o subagente pela semantica da pergunta. Os demais sao OVERRIDE
+    # manual (forcam um modo/agente especifico).
     mode = st.selectbox(
         "Modo IA",
-        ["chat", "code", "bioinfo", "sql"],
-        help="Modo de operacao do Chat")
+        ["Auto", "chat", "code", "bioinfo", "sql"],
+        index=0,
+        help="Auto: o LILO decide o melhor subagente pela semantica da "
+             "pergunta. chat/code/bioinfo forcam o modo do gateway; sql forca "
+             "o agente SQL.")
 
-    st.caption("LILO v10.0 -- " + datetime.now().strftime("%H:%M"))
+    st.caption("LILO v10.5 -- " + datetime.now().strftime("%H:%M"))
 
 
 # -- Pagina ativa -------------------------------------------------------------
@@ -1458,8 +1464,10 @@ div[class*="st-key-lilo_mode_"] button:hover {
                     with st.spinner("Pensando..."):
                         try:
                             from lilo import route
-                            # Incluir contexto de arquivos anexados
-                            ctx = {"mode": mode}
+                            # Incluir contexto de arquivos anexados. O 'mode'
+                            # do gateway so e setado no override (ver abaixo);
+                            # em "Auto" o roteador semantico decide o subagente.
+                            ctx = {}
                             # Modo Agir/Perguntar (estilo Claude Desktop):
                             # - act: agente pode usar tools, executar, escrever.
                             # - ask: agente apenas responde, sem tools.
@@ -1493,7 +1501,18 @@ div[class*="st-key-lilo_mode_"] button:hover {
                                     # truncamos para nao explodir o prompt
                                     ctx["dir_synthesis"] = synth_md[:4000]
                                     ctx["dir_synthesis_path"] = str(synth_p)
-                            response = route(prompt, context=ctx)
+                            # V12: "Auto" -> roteamento semantico decide o
+                            # subagente (tab=None). Override manual: "sql" forca
+                            # o agente SQL; chat/code/bioinfo forcam o gateway no
+                            # modo escolhido. (ctx['mode'] foi setado acima.)
+                            if mode == "Auto":
+                                _force_tab = None
+                            elif mode == "sql":
+                                _force_tab = "sql"
+                            else:
+                                _force_tab = "gateway"
+                                ctx["mode"] = mode  # modo do gateway
+                            response = route(prompt, context=ctx, tab=_force_tab)
                         except Exception as e:
                             response = "Erro: " + str(e)
                     # V10.5: exibicao progressiva (streaming visual) estilo Cowork.
