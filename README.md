@@ -1,7 +1,7 @@
-# LILO v10.5 — Agente Pessoal de IA com Subagentes Especializados
+# LILO v10.6 — Agente Pessoal de IA com Subagentes Especializados
 
 ![Status](https://img.shields.io/badge/status-ativo-brightgreen)
-![Version](https://img.shields.io/badge/version-10.5.0-blue)
+![Version](https://img.shields.io/badge/version-10.6.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![Arch](https://img.shields.io/badge/arch-v10-purple)
 
@@ -10,9 +10,11 @@
 - **LLMs locais via Ollama** (RTX 3060 12GB) — privacidade e custo zero
 - **Claude API** (Sonnet/Opus) como fallback para tarefas complexas
 - **Policy Engine** que decide automaticamente o tier de execução pelo conteúdo da query (NO_LLM → Ollama_fast → Ollama → Ollama_heavy → Claude_sonnet → Claude_opus)
+- **Roteamento semântico (V12)** — uma porta única (Villa Lobos) escolhe o melhor subagente pela semântica da pergunta e, em tarefas multi-etapa, **encadeia vários especialistas em sequência**
 - **7 subagentes especializados** — cada um com sua expertise
+- **Busca na internet** — web geral (DuckDuckGo) + 10 fontes estruturadas (PubMed, OpenAlex, Europe PMC, Crossref, Semantic Scholar, Google Books, Wikipedia, arXiv, ClinicalTrials, Open Targets…)
 - **MCP server unificado** com integração nativa ao Claude Desktop e PyCharm
-- **Dashboard Streamlit** local em http://localhost:8100
+- **Dashboard Streamlit** local em http://localhost:8100 (tema Claude Desktop, modo **Auto**)
 
 ---
 

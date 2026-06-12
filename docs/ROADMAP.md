@@ -1,11 +1,11 @@
 # LILO — Roadmap de desenvolvimento
 
 **Última atualização:** 2026-06-11
-**Versão atual:** v10.5
+**Versão atual:** v10.6
 
 ---
 
-## Onde estamos (v10.0 → v10.5)
+## Onde estamos (v10.0 → v10.6)
 
 | Versão | Marco principal |
 |---|---|
@@ -15,7 +15,8 @@
 | v10.2.1 | Hotfix menu `/` no dashboard |
 | v10.3 | Memória robusta (TTL, search, WAL, fora do OneDrive) + 4 tools novas |
 | v10.4 | Profile MCP `opus` (curado) + descriptions reescritas |
-| **v10.5** | Plataforma híbrida (`lilo_api`/`lilo_serve`), dashboard estilo Claude Desktop, Villa **V11.2** (guarda fast-path unificada, retry 4xx, de-viés de domínio), juiz LLM (`quality_judge`) |
+| v10.5 | Plataforma híbrida (`lilo_api`/`lilo_serve`), dashboard estilo Claude Desktop, Villa **V11.2** (guarda fast-path unificada, retry 4xx, de-viés de domínio), juiz LLM (`quality_judge`) |
+| **v10.6** | **V12**: roteamento semântico como porta única (`route_target`), Modo IA → Auto, delegação por etapa + **cadeia multi-especialista** (`_decompose_chain`); busca ampliada (OpenAlex, Europe PMC, Google Books, Wikipedia); empty state do dashboard |
 
 **Estado atual:** 7 subagentes; core skills no menu `/` + skills geradas
 (contagem viva em `lilo_skills/registry`); tools MCP por profile em
