@@ -60,6 +60,7 @@ def _load_agents() -> dict:
         ("gateway", "agents.gateway",             "GatewayAgent"),
         ("desktop", "agents.desktop",             "DesktopAgent"),
         ("paper",   "agents.paper.agent",         "PaperAgent"),
+        ("docgen",  "agents.docgen.agent",        "DocGenAgent"),
     ]
 
     for name, module_path, class_name in _AGENT_REGISTRY:
@@ -98,6 +99,10 @@ _KEYWORD_MAP = {
                 "build_paper", "manuscrito", "responder revisores",
                 "preparar o artigo para", "submissao", "redigir a introducao",
                 "redigir a discussao", "escrever o abstract"],
+    # docgen: documentos de escritorio (relatorio/planilha/slides).
+    "docgen":  ["gerar documento", "criar documento", "relatorio word", "docx",
+                "planilha", "xlsx", "excel", "apresentacao", "slides", "pptx",
+                "powerpoint", "gerar relatorio", "exportar para word"],
 }
 
 
@@ -338,6 +343,11 @@ def get_tool_map():
         "scholar_search":     ("scholar", lambda a: {"source": a.get("source","auto"), "max_results": a.get("max_results",5), "synthesize": False}),
         "scholar_synthesize": ("scholar", lambda a: {"max_results": a.get("max_results",5), "synthesize": True}),
         "scholar_review":     ("scholar", lambda a: {"mode": "review", "max_results": a.get("max_results",20)}),
+        # docgen
+        "make_report_docx":   ("docgen",  lambda a: {"mode": "report", "name": a.get("name",""), "data": a.get("data","")}),
+        "make_docx":          ("docgen",  lambda a: {"mode": "docx", "content": a.get("content",""), "name": a.get("name","")}),
+        "make_xlsx":          ("docgen",  lambda a: {"mode": "xlsx", "csv_path": a.get("csv_path",""), "tsv": a.get("tsv",""), "csv": a.get("csv",""), "name": a.get("name","")}),
+        "make_pptx":          ("docgen",  lambda a: {"mode": "pptx", "outline": a.get("outline",""), "name": a.get("name","")}),
         # Prism AI
         "prism_analyze":      ("prism",  lambda a: {"file_path": a.get("file_path",""), "output_dir": a.get("output_dir",""), "language": a.get("language","en"), "alpha": a.get("alpha",0.05)}),
         "prism_classify":     ("prism",  lambda a: {"file_path": a.get("file_path","")}),

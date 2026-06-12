@@ -62,6 +62,9 @@ _DOMAIN_DEFAULTS = {
                 "redigir o manuscrito", "montar o artigo", "build_paper",
                 "responder revisores", "redigir a introducao",
                 "redigir a discussao", "escrever o abstract", "submissao"],
+    "docgen":  ["gerar documento", "relatorio word", "docx", "planilha",
+                "xlsx", "excel", "apresentacao", "slides", "pptx",
+                "powerpoint", "gerar relatorio", "exportar para word"],
 }
 
 _DOMAINS_YAML = _ROOT / "config" / "villa" / "domains.yaml"
@@ -999,12 +1002,14 @@ class VillaLobosAgent(BaseAgent):
             "- desktop: operacoes em arquivos locais ou execucao de codigo\n"
             "- paper: REDIGIR/montar manuscrito cientifico, escrever secoes "
             "(intro/metodos/resultados/discussao/abstract), responder revisores\n"
+            "- docgen: GERAR arquivo de escritorio (relatorio .docx, planilha "
+            ".xlsx, apresentacao .pptx) a partir de conteudo/dados/tema\n"
             "- gateway: chat geral, duvida factual, explicacao conceitual\n"
             "- none: tarefa generica que precisa de pipeline completo"
         )
         prompt = (
             "Classifique a tarefa abaixo escolhendo UM rotulo dentre: "
-            "prism, sql, pdf, scholar, desktop, paper, gateway, none.\n\n"
+            "prism, sql, pdf, scholar, desktop, paper, docgen, gateway, none.\n\n"
             "Definicoes:\n" + domains_doc + "\n\n"
             "Tarefa: " + query + "\n\n"
             "Responda APENAS JSON: "
@@ -1028,7 +1033,7 @@ class VillaLobosAgent(BaseAgent):
             conf = float(data.get("confidence", 0))
             log.info("LLM router: domain=%s conf=%.2f", domain, conf)
             valid = ("prism", "sql", "pdf", "scholar", "desktop", "paper",
-                     "gateway")
+                     "docgen", "gateway")
             if domain in valid and conf >= 0.55:
                 return domain
             if domain == "none":

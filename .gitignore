@@ -92,3 +92,6 @@ _mount_probe_*.txt
 _sentinel_test.txt
 /C/
 pytest-cache-files-*/
+
+# Documentos gerados pelo docgen (V13.2)
+data/docgen/
