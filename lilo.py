@@ -25,6 +25,7 @@ Uso como modulo:
 """
 
 import sys
+import os
 import argparse
 from pathlib import Path
 
@@ -128,8 +129,31 @@ def route(query, tab=None, context=None):
     tracker = get_tracker()
 
     detected = tab
+    route_method = "explicit" if tab else None
     if not detected:
-        detected = _detect_tab(query)
+        # V12 (2026-06-11): roteador SEMÂNTICO como porta única. Em modo auto,
+        # o Villa decide qual subagente assume a query (LLM router -> heurística
+        # -> capabilities), substituindo o keyword-router raso (_detect_tab).
+        # Domínio claro -> especialista direto; ambíguo/complexo -> "villa"
+        # (pipeline multi-agente). Keyword-router vira fallback se o Villa não
+        # estiver disponível ou falhar. Desligável via LILO_SEMANTIC_ROUTER=0.
+        if os.getenv("LILO_SEMANTIC_ROUTER", "1") == "1" and "villa" in agents:
+            try:
+                detected, route_method = agents["villa"].route_target(
+                    query, set(agents))
+                # Se a porta única decidiu "villa", é tarefa de pipeline:
+                # o Villa roda direto, sem re-delegar (evita dupla decisão).
+                if detected == "villa":
+                    ctx.setdefault("allow_delegate", False)
+                log.info("Roteador semantico -> %s (via %s)",
+                         detected, route_method)
+            except Exception as e:
+                log.warning("Roteador semantico falhou (%s); usando keyword", e)
+                detected = _detect_tab(query)
+                route_method = "keyword_fallback"
+        else:
+            detected = _detect_tab(query)
+            route_method = "keyword"
 
     decision = policy.decide(query, context=ctx, subagent=detected or "gateway")
     log.info(f"Policy -> tier={decision.tier.value} | model={decision.model} | reason={decision.reason}")

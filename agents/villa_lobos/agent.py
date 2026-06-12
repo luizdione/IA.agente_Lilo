@@ -1105,6 +1105,40 @@ class VillaLobosAgent(BaseAgent):
                   role, effective_retries, last_error)
         return "[%s ERRO apos %d tentativas: %s]" % (role, effective_retries, last_error)
 
+    def route_target(self, query, available=None):
+        """V12 (2026-06-11): PORTA ÚNICA de roteamento semântico.
+
+        Decide QUAL subagente deve assumir a query, reusando a mesma cascata
+        do _delegate_to_specialist (LLM router -> heurística de domínio ->
+        capabilities). Substitui o keyword-router raso de lilo._detect_tab.
+
+        Retorna (target, method):
+          - target: nome de um subagente especialista (sql/pdf/scholar/prism/
+            desktop/gateway) quando há domínio claro; senão "villa" (pipeline
+            multi-agente para tarefas complexas/ambíguas).
+          - method: "llm" | "heuristic" | "capabilities" | "deep" | "ambiguous".
+
+        `available`: conjunto de nomes de subagentes carregados (opcional);
+        se um domínio detectado não estiver disponível, cai em "villa".
+        """
+        domain = self._route_via_llm(query)
+        method = "llm"
+        if domain in (None, "none"):
+            domain = _detect_domain(query)
+            method = "heuristic"
+        if not domain or domain == "none":
+            domain = self._route_via_capabilities(query)
+            method = "capabilities"
+        # Gateway é chat raso: nunca atende query profunda -> pipeline completo.
+        if domain == "gateway" and _is_deep_query(query):
+            return "villa", "deep"
+        # Sem domínio claro -> pipeline multi-agente (não o gateway raso).
+        if not domain or domain == "none":
+            return "villa", "ambiguous"
+        if available and domain not in available:
+            return "villa", method
+        return domain, method
+
     def explain_routing(self, query, allow_delegate=True):
         """V7 (2026-05-12): retorna a decisao de roteamento sem executar pipeline."""
         domain = _detect_domain(query)

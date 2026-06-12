@@ -175,6 +175,37 @@ def test_llm_fast_path_preserved_for_trivial():
 
 
 # --------------------------------------------------------------------------
+# V12 (2026-06-11): porta única de roteamento semântico (route_target).
+# Com o client mock, _route_via_llm devolve None -> cai na heurística
+# (_detect_domain), exercitando o roteamento de forma offline/determinística.
+# --------------------------------------------------------------------------
+@pytest.mark.parametrize("query,expected", [
+    ("rode um t-test e compare grupos com ANOVA", "prism"),
+    ("busque papers no pubmed sobre apoptose", "scholar"),
+    ("escreva uma query SELECT com JOIN no banco sqlite", "sql"),
+])
+def test_route_target_specialist(villa, query, expected):
+    avail = {"sql", "pdf", "scholar", "prism", "villa", "gateway", "desktop"}
+    target, method = villa.route_target(query, avail)
+    assert target == expected
+    assert method in ("llm", "heuristic", "capabilities")
+
+
+def test_route_target_ambiguous_goes_to_pipeline(villa):
+    # Sem keyword de domínio e sem LLM (mock) -> pipeline multi-agente, nunca
+    # gateway raso. (zzz... não casa nenhuma heurística nem capabilities.)
+    target, method = villa.route_target("zzz qqq xyz", {"villa", "gateway"})
+    assert target == "villa"
+
+
+def test_route_target_unavailable_domain_falls_to_villa(villa):
+    # Domínio detectado (prism) mas NÃO disponível -> cai em villa.
+    target, method = villa.route_target(
+        "rode ANOVA e compare grupos", {"villa", "gateway"})
+    assert target == "villa"
+
+
+# --------------------------------------------------------------------------
 # _orchestrate_decision (heuristica, pois client e mock)
 # --------------------------------------------------------------------------
 def test_decision_simple_query_skips_to_reporter(villa):
