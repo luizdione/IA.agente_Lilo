@@ -114,8 +114,10 @@ def judge_answer(query: str, answer: str, domain: str = "",
     cli = client or get_client()
     use_model = model or JUDGE_MODEL
     try:
+        # V14.4: 1500 tokens (era 400) — modelos de raciocinio (gpt-oss) gastam
+        # o orcamento no 'thinking' e deixam o JSON de fora com poucos tokens.
         raw = cli.chat(prompt=prompt, system=_JUDGE_SYSTEM, model=use_model,
-                       temperature=0.0, max_tokens=400)
+                       temperature=0.0, max_tokens=1500)
     except Exception as e:
         log.warning("Juiz falhou (%s): %s", use_model, e)
         return {"total": None, "criteria": {}, "justification": "",
