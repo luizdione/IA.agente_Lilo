@@ -19,8 +19,12 @@ Feature pedida: os modos de interação do Claude no LILO. Política escolhida:
 - **V14.1 — Microfone (voz→texto):** `shared/transcribe.py` (faster-whisper
   local, CPU/int8, nenhum áudio sai da máquina) + `st.audio_input` no dashboard.
   Você fala, o LILO transcreve e injeta como prompt. Config por `LILO_WHISPER_*`.
+- **V14.2 — Reconhecimento de locutor:** `shared/speaker_id.py` (MFCC+cosseno,
+  leve, SEM torch). Enrollment da voz do dono no dashboard (3+ amostras) +
+  verificação no microfone (🔓/🔒) → marca `owner_verified` no contexto.
+  Voiceprint local e gitignored. Config `LILO_VOICE_THRESHOLD`.
 
-Testes: +9 (104 passam). Em construção na mesma leva: reconhecimento de locutor.
+Testes: +16 (108 passam).
 
 ## v11.1 — 2026-06-12 (V13.1–13.4: leva de importação de skills do Claude)
 

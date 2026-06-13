@@ -786,6 +786,36 @@ with st.sidebar:
              "pergunta. chat/code/bioinfo forcam o modo do gateway; sql forca "
              "o agente SQL.")
 
+    # V14.2: biometria de voz -- cadastrar a voz do dono (enrollment).
+    try:
+        from shared import speaker_id as _sid
+        if _sid.is_available():
+            _n = _sid.n_samples()
+            with st.expander("🔊 Minha voz (%s)" % (
+                    "ativa, %d amostras" % _n if _sid.is_enrolled()
+                    else "%d/3 amostras" % _n)):
+                st.caption("Grave 3+ amostras curtas (frase de ~5s) para o LILO "
+                           "reconhecer sua voz e liberar comandos do dono.")
+                _en = st.audio_input("Gravar amostra", key="enroll_mic",
+                                     label_visibility="collapsed")
+                if _en is not None:
+                    _eb = _en.getvalue()
+                    _esig = "%d:%s" % (len(_eb), hash(_eb[:2048]))
+                    if st.session_state.get("_enroll_sig") != _esig:
+                        st.session_state["_enroll_sig"] = _esig
+                        _r = _sid.enroll(_eb)
+                        if _r["ok"]:
+                            st.success("Amostra %d adicionada." % _r["n_samples"])
+                        else:
+                            st.warning("Amostra inválida: %s" % _r.get("error", ""))
+                if _sid.is_enrolled() and st.button("Limpar voiceprint",
+                                                    key="voice_reset"):
+                    _sid.reset()
+                    st.session_state.pop("voice_owner", None)
+                    st.rerun()
+    except Exception as _enr_e:
+        log.debug("enrollment de voz indisponivel: %s", _enr_e)
+
     st.caption("LILO v10.6 -- roteamento Auto -- " + datetime.now().strftime("%H:%M"))
 
 
@@ -1399,6 +1429,20 @@ with main_col:
                     _sig = "%d:%s" % (len(_ab), hash(_ab[:2048]))
                     if st.session_state.get("_last_audio_sig") != _sig:
                         st.session_state["_last_audio_sig"] = _sig
+                        # V14.2: verifica o locutor (se ha voiceprint do dono).
+                        try:
+                            from shared import speaker_id as _sid
+                            if _sid.is_available() and _sid.is_enrolled():
+                                _v = _sid.verify(_ab)
+                                st.session_state["voice_owner"] = _v["is_owner"]
+                                with _mc2:
+                                    st.caption(
+                                        ("🔓 Voz reconhecida (dono) — score %.2f"
+                                         % _v["score"]) if _v["is_owner"]
+                                        else ("🔒 Voz não reconhecida (score %.2f)"
+                                              % _v["score"]))
+                        except Exception as _se:
+                            log.debug("speaker_id: %s", _se)
                         with st.spinner("Transcrevendo (local)..."):
                             _txt = _tx.transcribe(_ab)
                         if _txt:
@@ -1524,6 +1568,10 @@ with main_col:
                             ctx["exec_mode"] = _exec_mode
                             ctx["intent"] = "ask" if _exec_mode == "plan" else "act"
                             ctx["allow_tools"] = (_exec_mode != "plan")
+                            # V14.2: voz do dono reconhecida -> marca o contexto
+                            # (carrega memorias do dono p/ otimizar as tarefas).
+                            if st.session_state.get("voice_owner"):
+                                ctx["owner_verified"] = True
                             ctx["system_hint"] = (
                                 "Modo PLANEJAMENTO: apenas planeje/responda. Nao "
                                 "execute, nao escreva arquivos. Descreva os passos."
