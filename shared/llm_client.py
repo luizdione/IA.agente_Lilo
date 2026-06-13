@@ -232,7 +232,15 @@ class LLMClient:
         # KeyError/TypeError cru -- mascarado como falha generica do stage e
         # disparando fallback inutil. Mensagem acionavel em vez de KeyError.
         data = r.json()
-        response = (data.get("message") or {}).get("content")
+        _msg = data.get("message") or {}
+        response = _msg.get("content")
+        if not response:
+            # V14.4: modelos de RACIOCINIO (ex.: gpt-oss) colocam o texto no
+            # campo 'thinking' e deixam 'content' VAZIO quando o num_predict
+            # acaba no raciocinio. Usar o thinking como fallback evita perder a
+            # resposta (o JSON/conteudo costuma vir no fim do thinking). Ver
+            # bench 2026-06-13 (juiz cloud com 400 tokens -> 11/18 vazios).
+            response = _msg.get("thinking") or ""
         if not response:
             raise ValueError(
                 "Ollama retornou payload sem message.content (modelo=%s): %s"
