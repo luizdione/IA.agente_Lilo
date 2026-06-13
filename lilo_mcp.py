@@ -36,7 +36,18 @@ sys.path.insert(0, str(LILO_ROOT))
 os.environ.setdefault("PYTHONPATH", str(LILO_ROOT))
 
 # -- Profile selection (deve vir antes do registro das tools) ----------------
-_PROFILE = os.environ.get("LILO_MCP_PROFILE", "desktop").lower()
+# 2026-06-13: alem de LILO_MCP_PROFILE, reconhece LILO_SERVER_PROFILE -- a
+# MESMA env lida por shared/server_profile.py para a policy de roteamento.
+# Antes, um cliente que setasse apenas LILO_SERVER_PROFILE (ex.: o .mcp.json
+# do Claude Code com 'claude_code') tinha o FILTRO DE TOOLS ignorado e caia
+# no default "desktop" = TODAS as tools (contexto inflado + tools duplicadas
+# com as nativas do cliente). Agora os dois subsistemas usam o mesmo perfil.
+# Precedencia: --profile (CLI, abaixo) > LILO_MCP_PROFILE > LILO_SERVER_PROFILE.
+_PROFILE = (
+    os.environ.get("LILO_MCP_PROFILE")
+    or os.environ.get("LILO_SERVER_PROFILE")
+    or "desktop"
+).lower()
 for i, arg in enumerate(sys.argv):
     if arg == "--profile" and i + 1 < len(sys.argv):
         _PROFILE = sys.argv[i + 1].lower()
@@ -293,33 +304,17 @@ def lilo_pdf(query: str, file_path: str = "", mode: str = "simple") -> str:
 
 @_profile_tool
 def lilo_scholar(query: str, source: str = "auto", max_results: int = 5, synthesize: bool = True) -> str:
-    """Busca estruturada em fontes cientificas/biomedicas externas. Retorna
-    lista de itens com {title, authors, year, source, url, ...}.
-    Quando synthesize=True, agrega resultados em sintese critica curta.
-
-    Fontes publicas (sem chave, paridade com o Claude): pubmed, arxiv,
-    clinicaltrials (ClinicalTrials.gov), opentargets (alvos/gene-doenca),
-    npi (provedores de saude EUA), crossref (DOIs/metadados),
-    semanticscholar. source='all' agrega todas; 'auto'=pubmed+arxiv.
-
-    USE WHEN: o usuario pede literatura academica especifica
-    (revisao, papers recentes sobre X, drug targets, mecanismo
-    molecular). Sempre prefira esta tool a lilo_web_search para
-    pesquisa biomedica -- esta retorna metadados estruturados,
-    web_search retorna so links.
-
-    DO NOT USE WHEN: voce ja tem o DOI/URL especifico (use
-    lilo_web_fetch). Tambem nao use para topicos nao-academicos.
-
-    Exemplo: lilo_scholar("trypanothione reductase Trypanosoma cruzi
-    inhibitors 2024", source="pubmed", max_results=8, synthesize=True)
+    """Busca estruturada em fontes biomedicas (metadados, nao so links).
+    synthesize=True agrega numa sintese critica curta. Para literatura
+    academica prefira esta tool a lilo_web_search; se ja tem o DOI/URL,
+    use lilo_web_fetch.
 
     Args:
-        query: Termos de busca (ingles funciona melhor).
-        source: 'auto'|'all'|'pubmed'|'arxiv'|'clinicaltrials'|
+        query: Termos de busca (ingles rende melhor).
+        source: 'auto'(pubmed+arxiv)|'all'|'pubmed'|'arxiv'|'clinicaltrials'|
                 'opentargets'|'npi'|'crossref'|'semanticscholar'.
         max_results: 1-25 (default 5).
-        synthesize: True (default) para sintese; False para so a lista.
+        synthesize: True (default)=sintese; False=so a lista.
     """
     _ensure_lilo()
     from lilo import handle_tool_call
@@ -351,24 +346,12 @@ def lilo_models() -> str:
 
 @_profile_tool
 def prism_analyze(file_path: str, output_dir: str = "", language: str = "en", alpha: float = 0.05) -> str:
-    """Pipeline cientifico completo sobre um .xlsx ou .csv: detecta
-    desenho experimental, escolhe teste apropriado (t-test, ANOVA,
-    Mann-Whitney, Kruskal-Wallis), checa premissas (normalidade
-    Shapiro-Wilk, homocedasticidade Levene), gera boxplot publication-
-    ready (PDF + PNG 300dpi), grava texto de Resultados em ingles ou
-    portugues. Tudo reproduzivel.
-
-    USE WHEN: usuario tem dados experimentais em arquivo (.xlsx, .csv,
-    .tsv) e quer analise estatistica COMPLETA + grafico + texto. Voce
-    nao tem como executar pandas/scipy/matplotlib direto -- esta tool
-    faz tudo offline com o ambiente conda do usuario.
-
-    DO NOT USE WHEN: usuario so quer entender qual teste escolher
-    (responda direto). Tambem nao use se o arquivo nao existe ainda
-    (peca para ele criar/colar primeiro).
-
-    Exemplo: prism_analyze("D:/dados/exp_drug.xlsx",
-    output_dir="D:/dados/resultados", language="pt", alpha=0.05)
+    """Pipeline estatistico completo sobre .xlsx/.csv/.tsv: detecta o
+    desenho, escolhe o teste (t-test/ANOVA/Mann-Whitney/Kruskal-Wallis),
+    checa premissas (Shapiro/Levene), gera boxplot 300dpi (PDF+PNG) e o
+    texto de Resultados (en/pt), reproduzivel. Use quando ha um ARQUIVO de
+    dados e se quer a analise completa; para so escolher o teste, responda
+    direto.
 
     Args:
         file_path: Caminho absoluto para .xlsx/.csv/.tsv.
@@ -387,17 +370,9 @@ def prism_analyze(file_path: str, output_dir: str = "", language: str = "en", al
 
 @_profile_tool
 def prism_classify(file_path: str) -> str:
-    """Inspeciona um arquivo de dados e CLASSIFICA o tipo de experimento
-    (independent groups vs paired vs repeated measures vs correlation),
-    sem rodar a analise. Retorna recomendacao de teste estatistico.
-
-    USE WHEN: voce nao sabe se o experimento eh paired/independent ou
-    qual teste escolher antes de chamar prism_analyze. Util como
-    diagnostico rapido (mais barato que prism_analyze).
-
-    DO NOT USE WHEN: voce ja sabe o desenho (chame prism_analyze direto).
-
-    Exemplo: prism_classify("D:/dados/exp_drug.xlsx")
+    """Classifica o desenho experimental de um arquivo de dados
+    (independent/paired/repeated measures/correlation) e recomenda o teste,
+    SEM rodar a analise. Diagnostico rapido antes de prism_analyze.
 
     Args:
         file_path: Caminho absoluto para .xlsx/.csv/.tsv.
@@ -463,15 +438,9 @@ def villa_quick_ask(question: str, agent: str = "worker") -> str:
 
 @_profile_tool
 def villa_explain_routing(task: str, allow_delegate: bool = True) -> str:
-    """[DEBUG] Descreve o roteamento que Villa Lobos faria SEM executar
-    o pipeline. Retorna JSON com decision do Orchestrator, dominio
-    heuristico, delegate target, stages planejados, tiers e stats de cache.
-
-    USE WHEN: precisa entender por que o Villa pulou ou nao um estagio;
-    quer validar mudancas em config/villa/domains.yaml; debug de roteamento.
-
-    DO NOT USE WHEN: voce quer a resposta para a query (use villa_pipeline
-    ou villa_quick_ask).
+    """[DEBUG] Mostra o roteamento que o Villa Lobos faria (JSON: decision,
+    dominio, delegate, stages, tiers) SEM executar o pipeline. Para a
+    resposta real use villa_pipeline/villa_quick_ask.
 
     Args:
         task: Tarefa que seria roteada.
@@ -490,22 +459,13 @@ def villa_explain_routing(task: str, allow_delegate: bool = True) -> str:
 
 @_profile_tool
 def lilo_web_search(query: str, max_results: int = 5) -> str:
-    """Busca web via DuckDuckGo, filtrada para dominios confiaveis (PubMed,
-    arXiv, Nature, Science, Cell, bioRxiv, Wikipedia, GitHub, etc.).
-    Retorna lista de {title, url, snippet}.
-
-    USE WHEN: o usuario faz pergunta que requer informacao recente, dados
-    cientificos atualizados, repositorios, ou referencias de literatura, e
-    voce nao tem essa informacao no contexto. Sempre prefira esta tool a
-    "chutar" URLs ou citar de memoria.
-
-    DO NOT USE WHEN: o usuario apenas pediu explicacao conceitual de algo
-    consolidado (ex: "como funciona PCR"). Resposta direta economiza tokens.
-
-    Exemplo: lilo_web_search("CRISPR base editing 2025 review", max_results=5)
+    """Busca web (DuckDuckGo) filtrada para dominios confiaveis (PubMed,
+    arXiv, Nature, GitHub, Wikipedia...). Retorna {title, url, snippet}.
+    Use para info recente/URLs reais em vez de citar de memoria; nao use
+    para conceitos consolidados (responda direto e economize tokens).
 
     Args:
-        query: Termos de busca em ingles tendem a render melhor.
+        query: Termos de busca (ingles rende melhor).
         max_results: 1-15 (default 5).
     """
     _ensure_lilo()
@@ -517,19 +477,9 @@ def lilo_web_search(query: str, max_results: int = 5) -> str:
 
 @_profile_tool
 def lilo_web_fetch(url: str, max_chars: int = 5000) -> str:
-    """Baixa o conteudo textual de uma URL (apenas dominios da allow-list).
-    HTML e convertido para texto limpo. Truncado em max_chars para nao
-    explodir o contexto.
-
-    USE WHEN: voce ja tem uma URL especifica (vinda de lilo_web_search,
-    lilo_scholar, ou fornecida pelo usuario) e precisa do CONTEUDO real
-    dela -- ex: ler um abstract do PubMed, baixar um README do GitHub.
-
-    DO NOT USE WHEN: voce esta tentando navegar/explorar o site ou nao
-    sabe a URL exata (use lilo_web_search primeiro).
-
-    Exemplo: lilo_web_fetch("https://pubmed.ncbi.nlm.nih.gov/39123456/",
-    max_chars=8000)
+    """Baixa o texto de uma URL (allow-list de dominios), HTML->texto,
+    truncado em max_chars para nao explodir o contexto. Use quando ja tem
+    a URL exata; senao, lilo_web_search primeiro.
 
     Args:
         url: URL completa (https://...).
@@ -765,26 +715,15 @@ def lilo_skill_info(skill_name: str) -> str:
 
 @_profile_tool
 def lilo_memory_set(key: str, value: str, namespace: str = "default", tags: str = "") -> str:
-    """Salva um par key->value na memoria persistente do LILO (SQLite local).
-    Sobrevive entre sessoes do Claude Desktop -- voce pode escrever hoje
-    e ler amanha.
-
-    USE WHEN: voce descobre/define algo durante a conversa que vale
-    persistir -- preferencia do usuario, decisao tomada, caminho de
-    arquivo importante, snippet recorrente, key/value de configuracao.
-
-    DO NOT USE WHEN: a info esta apenas no contexto da conversa atual
-    (sem necessidade de longo prazo).
-
-    Exemplo: lilo_memory_set("dataset_principal",
-    "D:/dados/Tcruzi_RNAseq_2026.xlsx", namespace="project_TcTR",
-    tags="rnaseq,trypanosoma")
+    """Salva key->value na memoria persistente (SQLite) que sobrevive entre
+    sessoes. Use para o que vale persistir (preferencia, decisao, caminho de
+    arquivo, config); nao use para algo so do contexto atual.
 
     Args:
-        key: Identificador unico dentro do namespace (snake_case).
+        key: Identificador unico no namespace (snake_case).
         value: String ou JSON serializado.
-        namespace: 'default' | 'user' | 'project_<nome>' (organizacao).
-        tags: Tags separadas por virgula (filtrar depois com _list/_search).
+        namespace: 'default'|'user'|'project_<nome>'.
+        tags: Tags separadas por virgula (filtrar com _list/_search).
     """
     _ensure_lilo()
     from lilo import handle_tool_call
@@ -795,15 +734,8 @@ def lilo_memory_set(key: str, value: str, namespace: str = "default", tags: str 
 
 @_profile_tool
 def lilo_memory_get(key: str, namespace: str = "default") -> str:
-    """Le um valor previamente gravado com lilo_memory_set.
-
-    USE WHEN: voce sabe a chave exata e precisa do valor (sem busca).
-    Tipico no inicio da conversa, para recuperar contexto persistente.
-
-    DO NOT USE WHEN: nao sabe a chave (use lilo_memory_search) ou quer
-    listar tudo (use lilo_memory_list).
-
-    Exemplo: lilo_memory_get("dataset_principal", namespace="project_TcTR")
+    """Le um valor gravado com lilo_memory_set (chave exata). Se nao sabe a
+    chave use _search; para listar tudo use _list.
 
     Args:
         key: Chave exata (case-sensitive).
@@ -816,16 +748,8 @@ def lilo_memory_get(key: str, namespace: str = "default") -> str:
 
 @_profile_tool
 def lilo_memory_list(namespace: str = "", tag: str = "") -> str:
-    """Lista entradas da memoria persistente. Sem filtros = lista tudo.
-
-    USE WHEN: voce quer ver o que esta armazenado para decidir o que
-    recuperar. Tipico no inicio de sessao para "se familiarizar" com
-    o contexto persistente.
-
-    DO NOT USE WHEN: voce ja sabe a chave (use _get) ou quer matching
-    semantico (use _search).
-
-    Exemplo: lilo_memory_list(namespace="project_TcTR", tag="rnaseq")
+    """Lista entradas da memoria persistente (sem filtros = tudo). Util no
+    inicio da sessao para ver o que ha. Se ja sabe a chave use _get.
 
     Args:
         namespace: Filtrar por namespace (vazio = todos).
@@ -850,15 +774,8 @@ def lilo_memory_delete(key: str, namespace: str = "default") -> str:
 
 @_profile_tool
 def lilo_memory_search(query: str, namespace: str = "", limit: int = 50) -> str:
-    """Busca textual (substring, case-insensitive) em key + value + tags
-    da memoria persistente. Retorna entradas que matcham.
-
-    USE WHEN: voce nao sabe a chave exata mas tem uma palavra-chave
-    do conteudo. Ex: "qual era o caminho do dataset de Tcruzi?".
-
-    DO NOT USE WHEN: chave conhecida (use _get).
-
-    Exemplo: lilo_memory_search("Tcruzi", namespace="", limit=10)
+    """Busca textual (substring, case-insensitive) em key+value+tags da
+    memoria. Use quando nao sabe a chave exata; se sabe, use _get.
 
     Args:
         query: Termo de busca (substring).
@@ -932,21 +849,11 @@ def lilo_cost_recent(limit: int = 20) -> str:
 
 @_profile_tool
 def lilo_pull_model(name: str, timeout: int = 600) -> str:
-    """Executa `ollama pull <name>` no PC do usuario para baixar
-    um modelo do Hub Ollama. Util ao configurar nova maquina ou
-    adicionar modelo configurado em VILLA_MODELS / .env.
-
-    USE WHEN: usuario quer baixar um modelo Ollama especifico ou
-    voce detecta (via lilo_list_local_models) que falta um modelo
-    requerido para o pipeline.
-
-    DO NOT USE WHEN: voce nao tem certeza do nome exato do modelo
-    (peca para o usuario confirmar -- download pode ser pesado).
-
-    Exemplo: lilo_pull_model("qwen2.5-coder:14b", timeout=900)
+    """Executa `ollama pull <name>` no PC do usuario (baixa modelo do Hub).
+    Confirme o nome exato antes -- o download pode ser pesado.
 
     Args:
-        name: Nome no formato 'modelo:tag' (ex: 'llama3.1:8b-instruct-q8_0').
+        name: Nome 'modelo:tag' (ex: 'llama3.1:8b-instruct-q8_0').
         timeout: 60-3600 segundos (default 600).
     """
     _ensure_lilo()
@@ -956,17 +863,9 @@ def lilo_pull_model(name: str, timeout: int = 600) -> str:
 
 @_profile_tool
 def lilo_list_local_models() -> str:
-    """Lista modelos Ollama instalados localmente no PC do usuario
-    (output cru do `ollama list`: nome, tag, tamanho, data).
-
-    USE WHEN: voce precisa saber se um modelo especifico esta
-    disponivel antes de chamar villa_pipeline ou lilo_chat. Tambem
-    util para sugerir qual modelo usar com base no que ja existe.
-
-    DO NOT USE WHEN: a tarefa nao envolve modelo local Ollama
-    (Opus ja e suficiente para a resposta).
-
-    Exemplo: lilo_list_local_models()
+    """Lista os modelos Ollama instalados localmente (`ollama list`: nome,
+    tag, tamanho, data). Use para checar se um modelo existe antes de
+    villa_pipeline/lilo_chat.
     """
     _ensure_lilo()
     from lilo import handle_tool_call
