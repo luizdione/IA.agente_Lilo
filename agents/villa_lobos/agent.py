@@ -271,8 +271,13 @@ VILLA_MODELS = {
 # Coder models sao otimizados para gerar codigo, nao explicacao discursiva.
 # Agora: coder so quando a QUERY tem intencao de codigo/engenharia de dados;
 # caso contrario, modelo instruct geral. Ambos overrideaveis por env.
+# V14.3 (2026-06-12): worker de CONHECIMENTO na NUVEM por padrao. O experimento
+# 2026-06-12 (juiz LLM) mostrou +107% de qualidade vs o 8b local, MESMO tempo
+# (quimica 5.5->73.8). Se o cloud falhar, o _call_agent ja cai no fallback local
+# (MODELS["chat"]). Para forcar 100% local: VILLA_WORKER_GENERAL_MODEL=
+# llama3.1:8b-instruct-q8_0 (ou OLLAMA_MODEL).
 VILLA_WORKER_GENERAL_MODEL = _os.getenv(
-    "VILLA_WORKER_GENERAL_MODEL", MODELS.get("chat", "llama3.1:8b-instruct-q8_0"))
+    "VILLA_WORKER_GENERAL_MODEL", "gpt-oss:120b-cloud")
 VILLA_WORKER_CODE_MODEL = _os.getenv(
     "VILLA_WORKER_CODE_MODEL", MODELS.get("code", "qwen2.5-coder:14b"))
 
