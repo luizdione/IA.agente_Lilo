@@ -261,13 +261,32 @@ class LLMClient:
         # Default atualizado 2026-05-07 (Claude 4.5/4.6); override via LILO_CLAUDE_SONNET.
         model = model or get_env("LILO_CLAUDE_SONNET", "claude-sonnet-4-5")
         log.info("Anthropic API -> %s", model)
-        msg = client.messages.create(
+
+        # Prompt caching (2026-06-13): marca o bloco `system` como cacheavel
+        # (cache_control ephemeral). E ADITIVO e seguro -- a API ignora o cache
+        # quando o bloco fica abaixo do minimo de tokens, sem erro nem custo.
+        # O ganho real (ate ~90% no prefixo) aparece quando o MESMO system
+        # grande e reenviado em <5min, como nos varios stages do Villa Lobos
+        # que compartilham instrucoes. Desligue com LILO_ANTHROPIC_CACHE=0.
+        use_cache = get_env("LILO_ANTHROPIC_CACHE", "1") not in ("0", "false", "False", "")
+        common = dict(
             model=model,
             max_tokens=max_tokens,
-            system=system,
             messages=[{"role": "user", "content": prompt}],
             temperature=temperature,
         )
+        try:
+            if use_cache:
+                msg = client.messages.create(system=[{
+                    "type": "text",
+                    "text": system,
+                    "cache_control": {"type": "ephemeral"},
+                }], **common)
+            else:
+                msg = client.messages.create(system=system, **common)
+        except TypeError:
+            # SDK antigo sem suporte a `system` em blocos -> string simples.
+            msg = client.messages.create(system=system, **common)
         return msg.content[0].text
 
 

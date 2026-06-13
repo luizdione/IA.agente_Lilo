@@ -65,8 +65,12 @@ python lilo.py health
 
 ### MCP server (Claude Desktop, Claude Code, OpenClaw, PyCharm)
 
+> Trabalhando neste repo com o Claude? Veja [`CLAUDE.md`](CLAUDE.md) — guia
+> enxuto de profiles e de como evitar gastar tokens com tools duplicadas.
+
 O servidor expõe diferentes conjuntos de tools por **profile**, escolhido via
-`--profile`. Default no Claude Desktop é **`opus`** (ver tabela abaixo).
+`--profile`. Default no Claude Desktop é **`opus`**; no Claude Code é
+**`claude_code`** (ver tabela abaixo).
 
 A contagem exata por profile evolui conforme tools são adicionadas — a **fonte
 de verdade** é `_PROFILE_TOOLS` em [`lilo_mcp.py`](lilo_mcp.py); o servidor loga
@@ -168,11 +172,11 @@ No `claude_desktop_config.json`, troque `"--profile", "opus"` por
 │  Claude Desktop (stdio)  PyCharm (stdio)  CLI  Streamlit    │
 └──────────────────────────────┬─────────────────────────────┘
                                │
-                    ┌──────────▼───────────┐
-                    │   lilo_mcp.py        │
-                    │ --profile {desktop|  │
-                    │   pycharm|http}      │
-                    └──────────┬───────────┘
+                    ┌──────────▼─────────────┐
+                    │   lilo_mcp.py          │
+                    │ --profile {claude_code| │
+                    │   opus|bio|pycharm|...} │
+                    └──────────┬─────────────┘
                                │
                     ┌──────────▼───────────┐
                     │   lilo.py            │
