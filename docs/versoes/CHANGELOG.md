@@ -1,5 +1,29 @@
 # LILO — Changelog
 
+## v11.4 — 2026-06-14 (V14.6: cache TTL de tools idempotentes — tempo de resposta + tokens)
+
+Implementa o **P1** do relatório `ANALISE_E_PROPOSTAS_2026-06-14.md`. O Claude
+reconsulta a mesma busca várias vezes na sessão; agora a 2ª chamada idêntica é
+servida do cache local, sem rede e sem reprocessar.
+
+- **`shared/mcp_cache.py`** (novo): `cached_call()` memoiza saídas de tools
+  **idempotentes e caras** via `kv_memory` (SQLite, TTL nativo) em ns=`tool_cache`.
+  Chave = sha1 estável de (tool, args, kwargs). Reaproveita a infra da V14.5.
+- **Allow-list** (`_CACHEABLE_TOOLS` em `lilo_mcp.py`): `lilo_scholar`,
+  `lilo_web_search`, `lilo_web_fetch`, `prism_classify`, `lilo_skill_info`,
+  `lilo_list_skills`. Tudo que escreve (`fs_write`/`run_*`) ou consulta estado
+  vivo (`health`/`cost`/`models`) fica de fora.
+- **Composição:** cache é a camada **interna** (guarda o resultado cru), o
+  orçamento da V14.5 é a **externa** (corta na saída) → um hit de cache também
+  respeita `LILO_MCP_MAX_CHARS`.
+- **Seguro:** **nunca cacheia erros** (heurística de prefixos/substrings de
+  falha de rede) nem saídas vazias/não-string → não "grava" falha transitória.
+  Falha no cache cai para a chamada direta. Hit traz marcador de 1 linha com a
+  idade do dado (transparência de frescor).
+- **Configurável:** `LILO_MCP_CACHE_TTL` (default 600 s; `0` desliga).
+
+Testes: +9 (126 passam). Validado via `scripts/test_mcp_stdio.py --profile opus`.
+
 ## v11.3 — 2026-06-14 (V14.5: guarda de orçamento de saída no MCP — economia de tokens)
 
 Otimização de **consumo de tokens do Claude** num único ponto de controle.

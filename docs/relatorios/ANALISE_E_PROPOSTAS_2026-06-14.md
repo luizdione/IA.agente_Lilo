@@ -27,12 +27,14 @@ de tokens, e dashboard localhost no padrão Claude Desktop.
 
 ## Propostas priorizadas para os próximos runs
 
-### P1 — Cache de saída de tools (tempo + tokens) — ALTO impacto, baixo risco
-Memoizar (TTL curto, ex. 10 min) resultados de tools *idempotentes e caras*:
-`lilo_scholar`, `lilo_web_search`, `lilo_web_fetch`, `prism_classify`. Chave =
-hash dos args. Reaproveita V14.5 (`shared/mcp_budget`) e o `kv_memory` existente
-(ns=`tool_cache`). Reduz latência e chamadas externas repetidas dentro de uma
-sessão. Configurável por `LILO_MCP_CACHE_TTL` (0 = off).
+### P1 — Cache de saída de tools (tempo + tokens) — ✅ IMPLEMENTADO (V14.6)
+Memoiza (TTL `LILO_MCP_CACHE_TTL`, default 600 s) resultados de tools
+*idempotentes e caras*: `lilo_scholar`, `lilo_web_search`, `lilo_web_fetch`,
+`prism_classify`, `lilo_skill_info`, `lilo_list_skills`. Chave = sha1 dos args.
+Reaproveita V14.5 (`shared/mcp_budget`) e o `kv_memory` (ns=`tool_cache`). Nunca
+cacheia erros/saídas vazias. Entregue em `shared/mcp_cache.py` + `_CACHEABLE_TOOLS`
+no `lilo_mcp.py`. +9 testes. **Próximo:** instrumentar hit-rate (logar em
+`kv_memory` ns=`mcp_cache_stats`) e expor no dashboard (P5).
 
 ### P2 — Descrições de tool em 2 níveis (tokens por turno) — ALTO impacto
 As descrições verbosas (`USE WHEN`/`DO NOT USE`/`Exemplo`) entram no contexto a

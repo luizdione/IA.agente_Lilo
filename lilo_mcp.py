@@ -210,6 +210,17 @@ except ImportError:
 mcp = FastMCP("lilo")
 
 
+# Tools idempotentes e caras -> elegiveis a cache TTL (P1, V14.6). Sao
+# read-only e deterministicas o bastante para reaproveitar a saida na mesma
+# sessao (o Claude reconsulta a mesma busca varias vezes). Excluidas: tudo que
+# escreve (fs_write/run_*), consulta estado vivo (health/cost/models) ou e
+# barato (memory get/list).
+_CACHEABLE_TOOLS = {
+    "lilo_scholar", "lilo_web_search", "lilo_web_fetch",
+    "prism_classify", "lilo_skill_info", "lilo_list_skills",
+}
+
+
 def _budget_wrap(fn):
     """Envolve a tool com a guarda de orcamento de saida (V14.5).
 
@@ -217,13 +228,26 @@ def _budget_wrap(fn):
     do Claude por TODAS as tools. functools.wraps preserva nome/doc/assinatura
     (inspect.signature segue __wrapped__), entao o schema MCP fica intacto.
     Falhas na guarda nunca derrubam a tool: devolve a saida crua.
+
+    Para tools idempotentes (`_CACHEABLE_TOOLS`), aplica tambem o cache TTL
+    (P1/V14.6): cache e a camada INTERNA (guarda o resultado cru), o orcamento
+    e a EXTERNA (corta na saida). Assim um hit de cache tambem respeita o teto.
     """
     import functools
     from shared.mcp_budget import clamp_output
 
+    cacheable = fn.__name__ in _CACHEABLE_TOOLS
+
     @functools.wraps(fn)
     def _wrapped(*args, **kwargs):
-        out = fn(*args, **kwargs)
+        if cacheable:
+            try:
+                from shared.mcp_cache import cached_call
+                out = cached_call(fn.__name__, fn, args, kwargs)
+            except Exception:
+                out = fn(*args, **kwargs)
+        else:
+            out = fn(*args, **kwargs)
         try:
             return clamp_output(out)
         except Exception:
