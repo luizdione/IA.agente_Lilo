@@ -1,5 +1,31 @@
 # LILO — Changelog
 
+## v11.3 — 2026-06-14 (V14.5: guarda de orçamento de saída no MCP — economia de tokens)
+
+Otimização de **consumo de tokens do Claude** num único ponto de controle.
+Toda tool do `lilo_mcp.py` retorna texto que entra no contexto do cliente
+(Claude Desktop / Code). Sem teto, saídas grandes (`lilo_scholar` amplo,
+`villa_pipeline`, `run_shell`, `fs_search`, `grep_and_read`) podiam injetar
+dezenas de milhares de tokens de uma vez.
+
+- **`shared/mcp_budget.py`** (novo): `clamp_output()` corta saídas acima do teto
+  preservando **início + fim** (head+tail) — em logs/shell o erro costuma estar no
+  fim; em listas/relatórios o cabeçalho está no início. Insere marcador legível
+  pelo modelo (quantos chars omitidos + como obter o resto), para o Claude não
+  tratar a saída cortada como completa.
+- **`lilo_mcp.py`**: novo wrapper `_budget_wrap` aplicado dentro de
+  `_profile_tool` → cobre **todas as tools, atuais e futuras**, sem tocar em cada
+  função. `functools.wraps` preserva nome/doc/assinatura, então o schema MCP fica
+  intacto (validado: 21 tools no profile `opus`, descrições preservadas).
+- **Configurável / sem quebra:** `LILO_MCP_MAX_CHARS` (default 48000 ≈ 12k tokens;
+  `0` desliga) e `LILO_MCP_HEAD_RATIO` (default 0.7). Saídas pequenas passam
+  intactas (no-op) → o caso comum não muda. Falha na guarda nunca derruba a tool
+  (devolve a saída crua).
+- **Docs:** README (badges v14.5, env vars novas, footer) sincronizado com o
+  estado real do código (estava em v10.6).
+
+Testes: +9 (117 passam). Validado e2e via `scripts/test_mcp_stdio.py --profile opus`.
+
 ## v11.2 — 2026-06-12 (V14: modos de execução estilo Claude)
 
 Feature pedida: os modos de interação do Claude no LILO. Política escolhida:

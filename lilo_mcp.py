@@ -210,11 +210,33 @@ except ImportError:
 mcp = FastMCP("lilo")
 
 
+def _budget_wrap(fn):
+    """Envolve a tool com a guarda de orcamento de saida (V14.5).
+
+    Corta saidas grandes num unico ponto -> reduz tokens injetados no contexto
+    do Claude por TODAS as tools. functools.wraps preserva nome/doc/assinatura
+    (inspect.signature segue __wrapped__), entao o schema MCP fica intacto.
+    Falhas na guarda nunca derrubam a tool: devolve a saida crua.
+    """
+    import functools
+    from shared.mcp_budget import clamp_output
+
+    @functools.wraps(fn)
+    def _wrapped(*args, **kwargs):
+        out = fn(*args, **kwargs)
+        try:
+            return clamp_output(out)
+        except Exception:
+            return out
+
+    return _wrapped
+
+
 def _profile_tool(fn):
     """Decorator: registra a tool no FastMCP somente se ela passar no filtro do profile.
     DEFINIDO APOS `mcp = FastMCP(...)` para evitar NameError no decorator."""
     if _ALLOWED is None or fn.__name__ in _ALLOWED:
-        return mcp.tool()(fn)
+        return mcp.tool()(_budget_wrap(fn))
     return fn  # nao registra, mas mantem a funcao importavel para testes
 
 # -- Lazy init ---------------------------------------------------------------

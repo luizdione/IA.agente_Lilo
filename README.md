@@ -1,9 +1,15 @@
-# LILO v10.6 — Agente Pessoal de IA com Subagentes Especializados
+# LILO v14.5 — Agente Pessoal de IA com Subagentes Especializados
 
 ![Status](https://img.shields.io/badge/status-ativo-brightgreen)
-![Version](https://img.shields.io/badge/version-10.6.0-blue)
+![Version](https://img.shields.io/badge/version-14.5.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![Arch](https://img.shields.io/badge/arch-v10-purple)
+
+> **Novidades recentes:** modos de execução estilo Claude (plan/ask/accept_edits/auto),
+> microfone voz→texto local (faster-whisper), reconhecimento de locutor (dono),
+> worker cloud `gpt-oss:120b` por padrão e **guarda de orçamento de saída no MCP
+> (V14.5)** que reduz o consumo de tokens do Claude. Histórico completo em
+> [`docs/versoes/CHANGELOG.md`](docs/versoes/CHANGELOG.md).
 
 **LILO** (Local Intelligent LLM Orchestrator) é uma plataforma híbrida de IA pensada para um pesquisador (PhD biologia molecular + ciência de dados senior) que combina:
 
@@ -245,6 +251,9 @@ IA.agente/
 | `LILO_DAILY_BUDGET` | `1.0` | Orçamento Claude/dia em USD |
 | `LILO_DESKTOP_ALLOW` | `IA.agente;Workaholics` | Pastas que `fs_*` e `run_shell` podem acessar |
 | `ANTHROPIC_API_KEY` | (vazio) | Habilita Claude Sonnet/Opus quando aplicável |
+| `LILO_MCP_MAX_CHARS` | `48000` | **(V14.5)** Teto de caracteres por saída de tool MCP (≈12k tokens). Saídas maiores são cortadas preservando início+fim, com marcador. `0` desliga. Economiza tokens do Claude. |
+| `LILO_MCP_HEAD_RATIO` | `0.7` | **(V14.5)** Fração do orçamento dada ao início da saída ao truncar (resto vai para o fim). |
+| `LILO_EXEC_MODE` | `auto` | **(V14)** Modo de execução: `plan`/`ask`/`accept_edits`/`auto`. |
 
 ---
 
@@ -259,5 +268,5 @@ Veja `docs/tecnico/arquitetura_v10.md` para o roadmap. Itens prioritários:
 
 ---
 
-**Versão:** 10.0 (arch-v10) — 2026-05-07
+**Versão:** 14.5 (arch-v10) — 2026-06-14
 **Mantenedor:** Luiz Dione (luiz.dione.melo@gmail.com)
