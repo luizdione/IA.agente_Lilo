@@ -767,6 +767,7 @@ with st.sidebar:
     st.markdown("**FERRAMENTAS**")
     nav_button("Skills", "nav_skills", "tool")
     nav_button("Custos", "nav_custos", "tool")
+    nav_button("Economia", "nav_economia", "tool")
     nav_button("Saude", "nav_health", "tool")
 
     st.markdown("---")
@@ -816,7 +817,7 @@ with st.sidebar:
     except Exception as _enr_e:
         log.debug("enrollment de voz indisponivel: %s", _enr_e)
 
-    st.caption("LILO v10.6 -- roteamento Auto -- " + datetime.now().strftime("%H:%M"))
+    st.caption("LILO v14.6 -- roteamento Auto -- " + datetime.now().strftime("%H:%M"))
 
 
 # -- Pagina ativa -------------------------------------------------------------
@@ -2530,6 +2531,103 @@ with main_col:
                 st.dataframe(rdf[cols], use_container_width=True, hide_index=True)
         except Exception as e:
             st.error("Erro: " + str(e))
+
+
+    # == Economia & Tools (V14.7) =============================================
+    elif page == "Economia":
+        st.header("Economia & Tools")
+        st.caption("Quanto o LILO economiza ao Claude: guarda de orcamento "
+                   "(V14.5) + cache de tools idempotentes (V14.6).")
+        period = st.radio("Periodo", [7, 30], index=0, horizontal=True,
+                          format_func=lambda d: "Ultimos %d dias" % d,
+                          key="econ_period")
+        try:
+            from shared.metrics import summary as _econ_summary
+            s = _econ_summary(days=int(period))
+
+            k1, k2, k3, k4 = st.columns(4)
+            with k1:
+                st.metric("Tokens poupados (aprox.)",
+                          "{:,}".format(s["tokens_saved_approx"]))
+            with k2:
+                st.metric("Caracteres cortados",
+                          "{:,}".format(s["chars_saved"]))
+            with k3:
+                st.metric("Cache hit-rate", "%.0f%%" % (s["hit_rate"] * 100))
+            with k4:
+                st.metric("Cache hits / misses",
+                          "%d / %d" % (s["cache_hits"], s["cache_misses"]))
+
+            if s["cache_total"] > 0:
+                st.progress(s["hit_rate"],
+                            text="Hit-rate do cache: %.0f%% (%d de %d chamadas "
+                                 "cacheaveis vieram do cache)" % (
+                                     s["hit_rate"] * 100, s["cache_hits"],
+                                     s["cache_total"]))
+            st.divider()
+
+            ce, cb = st.columns(2)
+            with ce:
+                st.subheader("Cache por tool")
+                rows = [
+                    {"Tool": t,
+                     "Hits": v.get("hits", 0),
+                     "Misses": v.get("misses", 0),
+                     "Hit-rate": "%.0f%%" % (
+                         100 * v.get("hits", 0)
+                         / max(1, v.get("hits", 0) + v.get("misses", 0)))}
+                    for t, v in s["by_tool"].items()
+                    if v.get("hits", 0) or v.get("misses", 0)
+                ]
+                if rows:
+                    st.dataframe(pd.DataFrame(rows), use_container_width=True,
+                                 hide_index=True)
+                else:
+                    st.info("Sem chamadas cacheaveis ainda. Use Scholar / busca "
+                            "web e repita uma consulta para ver hits.")
+            with cb:
+                st.subheader("Orcamento por tool")
+                rows = [
+                    {"Tool": t,
+                     "Cortes": v.get("truncations", 0),
+                     "Chars poupados": "{:,}".format(v.get("chars_saved", 0))}
+                    for t, v in s["by_tool"].items()
+                    if v.get("chars_saved", 0)
+                ]
+                if rows:
+                    st.dataframe(pd.DataFrame(rows), use_container_width=True,
+                                 hide_index=True)
+                else:
+                    st.info("Nenhuma saida grande cortada ainda (saidas dentro "
+                            "do teto LILO_MCP_MAX_CHARS).")
+
+            st.divider()
+            st.subheader("Tool calls recentes")
+            try:
+                from shared.cost_tracker import get_tracker
+                recent = get_tracker().recent_requests(15)
+                if recent:
+                    rdf = pd.DataFrame(recent)
+                    cols = [c for c in ["timestamp", "subagent", "tier",
+                                        "model", "duration_ms", "query_preview"]
+                            if c in rdf.columns]
+                    st.dataframe(rdf[cols], use_container_width=True,
+                                 hide_index=True)
+                else:
+                    st.caption("Sem registros de execucao recentes.")
+            except Exception as _ce:
+                st.caption("Historico de tool calls indisponivel: %s" % _ce)
+
+            with st.expander("Como ajustar (env vars)"):
+                st.markdown(
+                    "- `LILO_MCP_MAX_CHARS` (default 48000): teto por saida de "
+                    "tool. `0` desliga.\n"
+                    "- `LILO_MCP_CACHE_TTL` (default 600s): validade do cache de "
+                    "tools idempotentes. `0` desliga.\n"
+                    "- `LILO_MCP_METRICS` (default 1): `0` desliga esta coleta.\n\n"
+                    "Estimativa de tokens ~ caracteres / 4.")
+        except Exception as e:
+            st.error("Erro ao carregar metricas: " + str(e))
 
 
     # == Saude ================================================================

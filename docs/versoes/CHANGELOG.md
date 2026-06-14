@@ -1,5 +1,26 @@
 # LILO — Changelog
 
+## v11.5 — 2026-06-14 (V14.7: telemetria de economia + painel "Economia & Tools" no dashboard)
+
+Fecha o ciclo das V14.5/V14.6: agora dá pra **ver** quanto o LILO economiza ao
+Claude. Instrumenta as duas otimizações e expõe num painel novo, no padrão
+visual do Claude Desktop.
+
+- **`shared/metrics.py`** (novo): coleta leve via `kv_memory` (ns=`mcp_metrics`,
+  buckets diários). `record_cache(tool, hit)` e `record_budget(tool, chars)`;
+  `summary(days)` agrega hit-rate, truncamentos, caracteres e **tokens poupados
+  (aprox. chars/4)**, com quebra por tool. Best-effort (lock in-process; nunca
+  derruba a tool). Kill-switch `LILO_MCP_METRICS=0`.
+- **Instrumentação:** `shared/mcp_cache.py` registra hit/miss; `_budget_wrap`
+  em `lilo_mcp.py` registra os caracteres cortados a cada truncamento.
+- **Dashboard:** nova página **Economia** (sidebar → FERRAMENTAS) com KPIs
+  (tokens poupados, chars cortados, hit-rate, hits/misses), barra de hit-rate,
+  tabelas por tool (cache e orçamento), tool calls recentes e ajuda de env vars.
+  Seletor de período (7/30 dias). Caption da sidebar corrigido (v10.6 → v14.6).
+
+Testes: +7 (133 passam). Validado e2e (cache+budget+metrics via `_budget_wrap`)
+e `scripts/test_mcp_stdio.py --profile opus`; `dashboard.py` compila.
+
 ## v11.4 — 2026-06-14 (V14.6: cache TTL de tools idempotentes — tempo de resposta + tokens)
 
 Implementa o **P1** do relatório `ANALISE_E_PROPOSTAS_2026-06-14.md`. O Claude

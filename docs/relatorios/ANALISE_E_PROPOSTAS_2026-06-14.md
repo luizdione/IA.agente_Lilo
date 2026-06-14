@@ -54,10 +54,12 @@ Criar um índice semântico leve (TF-IDF/embeddings locais) e uma tool
 referenciar contexto anterior ("lembra do que falamos sobre X"). Entregar
 `shared/memory_facade.py::get_relevant_context()` (já especificado no ROADMAP).
 
-### P5 — Dashboard: painel "Economia & Tools" no padrão Claude Desktop
-Aba mostrando tokens economizados pela guarda V14.5 (logar `omitted` por chamada
-em `kv_memory` ns=`mcp_budget`), últimas tool calls (estilo "tool inspector" do
-Claude Desktop) e custo do dia (`lilo_cost_today`). Visual já segue o tema.
+### P5 — Dashboard: painel "Economia & Tools" — ✅ IMPLEMENTADO (V14.7)
+Página **Economia** (sidebar → FERRAMENTAS): KPIs de tokens poupados, chars
+cortados, hit-rate e hits/misses; barra de hit-rate; tabelas por tool (cache e
+orçamento); tool calls recentes; seletor 7/30 dias. Telemetria em
+`shared/metrics.py` (ns=`mcp_metrics`, buckets diários), instrumentando o cache
+(V14.6) e o `_budget_wrap` (V14.5). Kill-switch `LILO_MCP_METRICS=0`. +7 testes.
 
 ## Métricas a acompanhar
 - Tokens médios por tool call (antes/depois da V14.5) — instrumentar `_budget_wrap`.

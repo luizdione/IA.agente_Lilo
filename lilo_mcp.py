@@ -249,7 +249,16 @@ def _budget_wrap(fn):
         else:
             out = fn(*args, **kwargs)
         try:
-            return clamp_output(out)
+            clamped = clamp_output(out)
+            # Telemetria V14.7: registra chars poupados quando cortou.
+            if isinstance(out, str) and isinstance(clamped, str) \
+                    and len(clamped) < len(out):
+                try:
+                    from shared.metrics import record_budget
+                    record_budget(fn.__name__, len(out) - len(clamped))
+                except Exception:
+                    pass
+            return clamped
         except Exception:
             return out
 

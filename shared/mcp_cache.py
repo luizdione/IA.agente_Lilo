@@ -43,6 +43,15 @@ _ERROR_SUBSTRINGS = (
 )
 
 
+def _record_metric(tool_name: str, hit: bool) -> None:
+    """Telemetria best-effort (V14.7). Nunca propaga erro."""
+    try:
+        from shared.metrics import record_cache
+        record_cache(tool_name, hit)
+    except Exception:
+        pass
+
+
 def get_ttl() -> int:
     raw = os.environ.get("LILO_MCP_CACHE_TTL")
     if raw is None or raw == "":
@@ -101,11 +110,13 @@ def cached_call(tool_name: str, fn, args: tuple, kwargs: dict):
         if isinstance(hit, dict) and "out" in hit and "ts" in hit:
             age = max(0, int(time.time() - float(hit["ts"])))
             marker = f"[LILO cache · {age}s atras · dado pode estar desatualizado]\n"
+            _record_metric(tool_name, hit=True)
             return marker + str(hit["out"])
     except Exception:
         pass  # leitura falhou -> segue para chamada direta
 
     # Miss -> chama de fato
+    _record_metric(tool_name, hit=False)
     out = fn(*args, **kwargs)
 
     # Cacheia somente strings "boas"

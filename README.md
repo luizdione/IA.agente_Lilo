@@ -1,15 +1,16 @@
-# LILO v14.6 — Agente Pessoal de IA com Subagentes Especializados
+# LILO v14.7 — Agente Pessoal de IA com Subagentes Especializados
 
 ![Status](https://img.shields.io/badge/status-ativo-brightgreen)
-![Version](https://img.shields.io/badge/version-14.6.0-blue)
+![Version](https://img.shields.io/badge/version-14.7.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![Arch](https://img.shields.io/badge/arch-v10-purple)
 
 > **Novidades recentes:** modos de execução estilo Claude (plan/ask/accept_edits/auto),
 > microfone voz→texto local (faster-whisper), reconhecimento de locutor (dono),
 > worker cloud `gpt-oss:120b` por padrão, **guarda de orçamento de saída no MCP
-> (V14.5)** que reduz o consumo de tokens do Claude e **cache TTL de tools
-> idempotentes (V14.6)** que acelera buscas repetidas. Histórico completo em
+> (V14.5)** que reduz o consumo de tokens do Claude, **cache TTL de tools
+> idempotentes (V14.6)** que acelera buscas repetidas e o **painel Economia &
+> Tools (V14.7)** que mostra tokens poupados e hit-rate do cache. Histórico em
 > [`docs/versoes/CHANGELOG.md`](docs/versoes/CHANGELOG.md).
 
 **LILO** (Local Intelligent LLM Orchestrator) é uma plataforma híbrida de IA pensada para um pesquisador (PhD biologia molecular + ciência de dados senior) que combina:
@@ -255,6 +256,7 @@ IA.agente/
 | `LILO_MCP_MAX_CHARS` | `48000` | **(V14.5)** Teto de caracteres por saída de tool MCP (≈12k tokens). Saídas maiores são cortadas preservando início+fim, com marcador. `0` desliga. Economiza tokens do Claude. |
 | `LILO_MCP_HEAD_RATIO` | `0.7` | **(V14.5)** Fração do orçamento dada ao início da saída ao truncar (resto vai para o fim). |
 | `LILO_MCP_CACHE_TTL` | `600` | **(V14.6)** Validade (s) do cache de tools idempotentes (`lilo_scholar`, `lilo_web_search`, `lilo_web_fetch`, `prism_classify`...). 2ª chamada idêntica vem do cache local (sem rede). `0` desliga. |
+| `LILO_MCP_METRICS` | `1` | **(V14.7)** Coleta telemetria de economia (hit-rate do cache + tokens poupados) para o painel **Economia** do dashboard. `0` desliga. |
 | `LILO_EXEC_MODE` | `auto` | **(V14)** Modo de execução: `plan`/`ask`/`accept_edits`/`auto`. |
 
 ---
@@ -270,5 +272,5 @@ Veja `docs/tecnico/arquitetura_v10.md` para o roadmap. Itens prioritários:
 
 ---
 
-**Versão:** 14.6 (arch-v10) — 2026-06-14
+**Versão:** 14.7 (arch-v10) — 2026-06-14
 **Mantenedor:** Luiz Dione (luiz.dione.melo@gmail.com)
