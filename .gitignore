@@ -98,3 +98,8 @@ data/docgen/
 
 # Biometria de voz (voiceprint do dono) - NAO versionar
 data/voiceprint/
+
+# Configs com credenciais (fora do git; ver *.example)
+config.yaml
+config/litellm_config.yaml
+config/litellm_config.docker.yaml

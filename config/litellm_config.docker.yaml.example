@@ -1,0 +1,54 @@
+## litellm_config.docker.yaml — variante para docker-compose (V10.3, 2026-05-31)
+## Idêntico a litellm_config.yaml, mas api_base aponta para o serviço `ollama`
+## na rede do compose (http://ollama:11434) em vez de localhost. Use este
+## arquivo APENAS dentro de containers; para rodar local fora do Docker use
+## config/litellm_config.yaml.
+model_list:
+  # === MODELOS LOCAIS (Ollama via rede do compose) ===
+  - model_name: llama3
+    litellm_params:
+      model: ollama/llama3.1:8b-instruct-q8_0
+      api_base: http://ollama:11434
+      stream: true
+
+  - model_name: codellama
+    litellm_params:
+      model: ollama/qwen2.5-coder:14b
+      api_base: http://ollama:11434
+      stream: true
+
+  # === MODELOS PREMIUM (requer ANTHROPIC_API_KEY no ambiente do container) ===
+  - model_name: claude
+    litellm_params:
+      model: anthropic/claude-sonnet-4-5
+      api_key: <DEFINIR_FORA_DO_GIT>
+
+  - model_name: claude-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-4-5
+      api_key: <DEFINIR_FORA_DO_GIT>
+
+  - model_name: claude-opus
+    litellm_params:
+      model: anthropic/claude-opus-4-5
+      api_key: <DEFINIR_FORA_DO_GIT>
+
+  - model_name: claude-haiku
+    litellm_params:
+      model: anthropic/claude-haiku-4-5
+      api_key: <DEFINIR_FORA_DO_GIT>
+
+litellm_settings:
+  set_verbose: false
+  json_logs: true
+  request_timeout: 120
+  num_retries: 2
+  fallbacks:
+    - codellama: [llama3]
+  cache: true
+  cache_params:
+    type: local
+
+general_settings:
+  master_key: <DEFINIR_FORA_DO_GIT>
+  database_url: null
