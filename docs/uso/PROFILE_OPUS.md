@@ -4,11 +4,14 @@
 > (Desktop) tenha acesso apenas as tools que **agregam capacidade real** ao
 > modelo, evitando redundancia e desperdicio de tokens.
 
-> **Atualização (2026-06-11):** o conjunto do profile `opus` cresceu de 18 para
-> **21 tools** — foram somadas as 3 *composed tools* (`fs_batch_read`,
-> `grep_and_read`, `fs_codemod`), que reduzem round-trips MCP. Os números "18"
-> citados abaixo refletem a versão original; a **fonte de verdade** é
-> `_PROFILE_TOOLS["opus"]` em `lilo_mcp.py` (o servidor loga a contagem ao subir).
+> **Atualização (2026-06-19, V14.5):** o profile `opus` está em **~30 tools**.
+> Histórico: 18 (original) → 21 (composed `fs_batch_read`/`grep_and_read`/
+> `fs_codemod`) → +9 de redação/docs/EDA/meta (`scholar_review`, `paper_draft/
+> section/references`, `make_report_docx/xlsx/pptx`, `prism_eda`,
+> `create_agent_scaffold`). Os números "18" abaixo refletem a versão original.
+> **Fonte de verdade:** `config/profiles.yaml` (`profiles.claude_desktop.mcp_tools`,
+> alias `opus`), que sobrepõe o `_PROFILE_TOOLS` de `lilo_mcp.py`. O servidor loga
+> a contagem ao subir; confira com `test_mcp_stdio.py --profile opus`.
 
 ---
 
@@ -52,8 +55,10 @@ A solucao foi criar o profile `opus` que expoe apenas as 18 tools complementares
 | Filesystem  | `fs_read`, `fs_write`, `fs_list`, `fs_stat`, `fs_search` | Le/escreve no PC do usuario (allow-list `LILO_DESKTOP_ALLOW`) |
 | Execucao    | `run_python`, `run_shell` | Opus nao executa codigo; aqui roda no ambiente conda do usuario |
 | Memoria     | `lilo_memory_set`, `_get`, `_list`, `_search` | Persistencia entre sessoes (SQLite local) |
-| Literatura  | `lilo_scholar` | PubMed/arXiv com metadados estruturados |
-| Estatistica | `prism_analyze`, `prism_classify` | Pipeline ANOVA/t-test/grafico sobre `.xlsx` ou `.csv` |
+| Literatura  | `lilo_scholar`, `scholar_review` | PubMed/arXiv estruturado; revisão de literatura (V13.1) |
+| Estatistica | `prism_analyze`, `prism_classify`, `prism_eda` | ANOVA/t-test/gráfico; EDA rápida (V13.3) sobre `.xlsx`/`.csv` |
+| Redação/Docs| `paper_draft`/`paper_section`/`paper_references`, `make_report_docx`/`make_xlsx`/`make_pptx` | Manuscritos com refs reais + documentos de escritório (V13/V14, escritor cloud) |
+| Meta        | `create_agent_scaffold` | Cria o scaffold de um novo subagente LILO (V13.4) |
 | Ollama      | `lilo_list_local_models`, `lilo_pull_model` | Inspeciona/baixa modelos locais |
 
 Todas as descriptions foram reescritas com o template
