@@ -791,9 +791,19 @@ with st.sidebar:
         from shared import speaker_id as _sid
         if _sid.is_available():
             _n = _sid.n_samples()
-            with st.expander("🔊 Minha voz (%s)" % (
-                    "ativa, %d amostras" % _n if _sid.is_enrolled()
-                    else "%d/3 amostras" % _n)):
+            _reenroll = _sid.needs_reenroll()
+            if _reenroll:
+                _vlabel = "regravar — versão endurecida"
+            elif _sid.is_enrolled():
+                _vlabel = "ativa, %d amostras" % _n
+            else:
+                _vlabel = "%d/3 amostras" % _n
+            with st.expander("🔊 Minha voz (%s)" % _vlabel):
+                if _reenroll:
+                    st.warning("🔄 Seu voiceprint foi criado numa versão anterior "
+                               "(menos discriminativa) e foi **descartado** pelo "
+                               "endurecimento V14.6. Regrave 3+ amostras para "
+                               "reativar o reconhecimento.")
                 st.caption("Grave 3+ amostras curtas (frase de ~5s) para o LILO "
                            "reconhecer sua voz e liberar comandos do dono.")
                 _en = st.audio_input("Gravar amostra", key="enroll_mic",
@@ -1439,8 +1449,9 @@ with main_col:
                                     st.caption(
                                         ("🔓 Voz reconhecida (dono) — score %.2f"
                                          % _v["score"]) if _v["is_owner"]
-                                        else ("🔒 Voz não reconhecida (score %.2f)"
-                                              % _v["score"]))
+                                        else ("🔒 Voz não reconhecida (score %.2f "
+                                              "< limiar %.2f)"
+                                              % (_v["score"], _v.get("threshold", 0))))
                         except Exception as _se:
                             log.debug("speaker_id: %s", _se)
                         with st.spinner("Transcrevendo (local)..."):

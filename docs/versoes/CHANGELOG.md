@@ -1,5 +1,27 @@
 # LILO — Changelog
 
+## v11.5 — 2026-06-19 (V14.6: endurecimento do reconhecimento de voz)
+
+Resposta ao achado de segurança da auditoria (v11.4): o voice-ID era permissivo
+(tom sintético diferente passava com score 0.95). Endurecido em `shared/speaker_id.py`:
+
+- **Score por centroide:** `score = cosseno(voz, centroide do dono)`. Removido o
+  `max`-sobre-amostras (bastava colar em UMA amostra para passar).
+- **Limiar adaptativo/auto-calibrado:** `eff_thr = clamp(self_sim − margem, piso, 0.99)`,
+  onde `self_sim` é a auto-similaridade média do enrollment. Adapta-se à
+  consistência da voz do dono em vez de um limiar fixo.
+- **Piso 0.75 → 0.80** + nova env `LILO_VOICE_MARGIN` (def 0.08).
+- **Embedding mais discriminativo:** MFCC + delta + **delta²** (120-d, era 80-d) e
+  **trim de silêncio** nas pontas.
+- **Voiceprint versionado** (`version=2`): o formato antigo (80-d) é detectado e
+  **descartado** → força re-enroll sem crash de dimensão. `needs_reenroll()` novo;
+  o dashboard exibe aviso e pede regravação.
+
+Validação (sintético): dono ✓ aceito (limiar adaptativo 0.92); voz diferente
+(330 Hz) ✓ **rejeitada** (0.905 < 0.92, antes passava a 0.95); ruído ✓ rejeitado
+(−0.92); migração v1→v2 ✓ sem crash. `.env.example` ganhou as seções de voz/STT
+(antes não documentadas). **Segue sendo conveniência, não segurança forte.**
+
 ## v11.4 — 2026-06-19 (auditoria de código dos módulos V13/V14)
 
 Auditoria investigativa linha-a-linha dos módulos novos (paper, docgen,
