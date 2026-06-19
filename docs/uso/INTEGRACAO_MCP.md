@@ -7,10 +7,10 @@ cd C:\Users\luizd\OneDrive\Data_Science\Projetos\IA.agente
 python scripts\test_mcp_stdio.py --profile desktop
 ```
 
-Esperado:
+Esperado (a contagem varia por profile e evolui — o importante é os 3 `[OK]`):
 ```
 [OK] initialize  -> server: lilo
-[OK] tools/list  -> 29 tools
+[OK] tools/list  -> N tools
 [OK] lilo_health -> ## LILO -- Status dos Subagentes ...
 [SUCCESS] Servidor MCP LILO esta funcional via stdio.
 ```
@@ -97,10 +97,15 @@ Para perfil customizado, copie `config/mcp/claude_code.json` para `~/.claude.jso
 
 ## Tools disponíveis por profile
 
-> A contagem por profile evolui; a fonte de verdade é `_PROFILE_TOOLS` em
-> `lilo_mcp.py` (o servidor loga `profile=<nome> (<N> tools)` ao subir). Há
-> ainda os profiles `opus` (~21, curado p/ Claude Desktop), `claude_code` (~22)
-> e `cowork` (espelha `bio`). A lista abaixo enumera o núcleo do `desktop`.
+> A contagem por profile evolui; a **fonte de verdade é `config/profiles.yaml`**
+> (`profiles.<nome>.mcp_tools`), que sobrepõe o `_PROFILE_TOOLS` embarcado em
+> `lilo_mcp.py` (fallback). Para expor/ocultar uma tool, edite o YAML. Perfis com
+> `mcp_tools: null` (`desktop_dev`, `openclaw`) expõem **todas**. Profile por
+> cliente: **Claude Code → `claude_code`** (~32 tools), **Claude Desktop →
+> `opus`** (=`claude_desktop`, ~30). Os demais: `bio`/`cowork` (~39, local-only),
+> `pycharm_assistant` (~42). A V14.5 somou os tools de redação/docs/EDA/meta
+> (`scholar_review`, `paper_*`, `make_*`, `prism_eda`, `create_agent_scaffold`).
+> A lista abaixo enumera o núcleo histórico do `desktop`.
 
 ### `desktop` (todas as tools — sem filtro)
 

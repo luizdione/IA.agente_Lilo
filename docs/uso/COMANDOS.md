@@ -1,4 +1,4 @@
-# LILO — Comandos e Tools (v10.1)
+# LILO — Comandos e Tools (V14.6)
 
 ## CLI
 
@@ -23,7 +23,14 @@
 
 ---
 
-## MCP Tools (conjunto varia por profile — ver `_PROFILE_TOOLS` em `lilo_mcp.py`; `desktop`/`http` = todas)
+## MCP Tools
+
+> O conjunto exposto **varia por profile**. **Fonte da verdade:**
+> `config/profiles.yaml` (`profiles.<nome>.mcp_tools`), que sobrepõe o
+> `_PROFILE_TOOLS` embarcado em `lilo_mcp.py` (fallback). Perfis com
+> `mcp_tools: null` (`desktop_dev`, `openclaw`) expõem **todas**. Profile por
+> cliente: **Claude Code → `claude_code`**, **Claude Desktop → `opus`**
+> (=`claude_desktop`). Conferir ao vivo: `python scripts/test_mcp_stdio.py --profile <nome>`.
 
 ### Núcleo LILO (6)
 
@@ -36,20 +43,38 @@
 | `lilo_health` | Status de todos os subagentes | — |
 | `lilo_models` | Lista modelos Ollama | — |
 
-### Prism AI (3)
+### Prism AI (4)
 
 | Tool | O que faz |
 |---|---|
 | `prism_analyze` | Análise estatística completa de .xlsx/.csv |
 | `prism_classify` | Classifica tipo de experimento |
 | `prism_audit` | Audita análise estatística |
+| `prism_eda` (V13.3) | Perfil exploratório rápido (dimensões, nulos, describe, histogramas, correlação) |
 
-### Villa-Lobos (2)
+### Villa-Lobos (4)
 
 | Tool | O que faz |
 |---|---|
-| `villa_pipeline` | Pipeline 5-stage (Orchestrator → Reporter), default `iterations=2` |
+| `villa_pipeline` | Pipeline 5-stage (Orchestrator → Reporter) |
 | `villa_quick_ask` | Pergunta direta a um agente Villa específico |
+| `villa_explain_routing` | Debug do roteamento (sem executar o pipeline) |
+| `villa_route` (V10) | Roteamento puro: decide o alvo sem rodar stages |
+
+### Redação científica, documentos e meta (V13/V14)
+
+Complementares ao Claude; expostos no profile `claude_code` e nos completos.
+
+| Tool | O que faz |
+|---|---|
+| `scholar_review` | Revisão de literatura estruturada (multi-fonte + dedup + refs reais) |
+| `paper_outline` / `paper_section` / `paper_references` / `paper_draft` / `paper_build` | Redação científica (skill build_paper): estrutura, seções com refs reais, build DOCX/TEX/PDF |
+| `make_report_docx` / `make_docx` / `make_xlsx` / `make_pptx` | Documentos de escritório (Word/Excel/PowerPoint) |
+| `create_agent_scaffold` / `propose_agent` | Cria o scaffold de um novo subagente LILO (meta-skill) |
+
+> Subagentes redatores (`paper`, `docgen`, `scholar_review`) usam modelo **cloud**
+> por padrão (`gpt-oss:120b-cloud`) — qualidade alta **sem GPU local**. Ver
+> `docs/agentes/` para detalhes de cada subagente.
 
 ### Web (2)
 
@@ -137,6 +162,29 @@ PyCharm, dashboard, API HTTP).
 **Prefixo MCP** (v10.2):
 - `skill_<nome>` — skills com `complexity` simple/medium (193 + 6 atualmente)
 - `skill_advanced_<nome>` — skills com `complexity=high` (0 atualmente, reservado)
+
+---
+
+## Modos de execução e voz (V14)
+
+### Modos de execução (`LILO_EXEC_MODE` ou seletor no dashboard)
+
+Controlam quanta confirmação o LILO pede antes de **agir** (escrever/rodar):
+
+| Modo | Comportamento |
+|---|---|
+| `plan` | Só planeja; não executa escrita/shell/python |
+| `ask` | Confirma toda ação de risco (shell/python/write fora da allow-list) |
+| `accept_edits` | Edita arquivos direto; confirma shell/python |
+| `auto` (default) | Executa tudo (comportamento histórico) |
+
+### Microfone e reconhecimento de voz (dashboard)
+
+- **Voz→texto (V14.1):** ícone de microfone no chat → transcrição **local** com
+  faster-whisper (CPU, nenhum áudio sai da máquina). Config `LILO_WHISPER_*`.
+- **Reconhecimento de locutor (V14.6):** cadastre 3+ amostras da sua voz; o LILO
+  marca `owner_verified` quando reconhece o dono. É **conveniência, não
+  segurança forte** (MFCC leve). Config `LILO_VOICE_THRESHOLD`/`LILO_VOICE_MARGIN`.
 
 ---
 
