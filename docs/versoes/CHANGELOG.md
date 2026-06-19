@@ -1,5 +1,30 @@
 # LILO — Changelog
 
+## v11.4 — 2026-06-19 (auditoria de código dos módulos V13/V14)
+
+Auditoria investigativa linha-a-linha dos módulos novos (paper, docgen,
+skillsmith, exec_mode, speaker_id, transcribe, prism `_eda`, scholar `_review`).
+Bugs corrigidos e validados:
+
+- **`shared/speaker_id.py`** [Windows, médio]: `np.load()` devolve um `NpzFile`
+  que mantém o arquivo aberto; `enroll()` escrevia o **mesmo** `owner.npz` com
+  `np.savez()` enquanto o handle de leitura podia estar aberto → risco de
+  `PermissionError` no Windows (e vazamento de handle em `verify`/`n_samples`).
+  Agora usa `with np.load(...) as data:`. Validado: round-trip enroll×3/verify/
+  reset sem erro.
+- **`agents/prism_ai/main.py`** (`_eda`) [baixo]: nome de coluna com `/`, `:`
+  etc. quebrava o `savefig` e **abortava todos** os gráficos no Windows. Nome do
+  arquivo agora é sanitizado. Validado: colunas `a/b`/`c:d` geram os PNGs.
+- **`agents/docgen/agent.py`** (`_to_pptx`) [trivial]: removida variável morta
+  `blank` (layout não usado).
+
+**Observação de segurança (não alterada — decisão do usuário):** a verificação
+de locutor usa `max` sobre as amostras + limiar 0.75; no teste, um tom sintético
+diferente passou com score 0.95. O embedding MFCC leve é **pouco discriminativo**
+— adequado como *conveniência* (carregar memórias do dono) num PC pessoal, mas
+**não** como fronteira de segurança forte. Endurecer (centroide-only, limiar
+maior) afeta o voiceprint já cadastrado → deixado a critério do autor.
+
 ## v11.3 — 2026-06-19 (V14.5: expor recursos V13/V14 no MCP)
 
 Correção de integração: os 9 recursos das levas V13/V14 (`scholar_review`,

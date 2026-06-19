@@ -129,7 +129,7 @@ class DocGenAgent(BaseAgent):
             from pptx import Presentation
             from pptx.util import Pt
             prs = Presentation()
-            blank, bullet = prs.slide_layouts[6], prs.slide_layouts[1]
+            bullet = prs.slide_layouts[1]   # layout "Title and Content"
             cur_bullets, cur_title = None, None
 
             def _flush(title, bullets):
