@@ -80,8 +80,10 @@ def enroll(audio) -> dict:
         return {"ok": False, "error": "áudio inválido/curto", "n_samples": n_samples()}
     VOICEPRINT_DIR.mkdir(parents=True, exist_ok=True)
     if _OWNER.exists():
-        data = np.load(_OWNER)
-        embs = np.vstack([data["embs"], emb])
+        # context manager fecha o NpzFile ANTES do savez no mesmo arquivo
+        # (no Windows, um handle de leitura aberto bloqueia a escrita).
+        with np.load(_OWNER) as data:
+            embs = np.vstack([data["embs"], emb])
     else:
         embs = emb.reshape(1, -1)
     np.savez(_OWNER, embs=embs, centroid=embs.mean(0))
@@ -93,7 +95,8 @@ def n_samples() -> int:
     if not _OWNER.exists():
         return 0
     try:
-        return int(np.load(_OWNER)["embs"].shape[0])
+        with np.load(_OWNER) as data:   # fecha o handle (evita lock no Windows)
+            return int(data["embs"].shape[0])
     except Exception:
         return 0
 
@@ -113,11 +116,12 @@ def verify(audio) -> dict:
     if emb is None:
         return {"is_owner": False, "score": 0.0, "enrolled": True,
                 "threshold": THRESHOLD}
-    data = np.load(_OWNER)
-    cen = data["centroid"]
+    with np.load(_OWNER) as data:       # materializa e fecha o handle
+        cen = data["centroid"]
+        embs = data["embs"]
     # score = melhor entre cosseno ao centroide e à amostra mais próxima.
     best = max(_cosine(emb, cen),
-               max((_cosine(emb, e) for e in data["embs"]), default=0.0))
+               max((_cosine(emb, e) for e in embs), default=0.0))
     return {"is_owner": bool(best >= THRESHOLD), "score": round(best, 3),
             "enrolled": True, "threshold": THRESHOLD}
 

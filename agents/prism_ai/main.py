@@ -315,7 +315,9 @@ class PrismAgent(BaseAgent):
                 fig, ax = plt.subplots(figsize=(4, 3))
                 num[c].dropna().hist(ax=ax, bins=20)
                 ax.set_title(str(c))
-                pth = _P(output_dir) / ("eda_hist_%s.png" % str(c)[:30])
+                # sanitiza o nome da coluna p/ filename (Windows: / : etc. quebram)
+                safe_c = "".join(ch if ch.isalnum() else "_" for ch in str(c))[:30]
+                pth = _P(output_dir) / ("eda_hist_%s.png" % (safe_c or "col"))
                 fig.savefig(pth, dpi=120, bbox_inches="tight")
                 plt.close(fig)
                 figs.append(str(pth))
