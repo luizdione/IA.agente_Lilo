@@ -7,7 +7,6 @@ Herda BaseAgent e orquestra o pipeline de 6 sub-agentes:
 Integra-se ao orquestrador LILO como 5º subagente.
 """
 
-import json
 from pathlib import Path
 from typing import Any, Optional
 from dataclasses import asdict, is_dataclass
