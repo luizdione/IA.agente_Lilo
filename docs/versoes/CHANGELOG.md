@@ -1,5 +1,33 @@
 # LILO — Changelog
 
+## v11.6 — 2026-06-19 (2ª auditoria investigativa + corretiva)
+
+Segunda passada de auditoria (estática + manual) sobre o código do projeto.
+
+**Conclusão: nenhum bug de runtime novo.** O único bug de wiring real (tools de
+`paper` ausentes do `get_tool_map` → "Tool desconhecida") já fora corrigido na
+v11.3. Confirmado limpo via `pyflakes` + sondagens manuais:
+- **sem** nomes indefinidos / erros de sintaxe no código do projeto;
+- **sem** `except:` nu (todos tipados); **sem** mutação de default mutável
+  (o padrão `context or {}` protege os `run(...)`);
+- reconstrução do abstract invertido do OpenAlex (`_openalex_abstract`) correta;
+- `villa_route` é auto-contido no `lilo_mcp.py` (não passa por `handle_tool_call`)
+  → sem gap; cache de `_load_agents` persiste (o `global` é redundante, não bug).
+
+**Correções (cosméticas, seguras):**
+- `agents/prism_ai/writing_agent.py`: remove `f` redundante em 2 strings literais
+  (marcadores de significância) — eliminava warning de "f-string sem placeholder".
+- `agents/prism_ai/main.py`: remove import `json` não-usado.
+
+**Lacuna conhecida (NÃO alterada — requer certeza do schema):**
+`agents/prism_ai/export_agent.py` computa `table_type` (via
+`_get_prism_table_type`) mas não o aplica ao `<Table>` do `.pzfx`. Os rótulos
+retornados (`Column`/`GroupedColumn`) **não** correspondem ao enum `TableType`
+do GraphPad (`OneWay`/`TwoWay`/`XY`…); aplicá-los às cegas poderia quebrar a
+importação. Deixado para validação do autor (que conhece o formato GraphPad).
+Demais achados do pyflakes (imports não-usados, dead vars `n_total`/`bars`/
+`exp_type`) são inócuos e foram mantidos para evitar churn.
+
 ## v11.5 — 2026-06-19 (V14.6: endurecimento do reconhecimento de voz)
 
 Resposta ao achado de segurança da auditoria (v11.4): o voice-ID era permissivo

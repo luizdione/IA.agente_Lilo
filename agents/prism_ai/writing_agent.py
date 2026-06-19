@@ -215,11 +215,11 @@ class WritingAgent:
             if lang == "pt":
                 legend = f"Figura {i+1}. {fig.description}"
                 if stats.significant:
-                    legend += f" *p < 0,05, **p < 0,01, ***p < 0,001."
+                    legend += " *p < 0,05, **p < 0,01, ***p < 0,001."
             else:
                 legend = f"Figure {i+1}. {fig.description}"
                 if stats.significant:
-                    legend += f" *p < 0.05, **p < 0.01, ***p < 0.001."
+                    legend += " *p < 0.05, **p < 0.01, ***p < 0.001."
             legends.append(legend)
         return legends
 
