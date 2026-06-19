@@ -31,6 +31,7 @@ Subagente do LILO (`agents/scholaragent/agent.py`, classe `ScholarAgent`,
 |------|--------|
 | `scholar_search` | Busca artigos por tema. Params: `query` (obrigatório), `source`, `max_results` (padrão 5). |
 | `scholar_synthesize` | Busca **e** sintetiza criticamente via LLM. Params: `query` (obrigatório), `max_results`. |
+| `scholar_review` (V13.1) | **Revisão de literatura** estruturada: busca ampla multi-fonte + dedup (DOI/título) + estado da arte/consensos/lacunas/direções, com refs reais `[n]`. Params: `query` (obrigatório), `max_results` (padrão 20). Escritor `LILO_REVIEW_MODEL` (default cloud `gpt-oss:120b-cloud`, sem GPU). |
 
 `source` aceita: `auto` (padrão: PubMed + arXiv), `all` (agrega todas),
 `pubmed`, `arxiv`, `clinicaltrials`, `opentargets`, `npi`, `crossref`,
