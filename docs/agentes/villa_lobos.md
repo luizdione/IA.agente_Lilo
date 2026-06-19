@@ -57,6 +57,12 @@ ao Reporter — 1 chamada Ollama em vez de 5 (~70% menos latência).
 
 Modelos configuráveis em `VILLA_MODELS` (no agent.py) ou via `.env` (`OLLAMA_MODEL_*`).
 
+> **V14.3:** o **Worker geral** passou a usar a nuvem por padrão
+> (`VILLA_WORKER_GENERAL_MODEL=gpt-oss:120b-cloud`) — +107% de qualidade vs o 8b
+> local no experimento com juiz, mesmo tempo, **sem GPU local** (fallback local
+> se a nuvem falhar). Tarefas de código continuam no `qwen2.5-coder`. Demais
+> alavancas (temperatura, self-consistency) em `.env.example`.
+
 ---
 
 ## Smart routing — JSON do Orchestrator

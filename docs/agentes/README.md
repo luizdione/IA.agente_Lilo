@@ -11,13 +11,13 @@ Os 10 subagentes vivem em `agents/` (cada um é um `BaseAgent` com
 | PaperAgent | `paper` | [paper.md](paper.md) | `paper_outline/section/references/draft/build` |
 | DocGenAgent | `docgen` | [docgen.md](docgen.md) | `make_report_docx`, `make_docx`, `make_xlsx`, `make_pptx` |
 | SkillSmithAgent | `skillsmith` | [skillsmith.md](skillsmith.md) | `propose_agent`, `create_agent_scaffold` |
-| PrismAgent | `prism` | — (ver `agents/prism_ai/`) | `prism_analyze`, `prism_classify`, `prism_audit`, `prism_eda` |
-| Villa Lobos | `villa` | — (ver `docs/tecnico/`) | `villa_pipeline`, `villa_quick_ask`, `villa_explain_routing`, `villa_route` |
-| SQLAgent | `sql` | — (ver `agents/sql/`) | `sql_query`, `sql_stats` |
-| PDFs_library | `pdf` | — (ver `agents/pdf/`) | `pdf_summarize`, `pdf_search`, `pdf_list` |
-| GatewayAgent | `gateway` | — (ver `agents/gateway/`) | `lilo_chat`, `lilo_models` |
-| DesktopAgent | `desktop` | — (ver `agents/desktop/`) | `fs_*`, `run_shell`, `run_python` |
+| PrismAgent | `prism` | [prism_ai.md](prism_ai.md) | `prism_analyze`, `prism_classify`, `prism_audit`, `prism_eda` |
+| Villa Lobos | `villa` | [villa_lobos.md](villa_lobos.md) | `villa_pipeline`, `villa_quick_ask`, `villa_explain_routing`, `villa_route` |
+| SQLAgent | `sql` | [Analise_SQL.md](Analise_SQL.md) | `sql_query`, `sql_stats` |
+| PDFAgent | `pdf` | [pdf.md](pdf.md) | `pdf_summarize`, `pdf_search`, `pdf_list` |
+| GatewayAgent | `gateway` | [gateway.md](gateway.md) | `lilo_chat`, `lilo_health`, `lilo_models` |
+| DesktopAgent | `desktop` | [desktop.md](desktop.md) | `fs_*`, `run_shell`, `run_python` |
 
-> As docs dedicadas detalham tools/params/modos/env. Os subagentes sem página
-> própria estão cobertos pelo `README.md` da raiz (tabela de subagentes) e pelo
-> próprio código. Padrão de doc: ver [scholaragent.md](scholaragent.md).
+> Todos os 10 subagentes têm página dedicada (tools/params/modos/env/exemplos).
+> Padrão de doc: ver [scholaragent.md](scholaragent.md). Arquitetura do pipeline
+> e roteamento: `docs/tecnico/`.
