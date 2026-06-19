@@ -61,6 +61,26 @@ Padrões em `DANGEROUS_PATTERNS` (regex case-insensitive):
 
 ---
 
+### Modos de execução (V14, `shared/exec_mode.py`)
+
+Além da allow-list, ações de **risco** passam por um *gate* conforme o modo
+(`LILO_EXEC_MODE` ou seletor no dashboard). Risco = `run_shell`, `run_python` e
+escrita **fora** da allow-list (`write_outside`):
+
+| Modo | `run_shell`/`run_python` | `fs_write` (na allow-list) |
+|---|---|---|
+| `plan` | bloqueia (só planeja) | bloqueia |
+| `ask` | confirma | confirma |
+| `accept_edits` | confirma | passa |
+| `auto` (default) | passa | passa |
+
+Quando precisa de confirmação, a tool devolve `[[LILO_CONFIRMAR]] <prévia>` sem
+executar; o dashboard mostra a prévia + botão **✅ Confirmar e executar**
+(`grant_once()` libera a próxima ação). Modo `plan` devolve `[[LILO_PLANO]] …`.
+Default `auto` → zero mudança de comportamento.
+
+---
+
 ## Exemplos de uso
 
 ### Via Claude Desktop (após configurar MCP)

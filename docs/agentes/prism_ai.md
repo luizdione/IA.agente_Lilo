@@ -1,7 +1,7 @@
 # Prism AI — Análise Estatística Automatizada
 
 **Path:** `agents/prism_ai/`
-**Tools MCP:** `prism_analyze`, `prism_classify`, `prism_audit`
+**Tools MCP:** `prism_analyze`, `prism_classify`, `prism_audit`, `prism_eda`
 
 ---
 
@@ -50,6 +50,21 @@ Detecta apenas o tipo de experimento.
 ### `prism_audit`
 
 Audita uma análise existente, detecta erros (ex.: t-test em dados não-normais sem justificativa, ausência de teste post-hoc após ANOVA significativa).
+
+### `prism_eda` (V13.3)
+
+Perfil exploratório **rápido e determinístico** (sem LLM), antes do pipeline
+pesado: dimensões, tipos/`%`nulos/cardinalidade por coluna, `describe` das
+numéricas, histogramas (até 6) e heatmap de correlação (Pearson). Aciona por
+`mode="eda"` ou query começando com `eda`/`perfil`/`profile`.
+
+| Arg | Default | Descrição |
+|---|---|---|
+| `file_path` | (obrigatório) | Caminho do .xlsx/.csv |
+| `output_dir` | "" | Onde salvar os PNGs (default: `<arquivo>/prism_output`) |
+
+> Nomes de coluna são sanitizados para o filename dos gráficos (V11.4) — colunas
+> com `/`, `:` etc. não quebram mais a geração no Windows.
 
 ---
 
