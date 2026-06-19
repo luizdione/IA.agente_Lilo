@@ -1,5 +1,31 @@
 # LILO — Changelog
 
+## v11.3 — 2026-06-19 (V14.5: expor recursos V13/V14 no MCP)
+
+Correção de integração: os 9 recursos das levas V13/V14 (`scholar_review`,
+`prism_eda`, `paper_draft`/`paper_section`/`paper_references`,
+`make_report_docx`/`make_xlsx`/`make_pptx`, `create_agent_scaffold`) tinham
+agente + tool MCP definidos, mas **não eram expostos** aos clientes — não
+apareciam no Claude Code/Desktop/PyCharm.
+
+- **`config/profiles.yaml`** (fonte da verdade do filtro `mcp_tools`): os 9 tools
+  adicionados aos 5 perfis de lista explícita (`claude_code`, `bio`, `cowork`,
+  `claude_desktop`, `pycharm_assistant`). `desktop_dev`/`openclaw` (=`null`) já
+  os expunham por registro. `claude_code` passou de 23 → 32 tools.
+- **`lilo_mcp.py`** (`_PROFILE_TOOLS`, fallback usado se o YAML sumir): mesmos 9
+  tools nos 4 perfis embarcados, mantendo paridade com o YAML.
+- **`lilo.py`** (`get_tool_map`): **bug** — os tools de `paper` não estavam no
+  mapa central, então `paper_*` retornava "Tool desconhecida" em runtime. Agora
+  roteados (outline/section/references/draft/build); `paper_build` preserva o
+  diretório default do agente quando `root` vem vazio.
+- **`scripts/test_mcp_stdio.py`**: `--profile` agora deriva os perfis válidos de
+  `config/profiles.yaml` (+aliases), com fallback embarcado — antes a lista
+  hardcoded não tinha `claude_code` (o comando documentado no CLAUDE.md falhava).
+  Default mudou para `claude_code`.
+
+Validação e2e (stdio real): handshake OK, `claude_code` lista 32 tools com os 9
+novos presentes; `get_tool_map()` roteia os 13 nomes; YAML e sintaxe OK.
+
 ## v11.2 — 2026-06-12 (V14: modos de execução estilo Claude)
 
 Feature pedida: os modos de interação do Claude no LILO. Política escolhida:

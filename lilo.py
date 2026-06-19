@@ -346,6 +346,13 @@ def get_tool_map():
         "scholar_search":     ("scholar", lambda a: {"source": a.get("source","auto"), "max_results": a.get("max_results",5), "synthesize": False}),
         "scholar_synthesize": ("scholar", lambda a: {"max_results": a.get("max_results",5), "synthesize": True}),
         "scholar_review":     ("scholar", lambda a: {"mode": "review", "max_results": a.get("max_results",20)}),
+        # Paper (redacao cientifica -- skill build_paper)
+        "paper_outline":      ("paper",   lambda a: {"mode": "outline", "journal": a.get("journal","")}),
+        "paper_section":      ("paper",   lambda a: {"mode": "section", "section": a.get("section","introducao"), "journal": a.get("journal",""), "k": a.get("k",8)}),
+        "paper_references":   ("paper",   lambda a: {"mode": "references", "k": a.get("k",8)}),
+        "paper_draft":        ("paper",   lambda a: {"mode": "draft", "journal": a.get("journal",""), "k": a.get("k",10)}),
+        # root vazio -> deixa o agente usar seu default (PAPER_out); nao sobrescreve.
+        "paper_build":        ("paper",   lambda a: {"mode": "build", **({"root": a["root"]} if a.get("root") else {})}),
         # docgen
         "make_report_docx":   ("docgen",  lambda a: {"mode": "report", "name": a.get("name",""), "data": a.get("data","")}),
         "make_docx":          ("docgen",  lambda a: {"mode": "docx", "content": a.get("content",""), "name": a.get("name","")}),
