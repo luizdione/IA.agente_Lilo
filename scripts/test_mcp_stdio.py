@@ -9,13 +9,16 @@ Simula o que o Claude Desktop faz ao conectar:
 5. Verifica resposta
 
 Uso:
-    python scripts/test_mcp_stdio.py
-    python scripts/test_mcp_stdio.py --profile pycharm
+    python scripts/test_mcp_stdio.py                       # profile claude_code (default)
+    python scripts/test_mcp_stdio.py --profile bio
+    python scripts/test_mcp_stdio.py --profile opus
+
+Os profiles validos sao derivados de config/profiles.yaml (+ aliases).
 
 Saida esperada:
-    [OK] handshake
-    [OK] tools/list (16 tools)
-    [OK] tools/call lilo_health
+    [OK] initialize  -> server: lilo
+    [OK] tools/list  -> N tools
+    [OK] lilo_health -> ...
 """
 
 from __future__ import annotations
@@ -29,6 +32,30 @@ import time
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
+
+# Fallback caso o YAML nao exista/ilegivel: nomes embarcados em _PROFILE_TOOLS
+# (lilo_mcp.py) + aliases historicos. Mantem o smoke-test util offline.
+_FALLBACK_PROFILES = {
+    "claude_code", "bio", "opus", "pycharm", "cowork",
+    "desktop", "desktop_dev", "claude_desktop", "pycharm_assistant", "openclaw",
+}
+
+
+def _known_profiles() -> list[str]:
+    """Profiles validos = chaves de 'profiles:' + 'aliases:' do profiles.yaml,
+    unidas ao fallback embarcado. Evita que a lista de --profile envelheca
+    quando novos perfis sao adicionados (ex.: 'claude_code', 'cowork')."""
+    names = set(_FALLBACK_PROFILES)
+    yaml_path = _ROOT / "config" / "profiles.yaml"
+    try:
+        import yaml as _yaml
+        with yaml_path.open("r", encoding="utf-8") as fh:
+            data = _yaml.safe_load(fh) or {}
+        names.update((data.get("profiles") or {}).keys())
+        names.update((data.get("aliases") or {}).keys())
+    except Exception:
+        pass  # YAML ausente/ilegivel -> usa apenas o fallback
+    return sorted(names)
 
 
 def _send(proc, msg: dict):
@@ -63,8 +90,9 @@ def _read_response(proc, timeout: float = 30.0):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument(
-        "--profile", default="desktop",
-        choices=["desktop", "pycharm", "bio", "opus", "http"],
+        "--profile", default="claude_code", choices=_known_profiles(),
+        help="Perfil MCP (fonte da verdade: config/profiles.yaml). "
+             "Ex.: claude_code, bio, opus, desktop_dev.",
     )
     p.add_argument("--python", default=sys.executable, help="Python a usar")
     p.add_argument("--script", default=str(_ROOT / "lilo_mcp.py"))

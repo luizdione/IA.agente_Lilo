@@ -80,6 +80,10 @@ _PROFILE_TOOLS = {
         "lilo_pull_model", "lilo_list_local_models",
         # Composed tools (reduzem round-trips MCP)
         "fs_batch_read", "fs_codemod", "grep_and_read",
+        # V13/V14: dev/ciencia (criar agentes, EDA, redacao, documentos)
+        "create_agent_scaffold", "prism_eda", "paper_draft", "paper_section",
+        "paper_references", "scholar_review",
+        "make_report_docx", "make_xlsx", "make_pptx",
     },
     "bio": {
         # Workflows de pesquisa biomolecular: estatistica, literatura, leitura de papers
@@ -98,6 +102,10 @@ _PROFILE_TOOLS = {
         "lilo_cost_today", "lilo_cost_recent",
         # Composed tools (sem run_shell para seguranca)
         "fs_batch_read", "grep_and_read",
+        # V13/V14: revisao de literatura, redacao, documentos, EDA, meta
+        "scholar_review", "paper_draft", "paper_section", "paper_references",
+        "prism_eda", "make_report_docx", "make_xlsx", "make_pptx",
+        "create_agent_scaffold",
     },
     # 2026-05-08: profile 'opus' -- conjunto curado de 15 tools que
     # AGREGAM CAPACIDADE ao Claude Opus (internet, filesystem, exec local,
@@ -123,6 +131,10 @@ _PROFILE_TOOLS = {
         "lilo_list_local_models", "lilo_pull_model",
         # Composed tools que reduzem round-trips no Opus
         "fs_batch_read", "grep_and_read", "fs_codemod",
+        # V13/V14: agregam ao Opus (redacao, revisao, documentos, EDA, meta)
+        "scholar_review", "paper_draft", "paper_section", "paper_references",
+        "prism_eda", "make_report_docx", "make_xlsx", "make_pptx",
+        "create_agent_scaffold",
     },
     "http": None,
     # 2026-05-12: profile 'claude_code' -- enxuto, voltado ao Claude Code CLI.
@@ -149,6 +161,10 @@ _PROFILE_TOOLS = {
         "lilo_pull_model", "lilo_list_local_models",
         # Health
         "lilo_health", "lilo_models",
+        # V13/V14: complementares ao Claude Code (redacao/revisao/docs/EDA/meta)
+        "scholar_review", "paper_draft", "paper_section", "paper_references",
+        "prism_eda", "make_report_docx", "make_xlsx", "make_pptx",
+        "create_agent_scaffold",
     },
 }
 # 2026-05-23: profile 'cowork' -- automacao Cowork sem usuario presente.
@@ -338,6 +354,114 @@ def lilo_models() -> str:
     _ensure_lilo()
     from lilo import handle_tool_call
     return handle_tool_call("lilo_models", {})
+
+
+# =============================================================================
+# V13/V14 -- Subagentes novos: scholar_review, paper, docgen, skillsmith, EDA
+# =============================================================================
+
+@_profile_tool
+def scholar_review(query: str, max_results: int = 20) -> str:
+    """Revisao de literatura ESTRUTURADA: busca multi-fonte + deduplicacao +
+    estado da arte/consensos/lacunas/direcoes, com referencias REAIS. Ideal p/
+    Introducao/Discussao de um paper.
+    Args:
+        query: tema da revisao
+        max_results: max de artigos (default 20)
+    """
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("scholar_review", {"query": query, "max_results": max_results})
+
+
+@_profile_tool
+def prism_eda(file_path: str, output_dir: str = "") -> str:
+    """Perfil exploratorio RAPIDO de um dataset (.csv/.xlsx): dimensoes, tipos,
+    %nulos, describe, histogramas e heatmap de correlacao. Visao inicial leve
+    (sem teste estatistico -- use prism_analyze p/ isso).
+    Args:
+        file_path: caminho .csv/.xlsx
+        output_dir: pasta de saida (opcional)
+    """
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("prism_eda", {"file_path": file_path, "output_dir": output_dir})
+
+
+@_profile_tool
+def paper_draft(query: str, journal: str = "") -> str:
+    """Redacao cientifica: rascunho de manuscrito (outline + secoes IMRaD com
+    REFERENCIAS REAIS). Escritor forte via Ollama Cloud.
+    Args:
+        query: tema/dados do manuscrito
+        journal: periodico-alvo (opcional, calibra o estilo)
+    """
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("paper_draft", {"query": query, "journal": journal})
+
+
+@_profile_tool
+def paper_section(query: str, section: str = "introducao", journal: str = "") -> str:
+    """Redige UMA secao de manuscrito com referencias reais (cite [n]).
+    Args:
+        query: tema/conteudo da secao
+        section: abstract|introducao|metodos|resultados|discussao|conclusao
+        journal: periodico-alvo (opcional)
+    """
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("paper_section", {"query": query, "section": section, "journal": journal})
+
+
+@_profile_tool
+def paper_references(query: str, k: int = 8) -> str:
+    """Busca referencias REAIS (PubMed/OpenAlex/EuropePMC/Crossref) p/ um tema."""
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("paper_references", {"query": query, "k": k})
+
+
+@_profile_tool
+def make_report_docx(query: str, name: str = "", data: str = "") -> str:
+    """Gera um relatorio Word (.docx): o LLM redige sobre o tema -> pandoc.
+    Args:
+        query: tema do relatorio
+        name: nome do arquivo (opcional)
+        data: dados/contexto a incluir (opcional)
+    """
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("make_report_docx", {"query": query, "name": name, "data": data})
+
+
+@_profile_tool
+def make_xlsx(csv: str = "", tsv: str = "", csv_path: str = "", name: str = "") -> str:
+    """Gera planilha .xlsx formatada a partir de CSV/TSV (texto) ou csv_path."""
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("make_xlsx", {"csv": csv, "tsv": tsv, "csv_path": csv_path, "name": name})
+
+
+@_profile_tool
+def make_pptx(outline: str, name: str = "") -> str:
+    """Gera apresentacao .pptx de um outline ('# titulo' + '- bullets')."""
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("make_pptx", {"outline": outline, "name": name})
+
+
+@_profile_tool
+def create_agent_scaffold(name: str, description: str) -> str:
+    """Cria o scaffold de um NOVO subagente LILO (codigo que compila) e retorna
+    as instrucoes de registro. Nao auto-modifica o roteamento.
+    Args:
+        name: snake_case do novo agente
+        description: o que o agente faz
+    """
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("create_agent_scaffold", {"name": name, "description": description})
 
 
 # =============================================================================
