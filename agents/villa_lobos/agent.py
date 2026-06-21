@@ -486,6 +486,9 @@ class VillaLobosAgent(BaseAgent):
         # V10.9: intencao de codigo decidida pela QUERY ORIGINAL (robusto a
         # scaffolding dos prompts) -> escolhe coder vs instruct geral no worker.
         self._cur_code_intent = _is_code_intent(query)
+        # V15 FASE 2: estilo de resposta -> aplicado SO na saida (reporter) via
+        # compose_system em _call_agent (nao nos estagios de raciocinio).
+        self._cur_response_style = (context or {}).get("response_style")
 
         if allow_delegate:
             specialist = self._delegate_to_specialist(query, context)

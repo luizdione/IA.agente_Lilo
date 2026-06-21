@@ -786,6 +786,20 @@ with st.sidebar:
              "pergunta. chat/code/bioinfo forcam o modo do gateway; sql forca "
              "o agente SQL.")
 
+    # V15 FASE 2: ESTILO de resposta -- eixo ORTOGONAL ao "Modo IA" (roteamento)
+    # e ao "Modo de execucao" (gating). So muda a APRESENTACAO; nao degrada
+    # codigo/tabelas/artefatos. Persiste em st.session_state.
+    _STYLE_LABELS = {"Padrao": "default", "Conciso": "concise",
+                     "Didatico": "explanatory", "Formal": "formal"}
+    _style_label = st.selectbox(
+        "Estilo de resposta",
+        list(_STYLE_LABELS.keys()), index=0,
+        help="Apresentacao da resposta (NAO muda o subagente nem o gating): "
+             "Conciso = minimo de tokens; Didatico = passo-a-passo; Formal = "
+             "polido. Nao afeta qualidade de codigo/tabelas/artefatos. No modo "
+             "Conciso, pedir 'detalhe/aprofunde' suspende a concisao no turno.")
+    st.session_state["response_style"] = _STYLE_LABELS[_style_label]
+
     # V14.2: biometria de voz -- cadastrar a voz do dono (enrollment).
     try:
         from shared import speaker_id as _sid
@@ -1581,6 +1595,19 @@ with main_col:
                             # pequeno). route() prefixa os turnos anteriores.
                             if _conv_hist:
                                 ctx["conversation_history"] = _conv_hist[-3000:]
+                            # V15 FASE 2: estilo de resposta (apresentacao).
+                            _rs = st.session_state.get("response_style", "default")
+                            # ESCAPE: pedido explicito de detalhe suspende o
+                            # conciso naquele turno (meta-regra do Concise Mode).
+                            if _rs == "concise":
+                                _pl = prompt.lower()
+                                if any(k in _pl for k in (
+                                        "detalh", "aprofund", "explique melhor",
+                                        "mais longo", "completo", "passo a passo",
+                                        "passo-a-passo")):
+                                    _rs = "default"
+                            if _rs and _rs != "default":
+                                ctx["response_style"] = _rs
                             # V14: modo de EXECUCAO (plan/ask/accept_edits/auto).
                             # O gating fino (confirmar/bloquear acoes de risco) e
                             # feito por shared.exec_mode no subagente desktop; aqui

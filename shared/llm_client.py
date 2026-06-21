@@ -204,10 +204,17 @@ class LLMClient:
             return v
 
     def _chat_ollama(self, prompt, system, model, temperature, max_tokens):
+        # V15 FASE 2: raciocinio minucioso DENTRO de <thinking> (tokens locais
+        # baratos -> qualidade), mas a RESPOSTA FINAL no comprimento que a
+        # pergunta exige (antes empurrava "be thorough" na saida toda, contra a
+        # meta do CLAUDE.md de gastar o minimo de tokens). O eixo de estilo
+        # (concise/etc.) ja entra no `system` via compose_system.
         cot_suffix = (
-            "\n\nIMPORTANT: Think step-by-step. First reason through the problem "
-            "inside <thinking>...</thinking> tags, then provide your final answer. "
-            "Local tokens are free -- be thorough in your reasoning."
+            "\n\nIMPORTANTE: raciocine passo-a-passo DENTRO de "
+            "<thinking>...</thinking> (seja minucioso aqui; tokens locais sao "
+            "baratos). Depois de </thinking>, escreva a RESPOSTA FINAL ao "
+            "usuario de forma direta, no comprimento que a pergunta exige, sem "
+            "repetir o raciocinio."
         )
         enhanced_system = system + cot_suffix
 
