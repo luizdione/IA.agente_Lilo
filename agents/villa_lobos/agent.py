@@ -768,6 +768,11 @@ class VillaLobosAgent(BaseAgent):
             _t = time.time()
             log.info("  Stage 5/5: Reporter")
             combined_work = "\n---\n".join(work_results) if work_results else ""
+            # V15 FASE 4: estagio VERIFY (default-OFF, LILO_VERIFY_STAGE=1). Roda
+            # codigo AUTO-CONTIDO do worker em sandbox isolado e ANOTA o
+            # resultado -- SEM loop de auto-correcao (critica #5: codigo
+            # cientifico falha por AMBIENTE, nao por bug). Nunca bloqueia.
+            combined_work = self._maybe_verify_stage(combined_work, query)
             report_prompt = (
                 "Sintetize os resultados em um relatorio tecnico-cientifico. "
                 "Formato: Resumo Executivo, Resultados Principais, "
@@ -872,6 +877,88 @@ class VillaLobosAgent(BaseAgent):
         except Exception as e:
             log.debug("quality check falhou: %s", e)
             return report
+
+    def _maybe_verify_stage(self, work, query):
+        """V15 FASE 4: VERIFY default-OFF (LILO_VERIFY_STAGE=1). So roda quando:
+        (a) houve intencao de codigo, (b) a query pediu rodar/testar, (c) o
+        exec_mode permite (accept_edits/auto). Executa SO o 1o bloco python
+        AUTO-CONTIDO (sem deps de terceiros nem IO de arquivos) num sandbox
+        isolado e ANOTA o resultado. NUNCA bloqueia nem auto-corrige."""
+        import os as _os
+        import re as _re
+        if _os.getenv("LILO_VERIFY_STAGE", "0").strip().lower() in (
+                "0", "false", "no", "off"):
+            return work
+        if not getattr(self, "_cur_code_intent", False):
+            return work
+        ql = (query or "").lower()
+        if not any(k in ql for k in ("rode", "rodar", "execute", "executar",
+                                     "teste", "testar", " run")):
+            return work
+        try:
+            from shared import exec_mode as _xm
+            if _xm.get_mode() in ("plan", "ask"):
+                return work + "\n\n[verify pulado: modo de execucao nao permite]"
+        except Exception:
+            return work
+        m = _re.search(r"```(?:python|py)\s*\n(.*?)```", work or "", _re.DOTALL)
+        if not m:
+            return work
+        code = m.group(1)
+        if not self._is_self_contained(code):
+            return work + ("\n\n[verify pulado: bloco nao auto-contido "
+                           "(dependencias/IO externos -- pode falhar por ambiente)]")
+        exit_code, stderr = self._run_sandboxed_python(code)
+        if exit_code == 0:
+            return work + "\n\n[verify: bloco auto-contido executou OK (exit=0)]"
+        return work + ("\n\n[verify: exit=%s. STDERR:\n%s\n(NAO auto-corrigido; "
+                       "pode ser ambiente)]" % (exit_code, (stderr or "")[:800]))
+
+    @staticmethod
+    def _is_self_contained(code: str) -> bool:
+        """True se o codigo so usa stdlib e nao faz IO de arquivo -- seguro p/
+        rodar no sandbox sem depender do ambiente do usuario."""
+        import re as _re
+        _STDLIB = {"math", "statistics", "json", "re", "itertools", "functools",
+                   "collections", "random", "datetime", "decimal", "fractions",
+                   "string", "textwrap", "heapq", "bisect", "operator"}
+        for ln in (code or "").splitlines():
+            mm = _re.match(r"\s*(?:import|from)\s+([a-zA-Z0-9_\.]+)", ln)
+            if mm and mm.group(1).split(".")[0] not in _STDLIB:
+                return False
+        if _re.search(r"\bopen\s*\(|\bPath\s*\(|read_csv|read_excel|np\.load|"
+                      r"requests\.|urllib|socket", code or ""):
+            return False
+        return True
+
+    @staticmethod
+    def _run_sandboxed_python(code: str):
+        """Roda `code` em subprocess ISOLADO (python -I), cwd tmp descartavel,
+        env minimo (best-effort sem rede), timeout curto. Retorna (exit, stderr).
+        ANTI-INJECTION: so deve ser chamado p/ codigo auto-contido (ver
+        _is_self_contained); nunca p/ codigo cuja origem inclua fonte externa."""
+        import os as _os
+        import shutil as _sh
+        import subprocess as _sp
+        import sys as _sys
+        import tempfile as _tf
+        tmp = _tf.mkdtemp(prefix="lilo_verify_")
+        src = _os.path.join(tmp, "snippet.py")
+        try:
+            with open(src, "w", encoding="utf-8") as fh:
+                fh.write(code)
+            env = {"PATH": _os.environ.get("PATH", ""),
+                   "PYTHONNOUSERSITE": "1", "no_proxy": "*"}
+            r = _sp.run([_sys.executable, "-I", src], cwd=tmp, env=env,
+                        capture_output=True, text=True, timeout=20,
+                        encoding="utf-8", errors="replace")
+            return r.returncode, r.stderr
+        except _sp.TimeoutExpired:
+            return 124, "timeout 20s"
+        except Exception as e:
+            return 1, str(e)
+        finally:
+            _sh.rmtree(tmp, ignore_errors=True)
 
     def _orchestrate_decision(self, query, use_cache=True):
         """Smart routing: Orchestrator emite JSON declarando stages.

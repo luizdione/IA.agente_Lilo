@@ -588,6 +588,17 @@ def list_all_tools():
     return tools
 
 
+# V15 FASE 4: tools SENSIVEIS (escrita/exec) p/ o gate central de handle_tool_call.
+# Tools de leitura/analise (scholar/prism_analyze/pdf/sql...) NAO entram. Default
+# exec_mode 'auto' -> gate e no-op; em plan/ask passam a ser confirmadas/bloqueadas.
+_TOOL_KIND = {
+    "create_agent_scaffold": "python",   # escreve agents/<x>/agent.py + py_compile
+    "make_report_docx": "write", "make_docx": "write",
+    "make_xlsx": "write", "make_pptx": "write",
+    "paper_build": "shell",              # roda bash assets/build.sh
+}
+
+
 def handle_tool_call(tool_name, arguments):
     """Executa uma tool MCP de forma centralizada. Retorna texto."""
     if tool_name == "lilo_health":
@@ -846,6 +857,19 @@ def handle_tool_call(tool_name, arguments):
     query = arguments.get("query", arguments.get("filter", ""))
     ctx = ctx_builder(arguments) if ctx_builder else {}
 
+    # V15 FASE 4: gate CENTRAL no orquestrador -- garante que plan/ask valem p/
+    # TODAS as tools sensiveis (write/exec), nao so o agente desktop. Default
+    # 'auto' -> gate retorna None (no-op, zero regressao).
+    _kind = _TOOL_KIND.get(tool_name)
+    if _kind:
+        try:
+            from shared import exec_mode as _xm
+            _g = _xm.gate(_kind, "%s %s" % (tool_name, str(arguments)[:120]))
+            if _g:
+                return _g
+        except Exception:
+            pass
+
     # V7 (2026-05-12): villa_explain_routing -- bypass de route()/policy
     # para nao logar custo nem invocar LLM completo. Chamamos diretamente
     # explain_routing() do agente Villa.
@@ -921,7 +945,34 @@ def main():
     if args.table:
         ctx["table"] = args.table
 
-    print(route(query, tab=tab, context=ctx))
+    # V15 FASE 4: contrato do CLI. Interativo (tty) sem LILO_EXEC_MODE definido
+    # -> 'ask' (confirma acoes sensiveis via stdin [y/N]). Nao-interativo
+    # (script/pipe) -> mantem o default p/ nao travar esperando input.
+    from shared import exec_mode as _xm
+    _interactive = bool(getattr(sys.stdin, "isatty", lambda: False)()
+                        and getattr(sys.stdout, "isatty", lambda: False)())
+    if _interactive and not os.getenv("LILO_EXEC_MODE"):
+        _xm.set_mode("ask")
+
+    resp = route(query, tab=tab, context=ctx)
+    while _xm.is_confirm(resp) and _interactive:
+        print(resp[len(_xm.CONFIRM_PREFIX):])
+        try:
+            ans = input("Confirmar e executar? [y/N] ").strip().lower()
+        except EOFError:
+            ans = "n"
+        if ans in ("y", "s", "sim", "yes"):
+            _xm.grant_once()
+            resp = route(query, tab=tab, context=ctx)
+        else:
+            resp = "[LILO] Acao cancelada pelo usuario."
+            break
+    if _xm.is_confirm(resp) and not _interactive:
+        # sem canal de confirmacao -> erro acionavel (nao trava)
+        resp = (resp[len(_xm.CONFIRM_PREFIX):]
+                + "\n\n[LILO] Sem terminal interativo para confirmar. Para uso "
+                "scriptado/nao-interativo, defina LILO_EXEC_MODE=auto.")
+    print(resp)
 
 
 if __name__ == "__main__":
