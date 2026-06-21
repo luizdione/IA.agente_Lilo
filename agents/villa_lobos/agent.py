@@ -783,6 +783,11 @@ class VillaLobosAgent(BaseAgent):
             stage_timings["reporter"] = round(time.time() - _t, 3)
             _emit("reporter", "done", int(stage_timings["reporter"] * 1000),
                   report_result)
+            # V15 FASE 3: verificacao de qualidade OPT-IN (juiz LLM -- custo
+            # afundado ja pronto). Gated por env LILO_QUALITY_CHECK + complexity
+            # p/ nao saturar a GPU; NUNCA bloqueia a entrega.
+            report_result = self._maybe_quality_check(
+                query, report_result, decision.get("complexity"))
 
             duration = time.time() - t0
             log.info("  Pipeline concluido em %.1fs (timings=%s)",
@@ -825,6 +830,48 @@ class VillaLobosAgent(BaseAgent):
             duration = time.time() - t0
             log.error("Pipeline falhou em %.1fs: %s", duration, e)
             return "## Villa Lobos -- Erro\n\n%s\n\nDuracao: %.1fs" % (e, duration)
+
+    def _maybe_quality_check(self, query, report, complexity):
+        """V15 FASE 3: verificacao OPT-IN do report final com o quality_judge.
+
+        Default DESLIGADO (LILO_QUALITY_CHECK=0) e so para complexity='complex'
+        -- cada verificacao e +1 chamada LLM (satura a RTX 3060). NUNCA bloqueia:
+        em qualquer falha devolve o report original. Se o escore ficar abaixo de
+        LILO_QUALITY_MIN (def 60), faz UMA refinada extra cobrindo as lacunas.
+        """
+        import os as _os
+        if _os.getenv("LILO_QUALITY_CHECK", "0").strip().lower() in (
+                "0", "false", "no", "off"):
+            return report
+        if (complexity or "").lower() != "complex":
+            return report
+        try:
+            from shared.quality_judge import judge_answer
+            domain = _detect_domain(query)
+            verdict = judge_answer(query, report, domain=domain)
+            total = verdict.get("total")
+            if total is None:
+                return report
+            try:
+                thr = int(_os.getenv("LILO_QUALITY_MIN", "60"))
+            except ValueError:
+                thr = 60
+            log.info("Quality check: total=%s (min=%s) dominio=%s",
+                     total, thr, domain)
+            if total >= thr:
+                return report
+            # UMA refinada: pede ao reporter cobrir as lacunas, sem inventar.
+            refine_prompt = (
+                "Melhore a RESPOSTA abaixo cobrindo as lacunas apontadas pela "
+                "avaliacao, preservando o que ja esta correto. NAO invente dados "
+                "nem referencias.\n\nPERGUNTA:\n%s\n\nLACUNAS (avaliacao): %s\n\n"
+                "RESPOSTA A MELHORAR:\n%s" % (
+                    query, verdict.get("justification", ""), report))
+            refined = self._call_agent("reporter", refine_prompt)
+            return refined or report
+        except Exception as e:
+            log.debug("quality check falhou: %s", e)
+            return report
 
     def _orchestrate_decision(self, query, use_cache=True):
         """Smart routing: Orchestrator emite JSON declarando stages.

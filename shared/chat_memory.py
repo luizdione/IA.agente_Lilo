@@ -163,6 +163,55 @@ class ChatMemory:
                 (chat_id,))
             return [dict(r) for r in cur.fetchall()]
 
+    def distill_facts(self, chat_id, max_facts=6, model=None):
+        """V15 FASE 3: destila FATOS DURAVEIS do historico (preferencias
+        estaveis, decisoes, caminhos, ferramentas) via Ollama BARATO e grava em
+        kv ns='user'. Prompt anti-invencao estrito (so o que aparece no
+        historico). Retorna a lista de fatos gravados. NB: usa Ollama -> GPU."""
+        import json as _json
+        import os as _os
+        import re as _re
+        msgs = self.get_messages(chat_id)
+        if not msgs:
+            return []
+        convo = "\n".join(
+            "%s: %s" % ("Usuario" if m["role"] == "user" else "LILO",
+                        m.get("content", ""))
+            for m in msgs)[:8000]
+        try:
+            from shared.llm_client import get_client, MODELS
+            cli = get_client()
+            mdl = model or _os.getenv("LILO_DISTILL_MODEL",
+                                      MODELS.get("autocomplete"))
+            prompt = (
+                "Extraia ate %d FATOS DURAVEIS sobre o usuario a partir do "
+                "historico (preferencias estaveis, decisoes, caminhos de "
+                "arquivos/projetos, ferramentas). Use SOMENTE o que aparece "
+                "LITERALMENTE no historico; NAO invente nem deduza. Ignore o "
+                "efemero. Responda APENAS JSON: "
+                '{"facts":[{"key":"snake_case_curto","value":"texto curto"}]}.'
+                "\n\nHISTORICO:\n%s" % (max_facts, convo))
+            raw = cli.chat(prompt,
+                           system="Extrator de fatos. Responda JSON valido. PT-BR.",
+                           model=mdl, temperature=0.1, max_tokens=512)
+            m = _re.search(r"\{.*\}", raw or "", _re.DOTALL)
+            facts = (_json.loads(m.group(0)).get("facts") if m else []) or []
+        except Exception:
+            return []
+        written = []
+        try:
+            from shared.kv_memory import get_memory
+            kv = get_memory()
+            for f in facts[:max_facts]:
+                k = str((f or {}).get("key", "")).strip()
+                v = str((f or {}).get("value", "")).strip()
+                if k and v:
+                    kv.set(k, v, ns="user", tags="distilled")
+                    written.append({"key": k, "value": v})
+        except Exception:
+            pass
+        return written
+
     def list_chats(self, project_id=None, limit=50):
         """Lista chats recentes, opcionalmente filtrados por projeto."""
         with sqlite3.connect(str(self.db_path)) as conn:
