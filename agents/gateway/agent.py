@@ -110,7 +110,19 @@ class GatewayAgent(BaseAgent):
             model = mode_model_map.get(mode, MODELS.get("chat"))
             self.log.info(f"Modelo selecionado para modo '{mode}': {model}")
 
-        system = system_prompts.get(mode, system_prompts["chat"])
+        # V15 FASE 0/1/2: consome ctx['system_hint'] (antes IGNORADO -> canal
+        # morto), injeta honestidade/seguranca e o eixo de estilo. Tudo via
+        # compose_system (respeita o kill-switch LILO_PROMPT_BLOCKS).
+        from shared.prompt_blocks import compose_system
+        try:
+            from shared.response_style import get_style_block
+            _style = get_style_block(context.get("response_style"))
+        except Exception:
+            _style = ""
+        system = compose_system(
+            system_prompts.get(mode, system_prompts["chat"]),
+            hint=context.get("system_hint", "") or "",
+            style_block=_style, security=True, stage="output")
 
         try:
             return self.llm.chat(query, system=system, model=model, temperature=temp)
