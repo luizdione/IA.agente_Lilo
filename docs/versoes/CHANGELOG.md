@@ -1,5 +1,35 @@
 # LILO — Changelog
 
+## v12.0 — 2026-06-20 (V15: aproximacao ao Claude Code/Cowork, FASES 0-4)
+
+Plano gerado por workflow multiagente (3 specs de referencia + mapa da raiz do
+LILO + gap analysis + critica adversarial). Diagnostico: o LILO ja tinha o
+ESQUELETO (exec-modes, pipeline agentico, memoria, quality_judge) mas
+DESCONECTADO. A V15 LIGA a fiacao. **Tudo aditivo e default-safe** (kill-switch
+`LILO_PROMPT_BLOCKS`; estilo/judge/verify default desligados). Detalhes e status
+em `docs/ROADMAP_claude_alignment.md`.
+
+- **FASE 0** -- religa canais mortos: `shared/prompt_blocks.py` (HONESTY_CORE/MINI
+  + kill-switch + compose_system com orcamento de tokens por estagio); gateway
+  consome `system_hint` (era ignorado); memoria de turno no chat do dashboard.
+- **FASE 1** -- seguranca: gate de git (`git_write`, sensivel ate em 'auto', grant
+  ESCOPADO ao cmd -> never-commit-unless-asked); SECURITY_BLOCK (recusa
+  proporcional) nas saidas.
+- **FASE 2** -- eixo de ESTILO: `config/styles.yaml` (default/conciso/didatico/
+  formal, com nao-degradacao + escape) + `shared/response_style.py` (hot-reload);
+  ligado so nas saidas (gateway/reporter); seletor no dashboard; cot_suffix
+  deixou de empurrar verbosidade na resposta final.
+- **FASE 3** -- verificacao + memoria: `quality_judge` opt-in pos-Reporter
+  (gated, nunca bloqueia); revival do `owner_verified` (injeta memoria do dono
+  como DADO, anti prompt-injection); `chat_memory.distill_facts` (destila fatos
+  do historico p/ kv ns=user).
+- **FASE 4** (partes seguras) -- gate CENTRAL no orquestrador (plan/ask valem p/
+  todas as tools write/exec, nao so o desktop); contrato do CLI (ask+stdin
+  interativo / auto scriptado); estagio VERIFY default-OFF (sandbox isolado,
+  so codigo auto-contido, sem auto-correcao).
+- **Medicao:** `scripts/bench_prompts.py` (A/B over-refusal/verbosidade/
+  confabulacao). **Adiado:** refator exec_mode global->por-sessao + plano-aprovavel.
+
 ## v11.6 — 2026-06-19 (2ª auditoria investigativa + corretiva)
 
 Segunda passada de auditoria (estática + manual) sobre o código do projeto.
