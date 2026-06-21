@@ -82,6 +82,17 @@ DANGEROUS_PATTERNS = [
     r"\breboot\b",
 ]
 
+# V15 FASE 1: escrita em git NAO e "perigosa" (nao bloqueia), mas e SENSIVEL ->
+# never-commit-unless-asked. Passa por exec_mode.gate('git_write') com grant
+# escopado, sensivel ate no modo 'auto'. Protege manuscritos (skill git_dione)
+# de push acidental.
+GIT_WRITE_PATTERNS = [
+    r"\bgit\s+(commit|push)\b",
+    r"\bgit\b.*\s--force\b",
+    r"\bgit\s+reset\s+--hard\b",
+    r"\bgit\s+clean\s+-[a-zA-Z]*f",
+]
+
 
 def _is_path_allowed(path: Path) -> tuple[bool, str]:
     """Retorna (ok, motivo)."""
@@ -104,6 +115,13 @@ def _is_path_allowed(path: Path) -> tuple[bool, str]:
 
 def _is_cmd_dangerous(cmd: str) -> Optional[str]:
     for pat in DANGEROUS_PATTERNS:
+        if re.search(pat, cmd, re.IGNORECASE):
+            return pat
+    return None
+
+
+def _is_git_write(cmd: str) -> Optional[str]:
+    for pat in GIT_WRITE_PATTERNS:
         if re.search(pat, cmd, re.IGNORECASE):
             return pat
     return None
@@ -262,10 +280,17 @@ def run_shell(cmd: str, cwd: Optional[str] = None, timeout: int = 60) -> str:
     if danger:
         return f"[ERRO] comando perigoso bloqueado (pattern: {danger})"
     # V14: shell e acao de RISCO -> sujeita aos modos (plan/ask confirmam/bloqueiam).
+    # V15 FASE 1: git commit/push/reset/--force usam o gate 'git_write' (sensivel
+    # ate em 'auto', grant escopado ao cmd) -> never-commit-unless-asked.
     from shared import exec_mode as _xm
-    _g = _xm.gate("shell", cmd)
-    if _g:
-        return _g
+    if _is_git_write(cmd):
+        _gg = _xm.gate("git_write", cmd, token=_xm.scope_token(cmd))
+        if _gg:
+            return _gg
+    else:
+        _g = _xm.gate("shell", cmd)
+        if _g:
+            return _g
     if cwd:
         ok, why = _is_path_allowed(Path(cwd))
         if not ok:
