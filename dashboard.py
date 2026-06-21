@@ -1562,6 +1562,11 @@ with main_col:
                     st.session_state.current_chat_id = memory.new_chat(
                         title=prompt[:60], subagent="chat",
                         project_id=st.session_state.current_project)
+                # V15 FASE 0: memoria de turno no chat do dashboard (paridade com
+                # a API HTTP). Carrega o historico ANTES de gravar a msg atual,
+                # senao o prompt do turno entraria duplicado (historico + query).
+                _conv_hist = memory.get_chat_context(
+                    st.session_state.current_chat_id, max_messages=12)
                 memory.add_message(st.session_state.current_chat_id, "user", prompt)
 
                 with st.chat_message("assistant"):
@@ -1572,6 +1577,10 @@ with main_col:
                             # do gateway so e setado no override (ver abaixo);
                             # em "Auto" o roteador semantico decide o subagente.
                             ctx = {}
+                            # V15 FASE 0: memoria de turno (truncada p/ Ollama
+                            # pequeno). route() prefixa os turnos anteriores.
+                            if _conv_hist:
+                                ctx["conversation_history"] = _conv_hist[-3000:]
                             # V14: modo de EXECUCAO (plan/ask/accept_edits/auto).
                             # O gating fino (confirmar/bloquear acoes de risco) e
                             # feito por shared.exec_mode no subagente desktop; aqui

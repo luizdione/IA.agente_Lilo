@@ -104,7 +104,10 @@ class LLMClient:
         Envia prompt e retorna resposta em texto.
         """
         if system is None:
-            system = DEFAULT_SYSTEM
+            # V15 FASE 0: honestidade no fallback (so quando o caller nao traz
+            # system proprio). Respeita o kill-switch LILO_PROMPT_BLOCKS.
+            from .prompt_blocks import compose_system
+            system = compose_system(DEFAULT_SYSTEM, stage="output")
 
         # Roteamento por tier (Policy Engine)
         # Atualizado 2026-05-07 -- Claude 4.5/4.6 (configuravel via .env).

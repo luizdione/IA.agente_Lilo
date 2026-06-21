@@ -1144,7 +1144,23 @@ class VillaLobosAgent(BaseAgent):
                 self, "_cur_code_intent", False):
             model = VILLA_WORKER_GENERAL_MODEL
         effective_tier = tier or DEFAULT_STAGE_TIERS.get(role, "ollama")
-        system = EXPERT_SYSTEM.format(role=role)
+        # V15 FASE 0/1/2: honestidade/seguranca/estilo via compose_system.
+        # Orcamento de tokens: bloco COMPLETO so no 'reporter' (saida ao
+        # usuario); estagios de raciocinio recebem so honestidade 'mini'.
+        # O estilo (FASE 2) e resolvido de self._cur_response_style se houver.
+        from shared.prompt_blocks import compose_system
+        _is_out = (role == "reporter")
+        _style = ""
+        if _is_out:
+            try:
+                from shared.response_style import get_style_block
+                _style = get_style_block(getattr(self, "_cur_response_style", None))
+            except Exception:
+                _style = ""
+        system = compose_system(
+            EXPERT_SYSTEM.format(role=role),
+            style_block=_style, security=_is_out,
+            stage="output" if _is_out else "reasoning")
         last_error = None
         result_text = None
         backend_label = "ollama"
