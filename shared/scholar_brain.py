@@ -21,9 +21,9 @@ SCHOLAR_HOME = os.environ.get("SCHOLARAGENT_HOME", _DEFAULT_HOME)
 def _ensure_path() -> None:
     if os.path.isdir(SCHOLAR_HOME) and SCHOLAR_HOME not in sys.path:
         sys.path.insert(0, SCHOLAR_HOME)
-    # A base vetorial fica em <SCHOLAR_HOME>/brain_data; fixa em caminho ABSOLUTO
-    # para nao depender do CWD do LILO. setdefault respeita override explicito.
-    os.environ.setdefault("SCHOLAR_BRAIN_DIR", os.path.join(SCHOLAR_HOME, "brain_data"))
+    # A base vetorial multilingue fica em <SCHOLAR_HOME>/brain_data_ml; fixa em caminho
+    # ABSOLUTO para nao depender do CWD do LILO. setdefault respeita override explicito.
+    os.environ.setdefault("SCHOLAR_BRAIN_DIR", os.path.join(SCHOLAR_HOME, "brain_data_ml"))
 
 
 def is_available() -> tuple[bool, str]:
