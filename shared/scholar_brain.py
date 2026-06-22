@@ -24,11 +24,16 @@ def _components():
     from scholaragent.brain.embedder import Embedder
     from scholaragent.brain.vector_store import BrainStore
     from scholaragent.chat.rag_chain import ScholarRAG
-    from scholaragent.verify import build_grounder, VerificationGate, evidence_from_rag
+    from scholaragent.verify import (build_grounder, VerificationGate,
+                                     evidence_from_rag, BgeReranker)
     store = BrainStore()
     embedder = Embedder()
-    rag = ScholarRAG(store, embedder)
-    gate = VerificationGate(build_grounder(store, embedder, use_reranker=True))
+    try:
+        reranker = BgeReranker()          # uma instância: compartilhada recuperação + gate
+    except Exception:
+        reranker = None
+    rag = ScholarRAG(store, embedder, reranker=reranker)          # rerank na RECUPERAÇÃO
+    gate = VerificationGate(build_grounder(store, embedder, reranker=reranker))
     return store, rag, gate, evidence_from_rag
 
 
