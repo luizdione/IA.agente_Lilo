@@ -1294,9 +1294,12 @@ class VillaLobosAgent(BaseAgent):
                 _style = get_style_block(getattr(self, "_cur_response_style", None))
             except Exception:
                 _style = ""
+        # V15.1: SECURITY_BLOCK DESLIGADO (security=False) -- gerava over-refusal
+        # em queries cientificas legitimas (bio/quimica/MD) nos modelos locais.
+        # never-commit fica no GATE de git (codigo), nao no prompt.
         system = compose_system(
             EXPERT_SYSTEM.format(role=role),
-            style_block=_style, security=_is_out,
+            style_block=_style, security=False,
             stage="output" if _is_out else "reasoning")
         last_error = None
         result_text = None

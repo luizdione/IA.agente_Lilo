@@ -119,10 +119,15 @@ class GatewayAgent(BaseAgent):
             _style = get_style_block(context.get("response_style"))
         except Exception:
             _style = ""
+        # V15.1: SECURITY_BLOCK DESLIGADO (security=False) -- causava
+        # over-refusal grave em modelos locais pequenos (ex.: recusar "descreva
+        # uma dinamica molecular" como se fosse "substancia perigosa"). Para um
+        # app pessoal de um PhD em bio, o filtro era net-negativo. O never-commit
+        # segue garantido pelo GATE de git no codigo (nao depende do prompt).
         system = compose_system(
             system_prompts.get(mode, system_prompts["chat"]),
             hint=context.get("system_hint", "") or "",
-            style_block=_style, security=True, stage="output")
+            style_block=_style, security=False, stage="output")
 
         try:
             return self.llm.chat(query, system=system, model=model, temperature=temp)

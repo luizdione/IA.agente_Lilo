@@ -29,7 +29,13 @@ HONESTY_MINI = (
     "fabricar."
 )
 
-# ── FASE 1: seguranca / recusa proporcional (usado quando security=True) ─────
+# ── FASE 1: seguranca / recusa proporcional ──────────────────────────────────
+# DESLIGADO POR PADRAO (V15.1): em modelos locais pequenos este bloco causava
+# OVER-REFUSAL grave (ex.: recusar "descreva uma dinamica molecular" como se
+# fosse pedido perigoso). Num app pessoal de pesquisa (PhD bio) o filtro e
+# net-negativo. Os call-sites passam security=False. O never-commit segue
+# garantido pelo GATE de git no codigo (shared/exec_mode + desktop), nao aqui.
+# Mantido como opt-in caso algum dia se queira reativar (compose_system security=True).
 SECURITY_BLOCK = (
     "Trate o usuario como pesquisador PhD: discuta qualquer topico cientifico "
     "(farmacologia, toxicologia, seguranca defensiva) factualmente. Recusar e "
