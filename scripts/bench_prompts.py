@@ -155,6 +155,9 @@ def main():
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--arms", default="base,blocks,concise",
                    help="arms separados por virgula (%s)" % ",".join(ARMS))
+    p.add_argument("--repeat", type=int, default=1,
+                   help="repete cada query N vezes e MEDIA (reduz variancia do "
+                        "modelo pequeno; default 1)")
     p.add_argument("--judge", action="store_true", help="pontua com quality_judge")
     p.add_argument("--dry-run", action="store_true",
                    help="so imprime o plano (NAO chama LLM / NAO usa GPU)")
@@ -189,14 +192,15 @@ def main():
         os.environ.pop("LILO_RESPONSE_STYLE", None)
         for k, v in ARMS[arm].items():
             os.environ[k] = v
-        print("\n--- arm: %s ---" % arm)
+        print("\n--- arm: %s (repeat=%d) ---" % (arm, max(1, args.repeat)))
         recs = []
-        for q in QUERIES:
-            rec = _run_one(q, args.judge)
-            recs.append(rec)
-            print("  %-10s %-9s tok=%-4d refus=%-5s fab=%-5s %ss" % (
-                rec["id"], rec["category"], rec["tokens_out"],
-                rec["refusal"], rec["fabricated_id"], rec["seconds"]))
+        for _rep in range(max(1, args.repeat)):
+            for q in QUERIES:
+                rec = _run_one(q, args.judge)
+                recs.append(rec)
+                print("  %-10s %-9s tok=%-4d refus=%-5s fab=%-5s %ss" % (
+                    rec["id"], rec["category"], rec["tokens_out"],
+                    rec["refusal"], rec["fabricated_id"], rec["seconds"]))
         results["arms"][arm] = recs
         summ = _summarize(arm, recs)
         results["summaries"].append(summ)
