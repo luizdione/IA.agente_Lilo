@@ -34,6 +34,16 @@ if _MODE not in MODES:
 _GRANT = False  # autorização one-shot concedida pelo usuário
 _SCOPED_GRANTS: set = set()  # grants one-shot ESCOPADOS por token (hash do cmd)
 
+# V15 (deferred): PLANO APROVAVEL (estilo Claude Code "plan -> revisar -> aprovar
+# -> executar"). No modo 'plan', cada acao bloqueada e ACUMULADA aqui; o usuario
+# revisa o plano inteiro e aprova de uma vez (approve_plan) em vez de confirmar
+# acao-a-acao. Estado de processo (single-user); a isolacao multi-sessao via
+# ContextVar foi avaliada e descartada -- risco de quebrar o rerun do Streamlit
+# sem beneficio real p/ um app pessoal, e o vazamento de grant do git ja e
+# evitado pelos grants ESCOPADOS (scope_token/grant_scoped).
+_PENDING_PLAN: list = []   # [{kind, preview}] acumulado no modo plan
+_PLAN_APPROVED = False     # quando True, o modo plan passa a EXECUTAR
+
 
 def set_mode(mode: str) -> str:
     global _MODE
@@ -67,6 +77,33 @@ def grant_scoped(token: str) -> None:
         _SCOPED_GRANTS.add(token)
 
 
+def _record_plan(kind: str, preview: str) -> None:
+    """Acumula uma acao bloqueada no plano (modo plan), sem duplicar a ultima."""
+    item = {"kind": kind, "preview": (preview or "")[:300]}
+    if not _PENDING_PLAN or _PENDING_PLAN[-1] != item:
+        _PENDING_PLAN.append(item)
+
+
+def pending_plan() -> list:
+    """Acoes acumuladas no modo plan (para o dashboard exibir e aprovar)."""
+    return list(_PENDING_PLAN)
+
+
+def clear_plan() -> None:
+    """Zera o plano acumulado e a aprovacao (chamar a cada novo prompt)."""
+    global _PLAN_APPROVED
+    _PENDING_PLAN.clear()
+    _PLAN_APPROVED = False
+
+
+def approve_plan() -> None:
+    """Aprova o plano: as proximas chamadas de gate() no modo plan EXECUTAM
+    (o dashboard reenvia o mesmo prompt apos isto). Cobre tambem git_write
+    listado no plano (o usuario ja viu e aprovou)."""
+    global _PLAN_APPROVED
+    _PLAN_APPROVED = True
+
+
 def _is_risk(kind: str) -> bool:
     # write dentro da allow-list NÃO é "risco" pela política; o desktop sinaliza
     # escrita fora da allow-list como "write_outside". git_write (commit/push) e
@@ -95,6 +132,9 @@ def gate(kind: str, preview: str = "", *, token: str = None) -> str | None:
             _GRANT = False
             return None
         if mode == "plan":
+            if _PLAN_APPROVED:        # plano revisado e aprovado -> executa
+                return None
+            _record_plan(kind, preview)
             return (BLOCK_PREFIX + "Modo PLANEJAMENTO: git nao executado "
                     "(commit/push).\nPrévia: %s" % preview[:300])
         return (CONFIRM_PREFIX + "git altera o repo (commit/push/reset). "
@@ -103,9 +143,12 @@ def gate(kind: str, preview: str = "", *, token: str = None) -> str | None:
     if mode == "auto":
         return None
     if mode == "plan":
-        # planejamento: nada de escrita/exec.
+        if _PLAN_APPROVED:            # plano revisado e aprovado -> executa
+            return None
+        # planejamento: acumula a acao no plano e nao executa.
+        _record_plan(kind, preview)
         return (BLOCK_PREFIX + "Modo PLANEJAMENTO: a ação '%s' não foi "
-                "executada. Troque para Automático/Aceitar edições para "
+                "executada (acumulada no plano). Aprove o plano para "
                 "executar.\nPrévia: %s" % (kind, preview[:300]))
     # ask / accept_edits
     if mode == "accept_edits" and kind == "write":

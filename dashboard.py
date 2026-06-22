@@ -1489,7 +1489,16 @@ with main_col:
         # V14: reenvio automatico apos o usuario CONFIRMAR uma acao de risco
         # (o grant one-shot ja foi concedido pelo botao "Confirmar e executar").
         _resend = st.session_state.pop("_resend_text", None)
-        prompt = st.chat_input(_placeholder) or _resend
+        _typed = st.chat_input(_placeholder)
+        prompt = _typed or _resend
+        # V15: prompt NOVO (digitado) zera o plano acumulado; reenvio (pos
+        # confirm/aprovacao) preserva o estado de aprovacao do plano.
+        if _typed:
+            try:
+                from shared import exec_mode as _xpl
+                _xpl.clear_plan()
+            except Exception:
+                pass
 
         if prompt:
             # Slash command: listar ou executar skill
@@ -1688,6 +1697,25 @@ with main_col:
                             _xmd.grant_once()
                             st.session_state["_resend_text"] = prompt
                             st.rerun()
+                    elif _is_blk:
+                        # V15: PLANO APROVAVEL -- mostra as acoes acumuladas no
+                        # modo plan e permite aprovar TUDO de uma vez (reenvia o
+                        # mesmo prompt com o plano aprovado -> executa).
+                        try:
+                            _plan = _xmd.pending_plan()
+                        except Exception:
+                            _plan = []
+                        if _plan:
+                            st.caption("Plano (%d ação(ões) pendente(s)):" % len(_plan))
+                            st.markdown("\n".join(
+                                "%d. `%s` — %s" % (i + 1, p["kind"],
+                                                   (p["preview"] or "")[:120])
+                                for i, p in enumerate(_plan)))
+                            if st.button("✅ Aprovar plano e executar",
+                                         key="approve_plan_btn"):
+                                _xmd.approve_plan()
+                                st.session_state["_resend_text"] = prompt
+                                st.rerun()
                     # Auto-update das notas do projeto apos cada turno
                     # (Task 4) — sem gastar tokens (resumo heuristico).
                     if st.session_state.current_project:
