@@ -51,8 +51,9 @@ def _components():
     store = BrainStore()
     embedder = Embedder()
     rag = ScholarRAG(store, embedder)
-    # reranker desligado por padrao (FlagEmbedding e a dep mais pesada; cai p/ tokens)
-    gate = VerificationGate(build_grounder(store, embedder, use_reranker=False))
+    # reranker ligado (cross-encoder multilingue leve) -> evidencia melhor p/ o gate;
+    # se o modelo nao carregar, build_grounder cai p/ triagem por tokens.
+    gate = VerificationGate(build_grounder(store, embedder, use_reranker=True))
     return store, rag, gate, evidence_from_rag
 
 
