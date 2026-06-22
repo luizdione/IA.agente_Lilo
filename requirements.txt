@@ -18,6 +18,10 @@ pandas>=2.1.0
 PyMuPDF>=1.23.0
 pdfminer.six>=20221105
 
+# RAG / ScholarAgent (biblioteca local de papers — pacote scholaragent/ na raiz)
+chromadb>=0.5
+sentence-transformers>=3.0
+
 # sqlite3 já vem com Python — nenhum pacote extra necessário
 
 # MCP (Model Context Protocol — PyCharm + Claude Desktop)

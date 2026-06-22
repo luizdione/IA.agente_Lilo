@@ -99,6 +99,11 @@ data/docgen/
 # Biometria de voz (voiceprint do dono) - NAO versionar
 data/voiceprint/
 
+# ScholarAgent: base vetorial local (RAG) — centenas de MB, NUNCA versionar
+data/scholar_brain/
+scholaragent/brain_data*/
+audit/
+
 # Configs com credenciais (fora do git; ver *.example)
 config.yaml
 config/litellm_config.yaml
