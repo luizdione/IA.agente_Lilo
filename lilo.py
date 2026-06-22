@@ -294,20 +294,6 @@ def route(query, tab=None, context=None):
     )
     policy.record_cost(decision.estimated_cost)
 
-    # Salvar no Obsidian (se configurado)
-    try:
-        from shared.obsidian import save_lilo_run
-        save_lilo_run(
-            query=query, subagent=target, result=result,
-            tier=decision.tier.value, model=decision.model or "",
-            cost_usd=decision.estimated_cost, duration_ms=duration,
-        )
-    except Exception as _obs_err:
-        # Obsidian eh opcional; nao quebra a resposta. Mas registrar em DEBUG
-        # evita "silent failure" (V11.2): falhas de path/permissao ficavam
-        # invisiveis. Use LILO_LOG_LEVEL=DEBUG para diagnosticar.
-        log.debug("Obsidian save ignorado: %s", _obs_err)
-
     return result
 
 
