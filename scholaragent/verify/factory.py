@@ -16,18 +16,19 @@ def build_grounder(store=None, embedder=None, *,
                    model: str = LLM_MODEL,
                    reranker_model: str = RERANKER_MODEL,
                    ollama_url: str = LLM_URL,
-                   use_reranker: bool = True) -> Grounder:
+                   use_reranker: bool = True,
+                   reranker=None) -> Grounder:
     """Grounder pronto para produção: juiz NLI local + reranker local + re-busca opcional.
 
-    Se o FlagEmbedding não estiver instalado (ou use_reranker=False), o Grounder
-    funciona sem reranker: a triagem cai para sobreposição de tokens (Jaccard).
+    Se um `reranker` pré-construído for passado, ele é reutilizado (evita carregar o
+    modelo duas vezes quando recuperação e gate compartilham o reranker). Sem reranker
+    (use_reranker=False ou falha de carga), a triagem cai para sobreposição de tokens.
     """
-    reranker = None
-    if use_reranker:
+    if reranker is None and use_reranker:
         try:
             reranker = BgeReranker(reranker_model)
         except Exception:
-            reranker = None   # FlagEmbedding ausente -> triagem por tokens
+            reranker = None   # modelo indisponível -> triagem por tokens
     return Grounder(
         judge=make_ollama_judge(url=ollama_url, model=model),
         reranker=reranker,

@@ -11,19 +11,30 @@ from ..config import LLM_URL as OLLAMA_URL, LLM_MODEL as DEFAULT_MODEL
 
 class ScholarRAG:
     def __init__(self, store, embedder, ollama_fn=None,
-                 model: str = DEFAULT_MODEL, url: str = OLLAMA_URL):
+                 model: str = DEFAULT_MODEL, url: str = OLLAMA_URL,
+                 reranker=None, fetch_k: int | None = None):
         self.store = store
         self.embedder = embedder
         self.model = model
         self.url = url
         self._ollama_fn = ollama_fn        # injetável p/ testes
+        self.reranker = reranker           # se dado, reordena os candidatos antes do LLM
+        self.fetch_k = fetch_k             # nº de candidatos buscados p/ reranquear
 
     def ask(self, question: str, n_chunks: int = 8, year_filter: int | None = None) -> dict:
         q_emb = self.embedder.embed_query(question)
         where = {"year": str(year_filter)} if year_filter else None
-        results = self.store.query(q_emb, n_results=n_chunks, where=where)
+        # com reranker, busca MAIS candidatos e reordena por relevância antes do LLM
+        k = (self.fetch_k or max(n_chunks * 3, n_chunks)) if self.reranker else n_chunks
+        results = self.store.query(q_emb, n_results=k, where=where)
         chunks = results["documents"][0]
         metas = results["metadatas"][0]
+        if self.reranker and chunks:
+            order = sorted(range(len(chunks)),
+                           key=lambda j: self.reranker.score(question, chunks[j]),
+                           reverse=True)[:n_chunks]
+            chunks = [chunks[j] for j in order]
+            metas = [metas[j] for j in order]
         if not chunks:
             return {"answer": "Nenhum paper relevante encontrado na biblioteca.",
                     "refs": [], "chunks": [], "metas": []}
