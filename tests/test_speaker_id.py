@@ -36,8 +36,9 @@ def test_available(sid):
 
 
 def test_embedding_shape(sid, tmp_path):
+    # V14.6: embedding passou de 80 -> 120 dims (MFCC mean/std + delta + delta2).
     emb = sid.embedding(_synth(tmp_path / "a.wav", [300, 2200, 2900], seed=1))
-    assert emb is not None and emb.shape == (80,)
+    assert emb is not None and emb.shape == (120,)
 
 
 def test_enroll_and_verify_owner(sid, tmp_path):
