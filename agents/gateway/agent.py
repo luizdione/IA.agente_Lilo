@@ -8,6 +8,7 @@ Movido em 2026-05-06 (arch-v10) de llm-gateway/agent.py para agents/gateway/agen
 para uniformizar com os demais subagentes.
 """
 
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,20 @@ from shared.llm_client import get_client
 from shared.utils import load_env, sanitize_query, truncate
 
 load_env()
+
+# V15.1: perguntas CONCEITUAIS/definicionais ("o que e", "descreva", "explique"
+# ...) nao precisam do modelo pesado de dominio (ex.: phi3:14b do bioinfo) ->
+# preferem o leve (llama3.1:8b), bem mais rapido. So aplica quando o usuario nao
+# pediu um modelo explicito.
+_CONCEPTUAL_RE = re.compile(
+    r"\b(o que (e|é|sao|são)|defina|defini[cç][aã]o|descreva|descri[cç][aã]o|"
+    r"explique|explica[cç][aã]o|resuma|resumo|conceito|o que significa|"
+    r"diferen[cç]a entre|como funciona|para que serve|what is|define|explain|"
+    r"describe|summar)", re.IGNORECASE)
+
+
+def _is_conceptual(query: str) -> bool:
+    return bool(_CONCEPTUAL_RE.search(query or ""))
 
 
 class GatewayAgent(BaseAgent):
@@ -108,7 +123,16 @@ class GatewayAgent(BaseAgent):
         }
         if model is None:
             model = mode_model_map.get(mode, MODELS.get("chat"))
-            self.log.info(f"Modelo selecionado para modo '{mode}': {model}")
+            # V15.1: pergunta CONCEITUAL em modo pesado (bioinfo/code) -> usa o
+            # modelo LEVE (chat), ~2x mais rapido, sem perder qualidade em
+            # definicoes/descricoes. Geracao de codigo/analise profunda (sem
+            # gatilho conceitual) mantem o modelo do dominio.
+            if mode in ("bioinfo", "code") and _is_conceptual(query):
+                model = MODELS.get("chat")
+                self.log.info(
+                    f"Pergunta conceitual em '{mode}' -> modelo leve: {model}")
+            else:
+                self.log.info(f"Modelo selecionado para modo '{mode}': {model}")
 
         # V15 FASE 0/1/2: consome ctx['system_hint'] (antes IGNORADO -> canal
         # morto), injeta honestidade/seguranca e o eixo de estilo. Tudo via
