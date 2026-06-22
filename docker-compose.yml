@@ -14,10 +14,21 @@
 #
 # GPU: o serviço ollama declara reserva NVIDIA; em máquinas sem GPU,
 # comente o bloco `deploy.resources` (Ollama roda em CPU).
+#
+# OLLAMA -- NATIVO (default) vs CONTAINERIZADO (opt-in)  [V15, 2026-06-21]
+# ----------------------------------------------------------------------
+# Se voce ja roda o Ollama NATIVO do Windows na porta 11434 (caso padrao
+# desta maquina), NAO suba um segundo Ollama em container -- daria conflito de
+# porta ("ports are not available ... 11434"). Por isso o servico `ollama`
+# abaixo fica atras do profile `with-ollama` (NAO sobe por padrao); litellm e
+# lilo_api falam com o Ollama do HOST via host.docker.internal:11434.
+#   Default (usa Ollama nativo do host):   docker compose up -d --build
+#   Maquina SEM Ollama nativo (sobe tudo): docker compose --profile with-ollama up -d --build
 
 services:
-  # ── Ollama — motor LLM local ──────────────────────────────────────────────
+  # ── Ollama — motor LLM local (OPT-IN; so em maquinas sem Ollama nativo) ────
   ollama:
+    profiles: ["with-ollama"]   # nao sobe por padrao -> evita conflito na 11434
     build:
       context: ./ollama-service
       dockerfile: Dockerfile
@@ -54,9 +65,12 @@ services:
       - "4000:4000"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-    depends_on:
-      ollama:
-        condition: service_healthy
+      # Ollama do host por padrao; --profile with-ollama -> http://ollama:11434
+      - OLLAMA_API_BASE=${LILO_DOCKER_OLLAMA_HOST:-http://host.docker.internal:11434}
+    # Sem depends_on de 'ollama' (default usa o Ollama NATIVO do host). O
+    # api_base do litellm_config.docker.yaml aponta p/ host.docker.internal.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - lilo_net
     restart: unless-stopped
@@ -75,7 +89,10 @@ services:
       - "8000:8000"
     environment:
       - PYTHONPATH=/app
-      - OLLAMA_HOST=http://ollama:11434
+      # Default: Ollama NATIVO do host (host.docker.internal). Para usar o
+      # Ollama containerizado, suba com --profile with-ollama E troque por
+      # http://ollama:11434.
+      - OLLAMA_HOST=${LILO_DOCKER_OLLAMA_HOST:-http://host.docker.internal:11434}
       - LITELLM_PROXY_URL=http://litellm:4000
       - LILO_SERVER_PROFILE=${LILO_SERVER_PROFILE:-desktop_dev}
       # DB de custos fora do bind-mount sincronizado (evita disk I/O error):
@@ -83,10 +100,10 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - LILO_API_TOKEN=${LILO_API_TOKEN:-}
     depends_on:
-      ollama:
-        condition: service_healthy
       litellm:
         condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
       interval: 30s
