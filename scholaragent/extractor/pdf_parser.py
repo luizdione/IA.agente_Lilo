@@ -22,6 +22,7 @@ class ExtractedPaper:
     abstract: str = ""
     full_text: str = ""
     n_pages: int = 0
+    title_guess: str = ""   # melhor palpite de título (maior fonte da pág. 1)
 
 
 def extract_pdf(paper_file) -> ExtractedPaper:
@@ -32,6 +33,7 @@ def extract_pdf(paper_file) -> ExtractedPaper:
         full_text = "\n".join(page.get_text() for page in doc)
         meta = doc.metadata or {}
         n_pages = len(doc)
+        title_guess = _title_from_fonts(doc[0]) if n_pages else ""
     finally:
         doc.close()
     return ExtractedPaper(
@@ -41,7 +43,30 @@ def extract_pdf(paper_file) -> ExtractedPaper:
         doi=extract_doi(full_text[:3000]),
         full_text=full_text,
         n_pages=n_pages,
+        title_guess=title_guess,
     )
+
+
+def _title_from_fonts(page) -> str:
+    """Maior fonte na metade superior da página 1 — costuma ser o título."""
+    try:
+        data = page.get_text("dict")
+        h = page.rect.height or 1000
+    except Exception:
+        return ""
+    spans = []
+    for blk in data.get("blocks", []):
+        for ln in blk.get("lines", []):
+            for sp in ln.get("spans", []):
+                txt = (sp.get("text") or "").strip()
+                y = sp.get("bbox", [0, 0, 0, 0])[1]
+                if txt and len(txt) >= 3 and y < h * 0.5:
+                    spans.append((round(sp.get("size", 0.0), 1), y, txt))
+    if not spans:
+        return ""
+    top = max(s[0] for s in spans)
+    parts = sorted((s for s in spans if s[0] >= top - 0.5), key=lambda s: s[1])
+    return " ".join(t for _, _, t in parts).strip()[:300]
 
 
 def extract_doi(text: str) -> str:
