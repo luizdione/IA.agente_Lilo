@@ -1,5 +1,22 @@
 # LILO — Changelog
 
+## v12.1 — 2026-06-22 (V15.1: corrige over-refusal + latencia + roteamento leve)
+
+Ajustes após uso real (feedback do autor: recusa absurda + lentidão).
+
+- **SECURITY_BLOCK DESLIGADO** (`security=False` no gateway e Villa): causava
+  over-refusal grave em modelos locais — recusou "descreva uma dinâmica
+  molecular" como "substância perigosa". App pessoal de PhD em bio não deve
+  filtrar trabalho científico legítimo; never-commit fica no GATE de git (código).
+- **CoT opcional** (`chat(cot=False)`): o gateway (Q&A de turno único) pula o
+  bloco `<thinking>` → resposta direta, ~2.4× mais rápida (96s→40s na query do
+  bug). O pipeline Villa mantém o CoT para qualidade.
+- **Roteamento conceitual → modelo leve**: perguntas definicionais/descritivas
+  ("o que é", "descreva", "explique"…) em modo bioinfo/code passam a usar o
+  `llama3.1:8b` (leve) em vez do `phi3:14b`/coder — sem perder qualidade em
+  definições, bem mais rápido. Geração de código/análise profunda mantém o
+  modelo do domínio; modelo explícito sempre tem prioridade.
+
 ## v12.0 — 2026-06-20 (V15: aproximacao ao Claude Code/Cowork, FASES 0-4)
 
 Plano gerado por workflow multiagente (3 specs de referencia + mapa da raiz do
