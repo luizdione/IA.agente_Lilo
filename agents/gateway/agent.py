@@ -130,7 +130,10 @@ class GatewayAgent(BaseAgent):
             style_block=_style, security=False, stage="output")
 
         try:
-            return self.llm.chat(query, system=system, model=model, temperature=temp)
+            # V15.1: gateway e Q&A de turno unico -> cot=False (sem <thinking>),
+            # resposta direta e ~2x mais rapida. O pipeline Villa mantem o CoT.
+            return self.llm.chat(query, system=system, model=model,
+                                  temperature=temp, cot=False)
         except Exception as e:
             self.log.error(f"Gateway erro: {e}")
             return f"[Gateway] Erro ao processar: {e}"

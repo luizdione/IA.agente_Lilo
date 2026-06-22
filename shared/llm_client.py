@@ -99,9 +99,13 @@ class LLMClient:
         return "mock"
 
     def chat(self, prompt, system=None, model=None, temperature=0.3,
-             max_tokens=2048, tier=None):
+             max_tokens=2048, tier=None, cot=True):
         """
         Envia prompt e retorna resposta em texto.
+
+        cot: quando False, NAO injeta o chain-of-thought <thinking> no Ollama
+        (resposta direta, ~2x mais rapida). Use em perguntas simples/chat;
+        mantenha True nos estagios do pipeline onde o raciocinio agrega.
         """
         if system is None:
             # V15 FASE 0: honestidade no fallback (so quando o caller nao traz
@@ -124,14 +128,14 @@ class LLMClient:
         if tier and tier.startswith("ollama"):
             model = model or DEFAULT_MODEL
             log.info("Tier %s -> Ollama (%s)", tier, model)
-            return self._chat_ollama(prompt, system, model, temperature, max_tokens)
+            return self._chat_ollama(prompt, system, model, temperature, max_tokens, cot=cot)
 
         model = model or DEFAULT_MODEL
 
         if self.backend == "litellm":
             return self._chat_litellm(prompt, system, model, temperature, max_tokens)
         elif self.backend == "ollama":
-            return self._chat_ollama(prompt, system, model, temperature, max_tokens)
+            return self._chat_ollama(prompt, system, model, temperature, max_tokens, cot=cot)
         elif self.backend == "anthropic":
             return self._chat_anthropic(prompt, system, temperature, max_tokens)
         else:
@@ -203,19 +207,24 @@ class LLMClient:
         except ValueError:
             return v
 
-    def _chat_ollama(self, prompt, system, model, temperature, max_tokens):
+    def _chat_ollama(self, prompt, system, model, temperature, max_tokens, cot=True):
         # V15 FASE 2: raciocinio minucioso DENTRO de <thinking> (tokens locais
         # baratos -> qualidade), mas a RESPOSTA FINAL no comprimento que a
-        # pergunta exige (antes empurrava "be thorough" na saida toda, contra a
-        # meta do CLAUDE.md de gastar o minimo de tokens). O eixo de estilo
-        # (concise/etc.) ja entra no `system` via compose_system.
-        cot_suffix = (
-            "\n\nIMPORTANTE: raciocine passo-a-passo DENTRO de "
-            "<thinking>...</thinking> (seja minucioso aqui; tokens locais sao "
-            "baratos). Depois de </thinking>, escreva a RESPOSTA FINAL ao "
-            "usuario de forma direta, no comprimento que a pergunta exige, sem "
-            "repetir o raciocinio."
-        )
+        # pergunta exige. V15.1: cot=False (ex.: gateway/chat) PULA o <thinking>
+        # -> resposta direta, ~2x mais rapida em perguntas simples.
+        if cot:
+            cot_suffix = (
+                "\n\nIMPORTANTE: raciocine passo-a-passo DENTRO de "
+                "<thinking>...</thinking> (seja minucioso aqui; tokens locais sao "
+                "baratos). Depois de </thinking>, escreva a RESPOSTA FINAL ao "
+                "usuario de forma direta, no comprimento que a pergunta exige, sem "
+                "repetir o raciocinio."
+            )
+        else:
+            cot_suffix = (
+                "\n\nResponda de forma DIRETA e objetiva, sem mostrar raciocinio "
+                "intermediario nem usar tags <thinking>."
+            )
         enhanced_system = system + cot_suffix
 
         payload = {
