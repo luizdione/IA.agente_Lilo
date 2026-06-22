@@ -28,15 +28,19 @@ def extract_pdf(paper_file) -> ExtractedPaper:
     """Extrai texto completo e tenta capturar metadados básicos."""
     import fitz  # PyMuPDF (lazy)
     doc = fitz.open(str(paper_file.path))
-    full_text = "\n".join(page.get_text() for page in doc)
-    meta = doc.metadata or {}
+    try:                                  # fecha o handle nativo (evita vazamento)
+        full_text = "\n".join(page.get_text() for page in doc)
+        meta = doc.metadata or {}
+        n_pages = len(doc)
+    finally:
+        doc.close()
     return ExtractedPaper(
         path=paper_file.path,
         md5=paper_file.md5,
         title=(meta.get("title") or "").strip(),
         doi=extract_doi(full_text[:3000]),
         full_text=full_text,
-        n_pages=len(doc),
+        n_pages=n_pages,
     )
 
 

@@ -16,7 +16,11 @@ def decide(results: list[ClaimResult]) -> Decision:
     for r in results:
         hard = r.claim.claim_type in (ClaimType.NUMERIC, ClaimType.CITATION)
         if r.verdict == Verdict.CONTRADICTED:
-            block = True
+            # OPINION (não factual) não bloqueia — no máximo revisão (contrato em contracts.py)
+            if r.claim.claim_type == ClaimType.OPINION:
+                review = True
+            else:
+                block = True
         elif r.verdict == Verdict.UNSUPPORTED:
             if hard:
                 block = True
