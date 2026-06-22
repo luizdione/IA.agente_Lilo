@@ -11,6 +11,10 @@ from .contracts import ClaimResult, ClaimType, Verdict, Decision
 
 
 def decide(results: list[ClaimResult]) -> Decision:
+    if not results:
+        # resposta sem afirmações verificáveis (vazia/degenerada, ex.: só "[3] [5]"):
+        # NUNCA pode dar PASS vacuamente -> exige revisão humana.
+        return Decision.REVIEW
     block = False
     review = False
     for r in results:
