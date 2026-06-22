@@ -88,7 +88,7 @@ _PROFILE_TOOLS = {
     "bio": {
         # Workflows de pesquisa biomolecular: estatistica, literatura, leitura de papers
         "lilo_chat", "lilo_health", "lilo_models",
-        "lilo_pdf", "lilo_scholar", "lilo_sql",
+        "lilo_pdf", "lilo_scholar", "lilo_sql", "scholar_brain",
         "prism_analyze", "prism_classify", "prism_audit",
         "villa_pipeline", "villa_quick_ask", "villa_explain_routing",
         "lilo_web_search", "lilo_web_fetch",
@@ -125,6 +125,8 @@ _PROFILE_TOOLS = {
         "lilo_memory_search",
         # Pesquisa biomedica estruturada (vs web_search bruto)
         "lilo_scholar",
+        # RAG na biblioteca local de PDFs ja ingerida (+ gate factual)
+        "scholar_brain",
         # Pipeline estatistico em arquivo .xlsx/.csv
         "prism_analyze", "prism_classify",
         # Ollama (info)
@@ -149,6 +151,8 @@ _PROFILE_TOOLS = {
         "prism_analyze", "prism_classify", "prism_audit",
         # Pesquisa biomedica estruturada (PubMed/arXiv/bioRxiv)
         "lilo_scholar",
+        # RAG na biblioteca local de PDFs ja ingerida (+ gate factual)
+        "scholar_brain",
         # PDF cientifico (parsing + sumarizacao especializada em papers)
         "lilo_pdf",
         # Memoria persistente entre sessoes (KV SQLite)
@@ -338,6 +342,32 @@ def lilo_scholar(query: str, source: str = "auto", max_results: int = 5, synthes
     return handle_tool_call(tool, {
         "query": query, "source": source, "max_results": max_results
     })
+
+
+@_profile_tool
+def scholar_brain(question: str, verify: bool = True, max_chunks: int = 8) -> str:
+    """Pergunta a BIBLIOTECA LOCAL de papers ja ingerida (RAG sobre seus PDFs)
+    com gate de verificacao factual. DIFERENTE de lilo_scholar (busca ONLINE em
+    PubMed/arXiv): aqui a fonte sao os PDFs do servidor ja indexados localmente
+    (ChromaDB). Use quando a pergunta for sobre o que ESTA na sua biblioteca.
+
+    Args:
+        question: Pergunta sobre os artigos da sua biblioteca local.
+        verify: True (default) roda o gate factual (PASS/REVIEW/BLOCK).
+        max_chunks: trechos recuperados como contexto (default 8).
+    """
+    _ensure_lilo()
+    try:
+        from shared.scholar_brain import ask as _ask
+    except Exception as e:
+        return f"[LILO] scholar_brain indisponivel: {e}"
+    r = _ask(question, verify=verify, n_chunks=max_chunks)
+    out = r.get("answer", "")
+    if r.get("decision"):
+        out += f"\n\n[gate de verificacao: {r['decision'].upper()}]"
+    if r.get("refs"):
+        out += "\n\nReferencias:\n" + "\n".join("  " + x for x in r["refs"])
+    return out
 
 
 @_profile_tool

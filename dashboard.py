@@ -753,6 +753,7 @@ with st.sidebar:
     nav_button("SQL", "nav_sql", "agent")
     nav_button("PDFs", "nav_pdf", "agent")
     nav_button("Scholar", "nav_scholar", "agent")
+    nav_button("Biblioteca", "nav_biblioteca", "agent")
     nav_button("Prism AI", "nav_prism", "agent")
     nav_button("Villa Lobos", "nav_villa", "agent")
     nav_button("Desktop", "nav_desktop", "agent")
@@ -1985,6 +1986,34 @@ with main_col:
                     memory.add_message(st.session_state.current_chat_id, "assistant", result)
                 else:
                     st.error("ScholarAgent indisponivel")
+
+
+    elif page == "Biblioteca":
+        st.header("Biblioteca -- RAG local sobre seus PDFs")
+        st.caption("Pergunta a biblioteca ja ingerida (ChromaDB local). Diferente "
+                   "de Scholar (busca online): aqui a fonte sao seus proprios PDFs, "
+                   "e a resposta passa pelo gate de verificacao factual.")
+        _scholar_ask = None
+        try:
+            from shared.scholar_brain import (ask as _scholar_ask,
+                                              library_count as _scholar_count)
+            st.caption("Chunks indexados: %d" % _scholar_count())
+        except Exception as _e:
+            st.warning("ScholarAgent indisponivel: %s" % _e)
+        _q = st.text_input(
+            "Pergunta",
+            placeholder="Ex: O que meus papers dizem sobre eQTL em Nelore?")
+        _verify = st.checkbox("Verificar (gate factual)", value=True)
+        if st.button("Perguntar", type="primary") and _q and _scholar_ask:
+            with st.spinner("Consultando a biblioteca..."):
+                _r = _scholar_ask(_q, verify=_verify)
+            if _r.get("decision"):
+                st.markdown("**Gate de verificacao:** %s" % _r["decision"].upper())
+            st.markdown(_r.get("answer", ""))
+            if _r.get("refs"):
+                with st.expander("Referencias usadas"):
+                    for _ref in _r["refs"]:
+                        st.caption(_ref)
 
 
     # == Prism AI =============================================================
