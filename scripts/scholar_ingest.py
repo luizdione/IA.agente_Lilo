@@ -119,6 +119,9 @@ if __name__ == "__main__":
     _limit = None
     if "--limit" in _args:
         _i = _args.index("--limit")
-        _limit = int(_args[_i + 1])
+        try:
+            _limit = int(_args[_i + 1])
+        except (IndexError, ValueError):
+            sys.exit("uso: python scholar_ingest.py <pasta...> [--limit N]  (N = inteiro)")
         del _args[_i:_i + 2]
     main(_args or ["."], limit=_limit)

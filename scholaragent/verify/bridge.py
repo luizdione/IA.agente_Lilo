@@ -14,7 +14,7 @@ def evidence_from_rag(chunks: list[str], metas: list[dict]) -> tuple[list[Eviden
     evidences: list[Evidence] = []
     for i, (text, meta) in enumerate(zip(chunks, metas)):
         evidences.append(Evidence(
-            chunk_id=f'{meta.get("paper_md5", "")}_{i}',
+            chunk_id=f'{meta.get("paper_md5", "")}_{meta.get("chunk_index", i)}',
             paper_md5=meta.get("paper_md5", ""),
             section=meta.get("section", ""),
             text=text,
