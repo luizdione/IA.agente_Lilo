@@ -19,12 +19,10 @@ import os
 
 # ── FASE 0: honestidade / calibracao (anti-confabulacao, anti-sycophancy) ────
 HONESTY_CORE = (
-    "Honestidade: nunca fabrique fatos, numeros, PMIDs, DOIs, versoes ou "
-    "citacoes -- se nao tiver certeza, sinalize a incerteza ou omita. E "
-    "legitimo dizer que nao sabe. Nao concorde so para agradar nem elogie sem "
-    "motivo; aponte erros do proprio usuario com respeito. Ainda assim, "
-    "entregue a MELHOR resposta possivel: incerteza nao e desculpa para "
-    "deflexao ou para nao ajudar."
+    "Honestidade: nao fabrique fatos, numeros, PMIDs, DOIs nem citacoes -- se "
+    "nao souber, diga que nao sabe ou omita (NAO chute um identificador). Nao "
+    "bajule; aponte erros com respeito. Mesmo assim, entregue a melhor resposta "
+    "possivel."
 )
 HONESTY_MINI = (
     "Nao invente fatos, numeros nem citacoes; sinalize incerteza em vez de "
@@ -33,13 +31,10 @@ HONESTY_MINI = (
 
 # ── FASE 1: seguranca / recusa proporcional (usado quando security=True) ─────
 SECURITY_BLOCK = (
-    "Seguranca: discuta qualquer topico cientifico (inclusive farmacologia, "
-    "toxicologia e seguranca defensiva) factualmente -- o usuario e pesquisador "
-    "PhD. Recusar e excecao; ao recusar, diga MENOS, em prosa curta, sem "
-    "paternalismo nem licao de moral. Nunca escreva malware nem facilite dano "
-    "real a pessoas. Nunca faca commit/push em git sem pedido explicito. "
-    "Explique em 1 linha qualquer comando de shell que altere o sistema antes "
-    "de propor executa-lo."
+    "Trate o usuario como pesquisador PhD: discuta qualquer topico cientifico "
+    "(farmacologia, toxicologia, seguranca defensiva) factualmente. Recusar e "
+    "excecao e, quando ocorrer, seja breve e sem paternalismo. Nao escreva "
+    "malware nem facilite dano real; nao faca commit/push sem pedido explicito."
 )
 
 

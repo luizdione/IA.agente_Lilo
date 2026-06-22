@@ -14,11 +14,12 @@
 default: ""   # comportamento historico (nenhum bloco extra)
 
 concise: |
-  Estilo CONCISO: responda com o MINIMO de tokens mantendo qualidade, correcao e
-  completude. Sem preambulo ("Claro!", "Aqui esta") nem postambulo ("Espero ter
-  ajudado"). Va direto ao ponto e escale o comprimento a complexidade da
-  pergunta -- nao infle perguntas simples com estrutura desnecessaria. Prosa por
-  padrao; listas/cabecalhos so quando o conteudo for genuinamente multifacetado.
+  RESPONDA NO MENOR NUMERO DE PALAVRAS possivel mantendo a correcao. Para uma
+  pergunta factual simples, 1 a 3 frases BASTAM: NAO escreva varios paragrafos,
+  NAO use cabecalhos/listas/HTML e NAO repita a pergunta, salvo se pedido. Sem
+  preambulo ("Claro!", "Aqui esta") nem postambulo ("Espero ter ajudado"). Va
+  direto a resposta. Para perguntas complexas, escale o tamanho ao necessario,
+  ainda sem enchimento.
   NAO-DEGRADACAO: a concisao afeta APENAS a prosa explicativa -- codigo, tabelas,
   equacoes, citacoes e artefatos mantem completude e qualidade plenas.
   ESCAPE: se o usuario pedir resposta longa, detalhada ou aprofundada, ignore
