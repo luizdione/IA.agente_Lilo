@@ -100,3 +100,13 @@ def test_export_guard():
     report.reviewer = "Luiz Dione (IFRJ)"
     assert can_export(report) is True
     assert_exportable(report)                 # agora libera (não levanta)
+
+
+# ---- 7. resposta degenerada/vazia -> REVIEW (nao PASS vacuo) ------------- #
+def test_degenerate_answer_reviews():
+    # "[3] [5]" (so marcadores) nao gera nenhum claim verificavel -> nao pode dar PASS
+    gate = make_gate(judge_supported, HighReranker())
+    report = gate.verify("t7", "q", "[3] [5]", [ev("texto de contexto qualquer")],
+                         write_trail=False)
+    assert report.results == []
+    assert report.decision == Decision.REVIEW
