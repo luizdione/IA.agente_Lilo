@@ -39,8 +39,11 @@ class ScholarRAG:
         if self._ollama_fn is not None:
             return self._ollama_fn(prompt)
         import httpx  # lazy
-        r = httpx.post(self.url, json={
-            "model": self.model, "prompt": prompt, "stream": False,
-            "options": {"temperature": 0.2},   # baixo para respostas factuais
-        }, timeout=120)
-        return r.json().get("response", "")
+        try:
+            r = httpx.post(self.url, json={
+                "model": self.model, "prompt": prompt, "stream": False,
+                "options": {"temperature": 0.2},   # baixo para respostas factuais
+            }, timeout=120)
+            return r.json().get("response", "") or "[ScholarRAG] resposta vazia do LLM."
+        except Exception as e:
+            return f"[ScholarRAG] falha ao consultar o LLM local ({self.url}): {e}"

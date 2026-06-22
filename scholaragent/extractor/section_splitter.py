@@ -60,5 +60,8 @@ def _split_by_sections(text: str) -> dict[str, str]:
     for i, header in enumerate(headers):
         content_idx = 2 * i + 2
         content = parts[content_idx] if content_idx < len(parts) else ""
-        sections[header.strip().lower()] = content.strip()
+        key = header.strip().lower()
+        # cabeçalho repetido (ex.: 'Methods' duas vezes): ACUMULA em vez de sobrescrever,
+        # senão o conteúdo da 1ª ocorrência era perdido (não indexado).
+        sections[key] = (sections.get(key, "") + "\n" + content.strip()).strip()
     return sections

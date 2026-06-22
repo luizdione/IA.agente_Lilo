@@ -34,10 +34,10 @@ class VerificationGate:
             res = self.grounder.ground(claim, used_chunks)
             # checagens determinísticas independentes do veredicto do juiz
             if claim.numbers:
-                res.numeric_ok = (
-                    any(numbers_match(claim.numbers, e.text) for e in res.evidence)
-                    if res.evidence else False
-                )
+                # confere os números contra TODA a evidência recuperada (não só o
+                # chunk top do reranker) e aceita números espalhados em chunks distintos
+                pool = " ".join(e.text for e in (used_chunks or res.evidence))
+                res.numeric_ok = numbers_match(claim.numbers, pool)
             if claim.cited_refs:
                 res.citation_ok = check_citation(
                     claim, ref_to_evidence, self.grounder.judge

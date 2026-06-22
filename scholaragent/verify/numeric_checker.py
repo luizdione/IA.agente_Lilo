@@ -21,8 +21,14 @@ def numbers_match(claim_numbers: list[str], evidence_text: str) -> bool:
 
 
 def _norm(n: str) -> str:
-    """Normaliza vírgula decimal e zeros à direita ('240' == '240,0')."""
-    s = n.replace(",", ".")
+    """Normaliza um token numérico para comparação.
+    Trata separador de milhar (1,000 / 1.000 -> 1000) e decimal (0,75 -> 0.75),
+    evitando o colapso lossy '1,000' -> '1' (que causava bloqueio falso E match
+    espúrio com qualquer '1' na fonte)."""
+    s = n.strip()
+    if re.fullmatch(r"\d{1,3}(?:[.,]\d{3})+", s):   # milhar agrupado -> inteiro
+        return s.replace(".", "").replace(",", "")
+    s = s.replace(",", ".")                          # vírgula decimal -> ponto
     if "." in s:
         s = s.rstrip("0").rstrip(".")
     return s

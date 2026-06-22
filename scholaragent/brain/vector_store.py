@@ -20,12 +20,16 @@ class BrainStore:
             documents=[c.text for c in chunks],
             metadatas=[{
                 "paper_md5": c.paper_md5,
+                "chunk_index": c.chunk_index,
                 "section": c.section,
                 "title": paper_metadata.get("title", ""),
                 "authors": "; ".join(paper_metadata.get("authors", [])),
                 "year": str(paper_metadata.get("year", "")),
                 "journal": paper_metadata.get("journal", ""),
                 "doi": paper_metadata.get("doi", ""),
+                # antes ignorados: tema (classificação) e caminho do PDF
+                "themes": "; ".join(paper_metadata.get("themes", []) or []),
+                "path": paper_metadata.get("path", ""),
             } for c in chunks],
         )
 
