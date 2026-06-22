@@ -28,6 +28,7 @@ mas **desconectado** — vários canais mortos. A V15 **liga a fiação**.
 | 4 | contrato do CLI (ask+stdin / auto scriptado) | ✅ | automático |
 | 4 | estágio VERIFY (sandbox isolado) | ✅ (default-off) | `LILO_VERIFY_STAGE=1` |
 | 4 | **exec_mode por-sessão + plano-aprovável** | ⏸️ **ADIADO** | — (ver abaixo) |
+| **5** | scheduler do Cowork (executor de tarefas agendadas) | ✅ (default-off) | `LILO_ENABLE_SCHEDULER=1` + `scripts/run_scheduler.py --execute` |
 | medição | `scripts/bench_prompts.py` (A/B) | ✅ | `python scripts/bench_prompts.py` (GPU) |
 
 ## Flags (.env)
@@ -38,7 +39,16 @@ LILO_QUALITY_CHECK=0        # juiz opt-in pos-Reporter (so complexity=complex)
 LILO_QUALITY_MIN=60         # escore minimo; abaixo -> 1 refinada extra
 LILO_VERIFY_STAGE=0         # roda codigo auto-contido do worker em sandbox
 LILO_DISTILL_MODEL=         # modelo da destilacao de fatos (default 'fast')
+LILO_ENABLE_SCHEDULER=0     # FASE 5: =1 permite execucao real do scheduler
+LILO_SCHEDULED_DIRS=        # dirs com */SKILL.md (ha defaults do Cowork)
 ```
+
+**Scheduler (FASE 5):** `python scripts/run_scheduler.py --list` (lista), sem
+flag = dry-run, `--execute` (exige `LILO_ENABLE_SCHEDULER=1`) roda as tarefas
+'due' sob perfil `cowork` (local-only, sem shell/python) + exec_mode `ask`,
+gravando saidas em KVMemory `ns=lilo_tasks`. NAO ha loop sempre-ligado: ligue
+via Windows Task Scheduler/cron chamando o script. Tarefas com `schedule:
+manual` (default) nunca rodam sozinhas.
 
 ## Correções da crítica adversarial já incorporadas
 1. **Medição** — `bench_prompts.py` (over-refusal / verbosidade / confabulação).

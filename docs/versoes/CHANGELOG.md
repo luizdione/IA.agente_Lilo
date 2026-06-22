@@ -27,8 +27,15 @@ em `docs/ROADMAP_claude_alignment.md`.
   todas as tools write/exec, nao so o desktop); contrato do CLI (ask+stdin
   interativo / auto scriptado); estagio VERIFY default-OFF (sandbox isolado,
   so codigo auto-contido, sem auto-correcao).
+- **FASE 5** -- scheduler do Cowork: `shared/scheduler.py` + `scripts/
+  run_scheduler.py` executam as tarefas agendadas (SKILL.md) que antes so eram
+  exibidas. DEFAULT-OFF (LILO_ENABLE_SCHEDULER), dry-run, perfil 'cowork'
+  (local-only, sem shell/python), exec_mode 'ask', saidas em KVMemory ns
+  'lilo_tasks'; SEM loop sempre-ligado (cron/Task Scheduler externo).
+  'schedule: manual' (default) nunca roda sozinho.
 - **Medicao:** `scripts/bench_prompts.py` (A/B over-refusal/verbosidade/
-  confabulacao). **Adiado:** refator exec_mode global->por-sessao + plano-aprovavel.
+  confabulacao) + tuning (conciso diretivo, blocos enxutos). **Adiado:** refator
+  exec_mode global->por-sessao + plano-aprovavel (unico item restante).
 
 ## v11.6 — 2026-06-19 (2ª auditoria investigativa + corretiva)
 
