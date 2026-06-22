@@ -34,8 +34,12 @@ em `docs/ROADMAP_claude_alignment.md`.
   'lilo_tasks'; SEM loop sempre-ligado (cron/Task Scheduler externo).
   'schedule: manual' (default) nunca roda sozinho.
 - **Medicao:** `scripts/bench_prompts.py` (A/B over-refusal/verbosidade/
-  confabulacao) + tuning (conciso diretivo, blocos enxutos). **Adiado:** refator
-  exec_mode global->por-sessao + plano-aprovavel (unico item restante).
+  confabulacao) + tuning (conciso diretivo, blocos enxutos).
+- **Item adiado da FASE 4 -- resolvido em parte:** PLANO APROVAVEL entregue
+  (modo plan acumula acoes -> botao "Aprovar plano e executar"; pending_plan/
+  approve_plan/clear_plan). O refator global->por-sessao (ContextVar) foi
+  DESCARTADO por decisao (risco no rerun do Streamlit, sem beneficio single-user;
+  grant multi-repo do git ja coberto por grants escopados).
 
 ## v11.6 — 2026-06-19 (2ª auditoria investigativa + corretiva)
 

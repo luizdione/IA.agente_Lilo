@@ -63,13 +63,17 @@ manual` (default) nunca rodam sozinhas.
 6. **Contrato do CLI** — `ask`+stdin no interativo; `auto` exigido p/ scriptado;
    erro acionável quando não há terminal.
 
-## Adiado (requer teste interativo do autor)
-**Refator `exec_mode` global → por-sessão + "plan" como plano aprovável**
-(acumular ações bloqueadas numa lista → botão "Aprovar tudo"). Motivo: invasivo
-(muda assinaturas de `gate`/`grant` + UX de confirmação do dashboard), baixo
-benefício no uso single-user atual (o grant é one-shot e o git já é escopado), e
-melhor validado interativamente. Pré-requisito caso se queira paralelizar
-sub-tarefas no futuro.
+## Item adiado da FASE 4 — RESOLVIDO (em parte) + decisão
+
+- ✅ **"plan" como plano aprovável** — ENTREGUE: no modo `plan`, `gate()` acumula
+  as ações bloqueadas; o dashboard mostra o plano e um botão **"Aprovar plano e
+  executar"** (`pending_plan`/`approve_plan`/`clear_plan` em `shared/exec_mode.py`).
+- ❌ **Refator `exec_mode` global → por-sessão (ContextVar)** — DESCARTADO por
+  decisão de engenharia: risco de quebrar o modelo de *rerun* do Streamlit
+  (estado por-thread pode não persistir entre reruns) **sem benefício real** num
+  app pessoal single-user. O vazamento de grant multi-repo do git — a única
+  preocupação concreta — já é evitado pelos **grants escopados** (FASE 1). Só
+  valeria a pena se um dia houver execução concorrente multi-usuário/paralela.
 
 ## Não copiar do Claude (decisões)
 - Não importar a maquinaria de recusa do chat público (wellbeing/menores/
