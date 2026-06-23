@@ -161,8 +161,27 @@ class PolicyEngine:
 
     def __init__(self, config: PolicyConfig = None):
         self.config = config or PolicyConfig()
+        # V16: a fonte de verdade do gasto do dia e o CostTracker (SQLite,
+        # PERSISTENTE), lido lazy por _today_cost() -> sobrevive a restart e faz
+        # rollover de data sozinho. _daily_cost vira FALLBACK em-processo, usado
+        # so quando a telemetria esta desabilitada (DB read-only).
         self._daily_cost = 0.0
         log.info(f"PolicyEngine init | budget=${self.config.daily_budget_usd}/dia | cloud={'ON' if self.config.allow_cloud else 'OFF'}")
+
+    def _today_cost(self) -> float:
+        """Gasto (estimado) de HOJE. Fonte de verdade = CostTracker persistente.
+        FAIL-SAFE: se a telemetria estiver desabilitada (DB nao-gravavel), cai no
+        acumulador em-processo (_daily_cost) -- degradado, mas NUNCA libera gasto
+        cloud ilimitado (nao fail-open)."""
+        try:
+            from .cost_tracker import get_tracker
+            summ = get_tracker().daily_summary()
+            if summ and not summ.get("disabled"):
+                return float(summ.get("total_cost_usd", 0.0))
+            log.debug("budget: telemetria desabilitada -> fallback em-processo")
+        except Exception as e:
+            log.debug("budget: leitura do CostTracker falhou (%s); fallback", e)
+        return self._daily_cost
 
     def decide(
         self,
@@ -250,17 +269,20 @@ class PolicyEngine:
         )
 
     def record_cost(self, cost: float):
-        """Registra custo de uma chamada para controle de budget."""
+        """Registra custo de uma chamada (mantem o fallback em-processo em dia).
+        A persistencia real e do CostTracker (gravado em lilo.route)."""
         self._daily_cost += cost
-        if self._daily_cost >= self.config.daily_budget_usd * 0.9:
-            log.warning(f"Budget quase esgotado: ${self._daily_cost:.4f} / ${self.config.daily_budget_usd}")
+        spent = self._today_cost()
+        if spent >= self.config.daily_budget_usd * 0.9:
+            log.warning(f"Budget quase esgotado: ${spent:.4f} / ${self.config.daily_budget_usd}")
 
     @property
     def budget_remaining(self) -> float:
-        return max(0, self.config.daily_budget_usd - self._daily_cost)
+        return max(0.0, self.config.daily_budget_usd - self._today_cost())
 
     def reset_daily(self):
-        """Reseta o custo diário (chamar à meia-noite)."""
+        """Reseta o fallback em-processo. (O rollover diario real e automatico:
+        _today_cost le daily_summary do dia corrente no CostTracker.)"""
         self._daily_cost = 0.0
 
     # ── Métodos privados ─────────────────────────────────────────────────────
@@ -373,7 +395,7 @@ class PolicyEngine:
         """Verifica se o budget permite usar esse tier."""
         tokens_est = max(input_len // 4, 100)
         estimated_cost = COST_PER_1K.get(tier, 0.0) * (tokens_est / 1000)
-        return (self._daily_cost + estimated_cost) <= self.config.daily_budget_usd
+        return (self._today_cost() + estimated_cost) <= self.config.daily_budget_usd
 
     def get_fallback(self, tier: ExecutionTier) -> ExecutionTier:
         """Retorna o próximo tier para fallback."""
@@ -399,7 +421,7 @@ class PolicyEngine:
         """Retorna status atual do Policy Engine."""
         return {
             "daily_budget_usd": self.config.daily_budget_usd,
-            "daily_cost_usd": self._daily_cost,
+            "daily_cost_usd": self._today_cost(),
             "budget_remaining_usd": self.budget_remaining,
             "allow_cloud": self.config.allow_cloud,
             "prefer_local": self.config.prefer_local,

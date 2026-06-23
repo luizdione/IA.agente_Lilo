@@ -27,6 +27,27 @@ OLLAMA_URL    = get_env("OLLAMA_HOST",           "http://localhost:11434")
 ANTHROPIC_KEY = get_env("ANTHROPIC_API_KEY",     "")
 TIMEOUT       = int(get_env("LLM_TIMEOUT",       "300"))
 
+# V16 QW4: retry/backoff transitorio centralizado no chat().
+# Tentativas EXTRAS apos a 1a (0 = comportamento antigo, sem retry).
+LLM_RETRIES   = int(get_env("LILO_LLM_RETRIES",  "2"))
+LLM_BACKOFF   = float(get_env("LILO_LLM_BACKOFF", "1.5"))  # base do backoff exp.
+
+
+def _is_retryable(exc) -> bool:
+    """True para erros transitorios (vale a pena re-tentar).
+
+    - Timeout / ConnectionError de rede        -> retry
+    - HTTP 429 (rate-limit) e 5xx (server)     -> retry
+    - HTTP 4xx (exceto 429: request invalida)  -> fail-fast (nao re-tenta)
+    Qualquer outra excecao -> nao re-tenta (deixa propagar/cair p/ fallback).
+    """
+    if isinstance(exc, (requests.Timeout, requests.ConnectionError)):
+        return True
+    if isinstance(exc, requests.HTTPError):
+        sc = getattr(getattr(exc, "response", None), "status_code", 0) or 0
+        return sc == 429 or 500 <= sc < 600
+    return False
+
 MODELS = {
     "chat":         get_env("OLLAMA_MODEL",       "llama3.1:8b-instruct-q8_0"),
     "code":         get_env("OLLAMA_MODEL_CODE",  "qwen2.5-coder:14b"),
@@ -113,6 +134,33 @@ class LLMClient:
             from .prompt_blocks import compose_system
             system = compose_system(DEFAULT_SYSTEM, stage="output")
 
+        # V16 QW4: retry/backoff em torno do dispatch. Erros transitorios
+        # (timeout/conexao/429/5xx) sao re-tentados com backoff exponencial;
+        # 4xx falham rapido. Centraliza p/ gateway/judge/paper, que chamavam
+        # chat() sem o retry que o Villa ja faz manualmente.
+        import time as _time
+        last_exc = None
+        for attempt in range(LLM_RETRIES + 1):
+            try:
+                return self._dispatch_chat(
+                    prompt, system, model, temperature, max_tokens, tier, cot
+                )
+            except Exception as exc:  # noqa: BLE001 -- classifica abaixo
+                last_exc = exc
+                if attempt < LLM_RETRIES and _is_retryable(exc):
+                    delay = LLM_BACKOFF * (2 ** attempt)
+                    log.warning(
+                        "chat: erro transitorio (%s) -- retry %d/%d em %.1fs",
+                        type(exc).__name__, attempt + 1, LLM_RETRIES, delay,
+                    )
+                    _time.sleep(delay)
+                    continue
+                raise
+        raise last_exc  # pragma: no cover (loop sempre retorna ou levanta)
+
+    def _dispatch_chat(self, prompt, system, model, temperature,
+                       max_tokens, tier, cot):
+        """Despacho para o backend (sem retry). Veja chat()."""
         # Roteamento por tier (Policy Engine)
         # Atualizado 2026-05-07 -- Claude 4.5/4.6 (configuravel via .env).
         if tier and tier.startswith("claude_"):
