@@ -33,13 +33,9 @@ uvicorn>=0.29.0
 sse-starlette>=2.0.0
 pydantic>=2.5.0
 
-# Logging
-structlog>=24.1.0
-
-# Web search (declarado explicitamente em 2026-05-06 para evitar fallback silencioso)
+# Web search
 duckduckgo-search>=6.0
-beautifulsoup4>=4.12.0  # parser robusto p/ DDG HTML quando regex falha
-lxml>=5.0.0             # backend rápido p/ bs4
+lxml>=5.0.0  # usado por lilo_skills/build_paper (build_journal_profile); NAO p/ bs4
 
 # Bioinformática / Dinâmica Molecular (opcional — instalar via conda preferencialmente)
 # openmm>=8.1
@@ -47,7 +43,6 @@ lxml>=5.0.0             # backend rápido p/ bs4
 # mdtraj>=1.9
 # rdkit>=2024.3
 # biopython>=1.83
-python-docx
 python-pptx
 openpyxl
 faster-whisper

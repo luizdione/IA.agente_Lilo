@@ -1,0 +1,16 @@
+# pyproject.toml — tooling do LILO (V16).
+# NAO declara build/packaging: o LILO roda dos scripts/dashboard, nao e um
+# pacote pip. Centraliza apenas a config do pytest p/ rodar a suite num comando
+# (`pytest`) e separar testes que exigem backend (Ollama/GPU) dos puros.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -p no:cacheprovider"
+markers = [
+    "requires_ollama: precisa do Ollama local (localhost:11434); pula se ausente",
+    "requires_gpu: pesa na GPU (modelos grandes); pula sem backend ou com LILO_SKIP_GPU=1",
+]
+filterwarnings = [
+    # aifc/sunau removidos no Python 3.13 (audioread, via librosa) -> ruido.
+    "ignore::DeprecationWarning",
+]
