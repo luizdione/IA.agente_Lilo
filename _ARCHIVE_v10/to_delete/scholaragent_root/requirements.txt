@@ -1,5 +1,0 @@
-flask>=3.0
-pymupdf>=1.24
-requests>=2.31
-Pillow>=10.0
-werkzeug>=3.0
