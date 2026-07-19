@@ -13,13 +13,11 @@ Uso:
     chats = mem.list_chats()
 """
 
-import json
 import os
 import sqlite3
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 _ROOT = Path(__file__).resolve().parents[1]
 # 2026-05-25: caminho configuravel via env -- mesma convencao de

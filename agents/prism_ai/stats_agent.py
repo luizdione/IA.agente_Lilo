@@ -6,9 +6,8 @@ Retorna resultados formatados com p-values, effect sizes e interpretação.
 """
 
 import numpy as np
-import pandas as pd
 from dataclasses import dataclass, field
-from typing import Optional, Any
+from typing import Optional
 from scipy import stats
 
 import sys

@@ -12,8 +12,6 @@ Uso:
     resposta = client.chat("Explique PCR em termos simples.")
 """
 
-import os
-import json
 import requests
 from typing import Optional
 from .logger import get_logger

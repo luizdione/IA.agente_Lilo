@@ -5,8 +5,6 @@ Gera arquivos .pzfx (formato XML do GraphPad Prism).
 Estrutura dados, grupos e metadados em formato compatível.
 """
 
-import numpy as np
-import pandas as pd
 from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass

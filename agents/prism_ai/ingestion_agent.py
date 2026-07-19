@@ -6,7 +6,6 @@ valida consistência e retorna DataFrame limpo + metadados.
 """
 
 import pandas as pd
-import numpy as np
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional

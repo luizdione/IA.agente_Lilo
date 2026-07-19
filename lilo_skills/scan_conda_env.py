@@ -15,16 +15,12 @@ Saída: JSON com funções extraídas, pronto para a Etapa 4 (classificação).
 
 import json
 import sys
-import os
 import inspect
 import importlib
 import pkgutil
 import subprocess
-import re
 import time
-import signal
 from pathlib import Path
-from typing import Any
 from contextlib import contextmanager
 import argparse
 
