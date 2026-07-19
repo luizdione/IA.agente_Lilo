@@ -108,3 +108,12 @@ audit/
 config.yaml
 config/litellm_config.yaml
 config/litellm_config.docker.yaml
+
+# ── Dados de runtime (vivem no OneDrive, nao no repo de codigo) ──────────────
+# Notas de projeto, sinteses e conteudo gerados em uso; podem conter dados
+# reais do usuario. O repo versiona so o CODIGO (ver CLAUDE.md).
+data/projects/
+data/syntheses/
+conteudo_digital/
+.project-memory/
+versoes/

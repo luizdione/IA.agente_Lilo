@@ -3,7 +3,9 @@
 Guia enxuto para o Claude (Desktop e Code) trabalhar neste repositório gastando o mínimo de tokens. Mantenha este arquivo curto — ele entra no contexto a cada sessão.
 
 ## O que é
-LILO (Local Intelligent LLM Orchestrator) — orquestrador pessoal de IA para bioinformática/ciência de dados. **Local-first**: Ollama (RTX 3060) resolve a maioria; Claude API é fallback para tarefas complexas, com budget diário (`LILO_DAILY_BUDGET`, default US$1). Branch de desenvolvimento: `arch-v10`.
+LILO (Local Intelligent LLM Orchestrator) — orquestrador pessoal de IA para bioinformática/ciência de dados. **Local-first**: Ollama (RTX 3060) resolve a maioria; Claude API é fallback para tarefas complexas, com budget diário (`LILO_DAILY_BUDGET`, default US$1). Branch de desenvolvimento: `arch-v11`.
+
+**Fonte de verdade do código:** este repositório (`C:\github\IA.agente_Lilo`). A pasta `C:\Users\luizd\OneDrive\...\IA.agente` guarda **dados/memória/resultados** (não o código). Rodar a partir daqui; reapontar imports para cá se necessário.
 
 ## Como rodar
 ```cmd
@@ -32,9 +34,12 @@ agents/            Subagentes (sql, pdf, scholar, prism, villa, gateway, desktop
 shared/            llm_client (Ollama->LiteLLM->Anthropic), policy, server_profile, base_agent
 config/profiles.yaml   Perfis MCP + policy (hot-reload por mtime)
 lilo_skills/       Skills auto-geradas
+scholaragent/      Pacote RAG de papers (brain, extractor, verify, scanner)
+scripts/           Utilitários (bench, diag, hooks, smoke tests)
+tests/             pytest (120 testes; `pytest` na raiz)
 docs/              uso/, tecnico/, versoes/CHANGELOG.md
-_ARCHIVE_v10/      Código legado — NÃO TOCAR
 ```
+> Legado (`_ARCHIVE_v10/`, plataforma híbrida `backend/frontend/llm-gateway`) foi retirado do branch ativo na V17; permanece no histórico (`origin/arch-v10`).
 
 ## Convenções
 - **Idioma:** PT-BR.
