@@ -15,10 +15,8 @@ Uso:
 
 import streamlit as st
 import sys
-import os
 import json
 import time
-import threading
 import requests
 import pandas as pd
 from pathlib import Path

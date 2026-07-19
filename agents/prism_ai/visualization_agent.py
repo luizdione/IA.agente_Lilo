@@ -6,10 +6,8 @@ Compatível com estilo GraphPad Prism.
 """
 
 import numpy as np
-import pandas as pd
 from pathlib import Path
-from typing import Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))

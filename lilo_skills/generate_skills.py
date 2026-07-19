@@ -15,14 +15,11 @@ Saída:   lilo_skills/skills/*.py, schemas/*.json, registry.json, logs/report.tx
 
 import json
 import sys
-import os
 import re
 import time
-import textwrap
 import importlib
 import threading
 from pathlib import Path
-from typing import Any
 import argparse
 
 SCRIPT_DIR = Path(__file__).parent

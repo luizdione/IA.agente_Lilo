@@ -6,7 +6,6 @@ expondo run() e get_tools() para o orquestrador lilo.py.
 """
 
 import sys
-import os
 from pathlib import Path
 from typing import Any
 

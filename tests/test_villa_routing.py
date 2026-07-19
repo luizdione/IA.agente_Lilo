@@ -16,7 +16,6 @@ Para isolar o backend, injetamos um client falso cujo .chat() devolve sempre
 "[MOCK]" -- assim _orchestrate_decision/_route_via_llm caem no caminho
 heuristico de forma previsivel, independentemente do ambiente.
 """
-import os
 import sys
 from pathlib import Path
 

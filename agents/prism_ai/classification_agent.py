@@ -11,7 +11,6 @@ Classifica o tipo de experimento a partir dos dados ingeridos:
 """
 
 from dataclasses import dataclass
-from typing import Optional
 from enum import Enum
 
 import sys

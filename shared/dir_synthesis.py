@@ -18,7 +18,6 @@ Uso:
 from __future__ import annotations
 
 import hashlib
-import os
 import re
 import subprocess
 from datetime import datetime

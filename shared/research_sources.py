@@ -46,8 +46,7 @@ Variáveis de ambiente OPCIONAIS (melhoram rate limit, não obrigatórias):
 
 import os
 import time
-import json as _json
-from urllib.parse import urlencode, quote_plus
+from urllib.parse import quote_plus
 
 try:
     import requests

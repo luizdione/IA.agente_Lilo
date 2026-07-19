@@ -28,7 +28,6 @@ Configurar em %APPDATA%\\Claude\\claude_desktop_config.json:
 import sys
 import os
 import json
-import argparse
 from pathlib import Path
 
 LILO_ROOT = Path(__file__).parent

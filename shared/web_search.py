@@ -14,9 +14,6 @@ Uso:
 """
 
 import re
-import json
-import time
-from typing import Optional
 from urllib.parse import quote_plus
 
 try:

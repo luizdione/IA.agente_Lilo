@@ -21,7 +21,6 @@ import hashlib
 import os as _os
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Optional
 
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
