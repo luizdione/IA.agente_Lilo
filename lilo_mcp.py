@@ -1076,6 +1076,121 @@ def villa_route(task: str, allow_delegate: bool = True) -> str:
 
 
 # =============================================================================
+# TOOLS -- SciStudio (divulgacao cientifica: biblioteca SVG + ilustracao)
+# =============================================================================
+_SCISTUDIO_SVGLIB = None
+
+
+def _scistudio_svglib():
+    """Carrega o modulo svglib do SciStudio (lazy, via file path -- sem poluir
+    sys.path nem exigir o env 'datascience')."""
+    global _SCISTUDIO_SVGLIB
+    if _SCISTUDIO_SVGLIB is None:
+        import importlib.util
+        p = LILO_ROOT / "conteudo_digital" / "studio" / "core" / "svglib.py"
+        if not p.exists():
+            raise FileNotFoundError("svglib do SciStudio nao encontrado: %s" % p)
+        spec = importlib.util.spec_from_file_location("scistudio_svglib", p)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _SCISTUDIO_SVGLIB = mod
+    return _SCISTUDIO_SVGLIB
+
+
+@_profile_tool
+def scistudio_list_categories() -> str:
+    """SciStudio: lista a biblioteca de icones SVG por grupo e categoria (com
+    contagens, fontes e licencas). Use para descobrir o que existe antes de
+    buscar/compor ilustracoes cientificas de Biologia.
+    """
+    try:
+        sv = _scistudio_svglib()
+        st = sv.stats()
+        return json.dumps({
+            "total": st["total"], "by_group": st["by_group"],
+            "by_source": st["by_source"], "by_license": st["by_license"],
+            "categories": sv.categories(),
+        }, indent=2, ensure_ascii=False)
+    except Exception as e:
+        return "[SciStudio] Erro list_categories: %s" % e
+
+
+@_profile_tool
+def scistudio_search_icons(query: str = "", group: str = "", category: str = "",
+                           source: str = "", license: str = "",
+                           only_light: bool = True, limit: int = 30) -> str:
+    """SciStudio: busca icones SVG na biblioteca (bioicons + fontes CC-BY) para
+    ilustracao cientifica. Retorna nome, categoria, licenca, autor, id e caminho.
+
+    Args:
+        query: termo (ex.: 'mitochondria', 'neuron', 'plasmid', 'bacteria').
+        group: grupo (ex.: 'Biologia celular e molecular'). Vazio = todos.
+        category: categoria especifica. Vazio = todas.
+        source: fonte (ex.: 'bioicons'). Vazio = todas.
+        license: licenca (ex.: 'cc-0', 'cc-by-4.0'). Vazio = todas.
+        only_light: True esconde figuras pesadas (>500KB).
+        limit: max de resultados (default 30).
+    """
+    try:
+        sv = _scistudio_svglib()
+        res = sv.search(query, group=group, category=category, source=source,
+                        license=license, only_light=only_light, limit=max(1, limit))
+        items = [{"id": i["id"], "name": i["name"], "title": i["title"],
+                  "category": i["category_label"], "group": i["group"],
+                  "source": i["source"], "license": i["license"],
+                  "author": i["author"], "path": i["path"]} for i in res]
+        return json.dumps({"count": len(items), "icons": items},
+                          indent=2, ensure_ascii=False)
+    except Exception as e:
+        return "[SciStudio] Erro search_icons: %s" % e
+
+
+@_profile_tool
+def scistudio_compose_illustration(icon_ids: str, title: str = "", cols: int = 3,
+                                   cell: int = 220, labels: bool = True) -> str:
+    """SciStudio: compoe uma ilustracao cientifica (SVG + PNG) a partir de icones
+    da biblioteca e salva em conteudo_digital/studio/_out/figures/. Retorna os
+    caminhos gerados. Use scistudio_search_icons antes para obter os ids.
+
+    Args:
+        icon_ids: ids separados por virgula (ex.: '53b9e80d7ebf,ab12cd34ef56').
+        title: titulo opcional desenhado no topo.
+        cols: numero de colunas da grade.
+        cell: tamanho de cada icone em px.
+        labels: desenhar o nome sob cada icone.
+    """
+    try:
+        sv = _scistudio_svglib()
+        ids = [s.strip() for s in icon_ids.split(",") if s.strip()]
+        items = [it for it in (sv.get(i) for i in ids) if it]
+        if not items:
+            return "[SciStudio] Nenhum icone valido para os ids fornecidos."
+        svg = sv.compose_svg(items, cols=max(1, cols), cell=cell,
+                             show_labels=labels, title=title)
+        out_dir = LILO_ROOT / "conteudo_digital" / "studio" / "_out" / "figures"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        import time as _t
+        stem = "illust_%s_%d" % ((title.strip().replace(" ", "_")[:30] or "scistudio"),
+                                 int(_t.time()))
+        svg_path = out_dir / (stem + ".svg")
+        svg_path.write_text(svg, encoding="utf-8")
+        result = {"n_icons": len(items), "svg": str(svg_path)}
+        png = sv.svg_to_png(svg, scale=2.0)
+        if png:
+            (out_dir / (stem + ".png")).write_bytes(png)
+            result["png"] = str(out_dir / (stem + ".png"))
+        else:
+            result["png"] = None
+            result["note"] = "PNG indisponivel (cairosvg ausente neste ambiente)."
+        result["credits"] = sorted({
+            "%s | %s | %s" % (it["author"] or "-", it["source_name"], it["license"])
+            for it in items})
+        return json.dumps(result, indent=2, ensure_ascii=False)
+    except Exception as e:
+        return "[SciStudio] Erro compose_illustration: %s" % e
+
+
+# =============================================================================
 # Entry point
 # =============================================================================
 

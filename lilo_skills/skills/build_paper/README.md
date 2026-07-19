@@ -210,7 +210,7 @@ Não há um único entrypoint: cada projeto usa o que tem. Todos chamam o **mesm
 | Projeto | Entrypoint | Mecanismo do GA |
 |---|---|---|
 | **2-SCN-NQ (naftoquinona)** | `PAPER/scripts/build_paper.py` | hook integrado: regenera GA → compila → insere prompt → `mirror_submission()` |
-| **Rho (dois_híbridos)** | `PAPER/build.sh` | hook após `build_one` → insere prompt nos docx → sync submissão |
+| **Rho (Rho_OCRL)** | `PAPER/build.sh` | hook após `build_one` → insere prompt nos docx → sync submissão |
 | **genomas** | `results/paper/integrado/refresh_ga_prompt.py` | wrapper: roda `make_ga_prompt` sobre os docx da submissão (exclui `supplementary*`) |
 | **kanon-index** | `artigo_poster/refresh_ga_prompt.py` | idem genomas |
 | **genérico (skill)** | `assets/build.sh` | hook detecta `graphical_abstract.config.json` em `PAPER/`, raiz ou `src/` → insere prompt → copia para `--submit` |

@@ -759,6 +759,10 @@ with st.sidebar:
     nav_button("Desktop", "nav_desktop", "agent")
 
     st.markdown("---")
+    st.markdown("**PLATAFORMAS**")
+    nav_button("SciStudio", "nav_scistudio", "agent")
+
+    st.markdown("---")
     st.markdown("**COWORK**")
     nav_button("Tarefas", "nav_tarefas", "tool")
     nav_button("Memoria", "nav_memoria", "tool")
@@ -2496,6 +2500,40 @@ with main_col:
 
 
     # == Skills ===============================================================
+    elif page == "SciStudio":
+        st.header("🎨 SciStudio — Produção de Divulgação Científica")
+        st.caption("Figuras didáticas · **ilustração científica a partir de biblioteca SVG** "
+                   "(bioicons + fontes CC-BY) · graphical abstracts · vídeos didáticos · pôster. "
+                   "Container `scistudio` na porta 8505.")
+        c1, c2 = st.columns([1, 3])
+        with c1:
+            st.link_button("↗ Abrir em nova aba", "http://localhost:8505",
+                           use_container_width=True)
+            try:
+                import json as _json
+                _cat = (_ROOT / "conteudo_digital" / "studio" / "static" / "icons"
+                        / "_catalog" / "icons_catalog.json")
+                if _cat.exists():
+                    _d = _json.loads(_cat.read_text(encoding="utf-8"))
+                    st.metric("Ícones SVG", _d.get("total", 0))
+                    st.caption("Biblioteca por grupo:")
+                    for _k, _v in list(_d.get("by_group", {}).items()):
+                        st.caption(f"• {_k}: {_v}")
+                else:
+                    st.info("Catálogo SVG ausente — rode "
+                            "`conteudo_digital/studio/tools/build_svg_library.py`.")
+            except Exception as _e:
+                log.debug("catalogo svg indisponivel: %s", _e)
+        with c2:
+            try:
+                st.components.v1.iframe("http://localhost:8505/?embed=true",
+                                        height=820, scrolling=True)
+            except Exception:
+                st.warning("Não foi possível embutir o SciStudio. Use o botão "
+                           "'Abrir em nova aba'.")
+        st.info("Se o quadro não carregar, suba o container: `docker compose up -d scistudio` "
+                "na raiz do LILO (ou `docker compose up -d --build` para tudo).")
+
     elif page == "Tarefas":
         if cowork:
             cowork.render_tasks_page(st)
