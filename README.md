@@ -1,9 +1,10 @@
-# LILO v10.6 — Agente Pessoal de IA com Subagentes Especializados
+# LILO v11.0 — Agente Pessoal de IA com Subagentes Especializados
 
 ![Status](https://img.shields.io/badge/status-ativo-brightgreen)
-![Version](https://img.shields.io/badge/version-10.6.0-blue)
-![Python](https://img.shields.io/badge/python-3.10%2B-yellow)
-![Arch](https://img.shields.io/badge/arch-v10-purple)
+![Version](https://img.shields.io/badge/version-11.0.0-blue)
+![Python](https://img.shields.io/badge/python-3.13-yellow)
+![Arch](https://img.shields.io/badge/arch-v11-purple)
+![Tests](https://img.shields.io/badge/tests-120%20passed-brightgreen)
 
 **LILO** (Local Intelligent LLM Orchestrator) é uma plataforma híbrida de IA pensada para um pesquisador (PhD biologia molecular + ciência de dados senior) que combina:
 
