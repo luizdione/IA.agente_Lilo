@@ -1,5 +1,36 @@
 # LILO — Changelog
 
+> **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
+> branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
+> commits (atual: V17).
+
+## v12.2 — 2026-07-19 (V17: auditoria completa, reconciliação de versionamento e limpeza)
+
+Sessão de auditoria e reorganização (branch `arch-v11`). Motivada por uma migração
+de `.git` quebrada (junctions mortas) que fez o código do OneDrive divergir como
+fonte de verdade enquanto o GitHub ficou com snapshots antigos (ver
+`C:\GitHub\_reorg\RELATORIO_FINAL.md`). Auditoria detalhada em
+`docs/versoes/AUDITORIA_2026-07-19.md`.
+
+**Reconciliação de versionamento**
+- Novo branch `arch-v11` a partir do V16 (`origin/arch-v10`), preservando o
+  histórico. Trabalho pós-V16 do OneDrive incorporado (só 6 arquivos diferiam de
+  conteúdo real; ~253 eram apenas CRLF).
+- `.gitattributes` normaliza EOL (fim do ruído CRLF↔LF no diff).
+- Segredos confirmados fora do git (`.env`, `config.yaml`, `config/litellm_config*.yaml`).
+
+**Limpeza (auditoria estática: pyflakes + AST)**
+- Código saudável: 0 erros de sintaxe (337 `.py`), 0 nomes indefinidos, 120/120 testes.
+- Removidos 43 imports de nível de módulo não usados (probes `try/except` preservados).
+- Sem código morto real: os candidatos eram falsos positivos (`test_*`, rotas FastAPI);
+  keyword-router e `SECURITY_BLOCK` são fallback/kill-switch **intencionais** (mantidos).
+
+**Reorganização**
+- `_ARCHIVE_v10/` (157 arq. legado) e a plataforma híbrida `backend/frontend/llm-gateway`
+  retirados do branch ativo (preservados em `origin/arch-v10`).
+- `data/projects/`, `data/syntheses/` desrastreados (runtime → `.gitignore`).
+- `HYBRID_PLATFORM_V10_1.md` → `docs/historico/`.
+
 ## v12.1 — 2026-06-22 (V15.1: corrige over-refusal + latencia + roteamento leve)
 
 Ajustes após uso real (feedback do autor: recusa absurda + lentidão).
