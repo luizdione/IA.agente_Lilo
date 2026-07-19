@@ -117,6 +117,10 @@ profiles:
       - make_xlsx
       - make_pptx
       - create_agent_scaffold
+      # SciStudio: biblioteca SVG + composicao de ilustracao cientifica
+      - scistudio_list_categories
+      - scistudio_search_icons
+      - scistudio_compose_illustration
 
   cowork:
     policy:
@@ -165,6 +169,10 @@ profiles:
       - make_xlsx
       - make_pptx
       - create_agent_scaffold
+      # SciStudio: biblioteca SVG + composicao de ilustracao cientifica
+      - scistudio_list_categories
+      - scistudio_search_icons
+      - scistudio_compose_illustration
 
   bio:
     policy:
@@ -213,6 +221,10 @@ profiles:
       - make_xlsx
       - make_pptx
       - create_agent_scaffold
+      # SciStudio: biblioteca SVG + composicao de ilustracao cientifica
+      - scistudio_list_categories
+      - scistudio_search_icons
+      - scistudio_compose_illustration
 
   openclaw:
     policy:
@@ -262,6 +274,10 @@ profiles:
       - make_xlsx
       - make_pptx
       - create_agent_scaffold
+      # SciStudio: biblioteca SVG + composicao de ilustracao cientifica
+      - scistudio_list_categories
+      - scistudio_search_icons
+      - scistudio_compose_illustration
 
 # Politica usada para perfis nao mapeados (conservadora).
 fallback_policy:

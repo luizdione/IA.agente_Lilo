@@ -78,6 +78,7 @@ echo ============================================================
 echo.
 echo   Ollama:      http://localhost:11434
 echo   Dashboard:   http://localhost:8100
+echo   SciStudio:   http://localhost:8505  (se Docker ativo)
 echo   Backend:     http://localhost:8000  (se Docker ativo)
 echo   Frontend:    http://localhost:3000  (se Docker ativo)
 echo   ChromaDB:    http://localhost:8001  (se Docker ativo)
