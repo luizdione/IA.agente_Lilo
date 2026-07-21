@@ -4,6 +4,18 @@
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
 > commits (atual: V17).
 
+## v12.5 — 2026-07-21 (V17.3: centralização de modelos + modernização do parque Ollama)
+
+- **`shared/models.py`** — fonte única dos defaults de modelo (antes triplicados
+  em `llm_client`/`policy`/`villa` + literais repetidos em `dashboard` e 4 agents).
+  Trocar de modelo = editar o `.env` **ou** um só arquivo.
+- **Parque Ollama (RTX 3060 12GB)** — apagados 6 modelos 2023–2024 obsoletos
+  (~31 GB: codellama, mistral:7b, llama3:8b, deepseek-coder base/v2, tag duplicada);
+  baixados `gemma3:12b` (chat), `qwen3:14b` (plan), `bge-m3` (embed). O `.env` ativa
+  gemma3 + qwen3; embed segue `mxbai` até re-indexar (`bge-m3` = upgrade multilíngue
+  PT+EN para o RAG do ScholarAgent).
+- Validação: 0 nomes indefinidos, 120/120 testes, 0 defaults obsoletos ativos.
+
 ## v12.4 — 2026-07-20 (V17.2: modularização do CSS do dashboard)
 
 Refatoração de organização — **sem mudança de comportamento** (validada byte-a-byte).
