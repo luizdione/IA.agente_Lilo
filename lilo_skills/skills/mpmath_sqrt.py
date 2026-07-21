@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_sqrt(x: str, kwargs: str):
-    """
+    r"""
     ``sqrt(x)`` gives the principal square root of `x`, `\sqrt x`.
 For positive real numbers, the principal root is simply the
 positive square root. For arbitrary complex numbers, the principal

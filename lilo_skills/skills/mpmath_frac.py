@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_frac(x: str, kwargs: str):
-    """
+    r"""
     Gives the fractional part of `x`, defined as
 `\mathrm{frac}(x) = x - \lfloor x \rfloor` (see :func:`~mpmath.floor`).
 In effect, this computes `x` modulo 1, or `x+n` where

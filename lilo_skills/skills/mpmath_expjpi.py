@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_expjpi(x: str, kwargs: str):
-    """
+    r"""
     Convenience function for computing `e^{i \pi x}`.
 Evaluation is accurate near zeros (see also :func:`~mpmath.cospi`,
 :func:`~mpmath.sinpi`)::

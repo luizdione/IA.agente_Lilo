@@ -7,7 +7,7 @@ Tags: matematica, visualizacao
 
 
 def mpmath_ellipk(x: str, kwargs: str):
-    """
+    r"""
     Evaluates the complete elliptic integral of the first kind,
 `K(m)`, defined by
 

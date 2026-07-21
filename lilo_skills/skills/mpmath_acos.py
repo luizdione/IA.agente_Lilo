@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_acos(x: str, kwargs: str):
-    """
+    r"""
     Computes the inverse cosine or arccosine of `x`, `\cos^{-1}(x)`.
 Since `-1 \le \cos(x) \le 1` for real `x`, the inverse
 cosine is real-valued only for `-1 \le x \le 1`. On this interval,

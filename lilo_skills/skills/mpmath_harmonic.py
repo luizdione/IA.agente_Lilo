@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_harmonic(x: str, kwargs: str):
-    """
+    r"""
     If `n` is an integer, ``harmonic(n)`` gives a floating-point
 approximation of the `n`-th harmonic number `H(n)`, defined as
 

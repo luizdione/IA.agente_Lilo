@@ -7,7 +7,7 @@ Tags: geral
 
 
 def numpy_get_include():
-    """
+    r"""
     Return the directory that contains the NumPy \*.h header files.
 
 Extension modules that need to compile against NumPy may need to use this

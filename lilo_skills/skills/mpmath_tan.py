@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_tan(x: str, kwargs: str):
-    """
+    r"""
     Computes the tangent of `x`, `\tan(x) = \frac{\sin(x)}{\cos(x)}`.
 The tangent function is singular at `x = (n+1/2)\pi`, but
 ``tan(x)`` always returns a finite result since `(n+1/2)\pi`

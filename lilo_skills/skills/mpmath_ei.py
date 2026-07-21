@@ -7,7 +7,7 @@ Tags: bioinformatica, matematica
 
 
 def mpmath_ei(x: str, kwargs: str):
-    """
+    r"""
     Computes the exponential integral or Ei-function, `\mathrm{Ei}(x)`.
 The exponential integral is defined as
 

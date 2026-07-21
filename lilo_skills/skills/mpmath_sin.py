@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_sin(x: str, kwargs: str):
-    """
+    r"""
     Computes the sine of `x`, `\sin(x)`.
 
     >>> from mpmath import *

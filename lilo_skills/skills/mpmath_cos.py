@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_cos(x: str, kwargs: str):
-    """
+    r"""
     Computes the cosine of `x`, `\cos(x)`.
 
     >>> from mpmath import *

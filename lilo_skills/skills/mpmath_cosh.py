@@ -7,7 +7,7 @@ Tags: bioinformatica, matematica
 
 
 def mpmath_cosh(x: str, kwargs: str):
-    """
+    r"""
     Computes the hyperbolic cosine of `x`,
 `\cosh(x) = (e^x + e^{-x})/2`. Values and limits include::
 

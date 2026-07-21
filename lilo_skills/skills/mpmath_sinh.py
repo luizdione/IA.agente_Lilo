@@ -7,7 +7,7 @@ Tags: bioinformatica, matematica
 
 
 def mpmath_sinh(x: str, kwargs: str):
-    """
+    r"""
     Computes the hyperbolic sine of `x`,
 `\sinh(x) = (e^x - e^{-x})/2`. Values and limits include::
 

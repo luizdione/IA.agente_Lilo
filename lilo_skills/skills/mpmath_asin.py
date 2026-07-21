@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_asin(x: str, kwargs: str):
-    """
+    r"""
     Computes the inverse sine or arcsine of `x`, `\sin^{-1}(x)`.
 Since `-1 \le \sin(x) \le 1` for real `x`, the inverse
 sine is real-valued only for `-1 \le x \le 1`.

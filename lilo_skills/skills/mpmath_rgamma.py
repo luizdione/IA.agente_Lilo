@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_rgamma(x: str, kwargs: str):
-    """
+    r"""
     Computes the reciprocal of the gamma function, `1/\Gamma(z)`. This
 function evaluates to zero at the poles
 of the gamma function, `z = 0, -1, -2, \ldots`.

@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_e1(x: str, kwargs: str):
-    """
+    r"""
     Computes the exponential integral `\mathrm{E}_1(z)`, given by
 
 .. math ::

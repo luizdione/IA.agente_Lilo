@@ -7,7 +7,7 @@ Tags: bioinformatica, matematica
 
 
 def mpmath_ln(x: str, kwargs: str):
-    """
+    r"""
     Computes the base-`b` logarithm of `x`, `\log_b(x)`. If `b` is
 unspecified, :func:`~mpmath.log` computes the natural (base `e`) logarithm
 and is equivalent to :func:`~mpmath.ln`. In general, the base `b` logarithm

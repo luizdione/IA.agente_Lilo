@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_nint(x: str, kwargs: str):
-    """
+    r"""
     Evaluates the nearest integer function, `\mathrm{nint}(x)`.
 This gives the nearest integer to `x`; on a tie, it
 gives the nearest even integer::
