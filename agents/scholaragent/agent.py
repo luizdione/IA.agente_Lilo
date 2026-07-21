@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from shared.base_agent import BaseAgent
 from shared.llm_client import get_client
+from shared.models import WORKER_CLOUD
 from shared.utils import load_env, sanitize_query, truncate
 
 load_env()
@@ -356,7 +357,7 @@ class ScholarAgent(BaseAgent):
         if not results:
             return f"[ScholarAgent] Nenhum artigo para revisar: '{query}'"
         formatted = self._format_results(results)
-        model = _os.getenv("LILO_REVIEW_MODEL", "gpt-oss:120b-cloud")
+        model = _os.getenv("LILO_REVIEW_MODEL", WORKER_CLOUD)
         system = (
             "Voce e um pesquisador senior redigindo uma REVISAO DE LITERATURA "
             "para a secao de Introducao/Discussao de um artigo. Use SOMENTE os "

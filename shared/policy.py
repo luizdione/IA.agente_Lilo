@@ -48,12 +48,14 @@ COST_PER_1K = {
     ExecutionTier.CLAUDE_OPUS: 0.045,
 }
 
-# Modelo padrão por tier
+# Modelo padrão por tier. Modelos locais vêm de shared/models.py (fonte única);
+# os Claude ficam aqui por serem específicos do tier cloud.
+from shared.models import MODELS  # noqa: E402
 TIER_MODELS = {
     ExecutionTier.NO_LLM: None,
-    ExecutionTier.OLLAMA_FAST: get_env("OLLAMA_MODEL_FAST", "qwen2.5-coder:7b-instruct"),
-    ExecutionTier.OLLAMA: get_env("OLLAMA_MODEL", "llama3.1:8b-instruct-q8_0"),
-    ExecutionTier.OLLAMA_HEAVY: get_env("OLLAMA_MODEL_CODE", "qwen2.5-coder:14b"),
+    ExecutionTier.OLLAMA_FAST: MODELS["autocomplete"],
+    ExecutionTier.OLLAMA: MODELS["chat"],
+    ExecutionTier.OLLAMA_HEAVY: MODELS["code"],
     # Atualizado 2026-05-07 para Claude 4.5/4.6 (familia atual).
     # Variavel LILO_CLAUDE_SONNET / LILO_CLAUDE_OPUS permitem override
     # sem editar codigo (importante quando Anthropic publicar novas versoes).

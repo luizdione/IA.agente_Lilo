@@ -26,7 +26,8 @@ _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 
 from shared.base_agent import BaseAgent
-from shared.llm_client import get_client, MODELS
+from shared.llm_client import get_client
+from shared.models import MODELS, WORKER_CLOUD
 from shared.logger import get_logger
 from shared.server_profile import get_profile_policy, get_server_profile
 
@@ -255,11 +256,11 @@ def _detect_domain(query):
 
 
 VILLA_MODELS = {
-    "orchestrator": MODELS.get("chat", "llama3.1:8b-instruct-q8_0"),
-    "planner":      MODELS.get("plan", "phi3:14b-medium-128k-instruct-q4_K_M"),
-    "reader":       MODELS.get("code", "qwen2.5-coder:14b"),
-    "worker":       MODELS.get("code", "qwen2.5-coder:14b"),
-    "reporter":     MODELS.get("chat", "llama3.1:8b-instruct-q8_0"),
+    "orchestrator": MODELS["chat"],
+    "planner":      MODELS["plan"],
+    "reader":       MODELS["code"],
+    "worker":       MODELS["code"],
+    "reporter":     MODELS["chat"],
 }
 
 # V10.9 (2026-06-08): selecao de modelo do WORKER/READER sensivel a INTENCAO.
@@ -276,9 +277,9 @@ VILLA_MODELS = {
 # (MODELS["chat"]). Para forcar 100% local: VILLA_WORKER_GENERAL_MODEL=
 # llama3.1:8b-instruct-q8_0 (ou OLLAMA_MODEL).
 VILLA_WORKER_GENERAL_MODEL = _os.getenv(
-    "VILLA_WORKER_GENERAL_MODEL", "gpt-oss:120b-cloud")
+    "VILLA_WORKER_GENERAL_MODEL", WORKER_CLOUD)
 VILLA_WORKER_CODE_MODEL = _os.getenv(
-    "VILLA_WORKER_CODE_MODEL", MODELS.get("code", "qwen2.5-coder:14b"))
+    "VILLA_WORKER_CODE_MODEL", MODELS["code"])
 
 # V12.3 (2026-06-12): alavancas de QUALIDADE do Worker, todas configuraveis por
 # env para experimentacao+medicao com o juiz (gargalo real = variancia factual

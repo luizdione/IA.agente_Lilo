@@ -46,14 +46,11 @@ def _is_retryable(exc) -> bool:
         return sc == 429 or 500 <= sc < 600
     return False
 
-MODELS = {
-    "chat":         get_env("OLLAMA_MODEL",       "llama3.1:8b-instruct-q8_0"),
-    "code":         get_env("OLLAMA_MODEL_CODE",  "qwen2.5-coder:14b"),
-    "plan":         get_env("OLLAMA_MODEL_PLAN",  "phi3:14b-medium-128k-instruct-q4_K_M"),
-    "autocomplete": get_env("OLLAMA_MODEL_FAST",  "qwen2.5-coder:7b-instruct"),
-    "embed":        get_env("OLLAMA_MODEL_EMBED",  "mxbai-embed-large:latest"),
-}
-DEFAULT_MODEL = MODELS["chat"]
+# Matriz de modelos centralizada em shared/models.py. Re-exportada aqui para
+# compatibilidade (villa_lobos, gateway, chat_memory fazem
+# `from shared.llm_client import MODELS`). Trocar de modelo: .env ou
+# shared/models.py — num só lugar.
+from shared.models import MODELS, DEFAULT_MODEL  # noqa: E402,F401
 
 # System prompt padrao para nivel PhD
 DEFAULT_SYSTEM = (

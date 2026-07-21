@@ -28,13 +28,14 @@ if str(_ROOT) not in sys.path:
 
 from shared.base_agent import BaseAgent
 from shared.llm_client import get_client
+from shared.models import WORKER_CLOUD
 from shared.utils import load_env, sanitize_query
 from shared.logger import get_logger
 
 load_env()
 log = get_logger("SkillSmith")
 
-SMITH_MODEL = os.getenv("LILO_SKILLSMITH_MODEL", "gpt-oss:120b-cloud")
+SMITH_MODEL = os.getenv("LILO_SKILLSMITH_MODEL", WORKER_CLOUD)
 
 _TEMPLATE = '''"""
 agents/{name}/agent.py -- {description}

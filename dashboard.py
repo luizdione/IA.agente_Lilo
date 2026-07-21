@@ -154,7 +154,8 @@ def warm_up_gpu(model_name=None):
     Retorna (ok, mensagem)."""
     try:
         if not model_name:
-            model_name = get_env("OLLAMA_MODEL", "llama3.1:8b-instruct-q8_0")
+            from shared.models import DEFAULT_MODEL
+            model_name = get_env("OLLAMA_MODEL", DEFAULT_MODEL)
         payload = {
             "model": model_name,
             "messages": [{"role": "user", "content": "ok"}],
@@ -1691,11 +1692,10 @@ with main_col:
             _vm_worker       = _VM.get("worker", "?")
             _vm_reporter     = _VM.get("reporter", "?")
         except Exception:
-            _vm_orchestrator = get_env("OLLAMA_MODEL", "llama3.1:8b-instruct-q8_0")
-            _vm_planner      = get_env("OLLAMA_MODEL_PLAN", "phi3:14b-medium-128k-instruct-q4_K_M")
-            _vm_reader       = get_env("OLLAMA_MODEL_CODE", "qwen2.5-coder:14b")
-            _vm_worker       = get_env("OLLAMA_MODEL_CODE", "qwen2.5-coder:14b")
-            _vm_reporter     = get_env("OLLAMA_MODEL", "llama3.1:8b-instruct-q8_0")
+            from shared.models import MODELS as _M
+            _vm_orchestrator = _vm_reporter = _M["chat"]
+            _vm_planner      = _M["plan"]
+            _vm_reader = _vm_worker = _M["code"]
 
         st.markdown(
             f"""
@@ -2128,12 +2128,10 @@ with main_col:
                     "Status": "Online" if ollama_ok else "Offline",
                     "Detalhes": str(len(models)) + " modelos" if ollama_ok else "Offline",
                 })
+                from shared.models import MODELS as _M
                 expected = {
-                    "chat": get_env("OLLAMA_MODEL", "llama3.1:8b-instruct-q8_0"),
-                    "code": get_env("OLLAMA_MODEL_CODE", "qwen2.5-coder:14b"),
-                    "plan": get_env("OLLAMA_MODEL_PLAN",
-                                    "phi3:14b-medium-128k-instruct-q4_K_M"),
-                    "fast": get_env("OLLAMA_MODEL_FAST", "qwen2.5-coder:7b-instruct"),
+                    "chat": _M["chat"], "code": _M["code"],
+                    "plan": _M["plan"], "fast": _M["autocomplete"],
                 }
                 for role, mn in expected.items():
                     ok = mn in models if ollama_ok else False
@@ -2216,14 +2214,10 @@ with main_col:
 
         col_warm1, col_warm2 = st.columns([2, 3])
         with col_warm1:
+            from shared.models import MODELS as _M
             warm_model = st.selectbox(
                 "Modelo a aquecer",
-                [
-                    get_env("OLLAMA_MODEL", "llama3.1:8b-instruct-q8_0"),
-                    get_env("OLLAMA_MODEL_CODE", "qwen2.5-coder:14b"),
-                    get_env("OLLAMA_MODEL_PLAN", "phi3:14b-medium-128k-instruct-q4_K_M"),
-                    get_env("OLLAMA_MODEL_FAST", "qwen2.5-coder:7b-instruct"),
-                ],
+                [_M["chat"], _M["code"], _M["plan"], _M["autocomplete"]],
                 key="warm_model_sel",
             )
         with col_warm2:

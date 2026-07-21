@@ -28,13 +28,14 @@ if str(_ROOT) not in sys.path:
 
 from shared.base_agent import BaseAgent
 from shared.llm_client import get_client
+from shared.models import WORKER_CLOUD
 from shared.utils import load_env, sanitize_query, truncate
 from shared.logger import get_logger
 
 load_env()
 log = get_logger("DocGenAgent")
 
-DOCGEN_MODEL = os.getenv("LILO_DOCGEN_MODEL", "gpt-oss:120b-cloud")
+DOCGEN_MODEL = os.getenv("LILO_DOCGEN_MODEL", WORKER_CLOUD)
 _OUT_DIR = Path(os.getenv("LILO_DOCGEN_OUT", str(_ROOT / "data" / "docgen")))
 
 
