@@ -45,7 +45,6 @@ _agents: dict = {}
 
 def _load_agents() -> dict:
     """Inicializa os subagentes (lazy -- so carrega quando necessario)."""
-    global _agents
     if _agents:
         return _agents
 

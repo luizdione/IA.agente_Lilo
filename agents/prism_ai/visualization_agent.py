@@ -325,7 +325,7 @@ class VisualizationAgent:
         x = np.arange(len(groups))
         colors = self.PRISM_COLORS[:len(groups)]
 
-        bars = ax.bar(x, means, yerr=sems, width=0.6, capsize=4,
+        ax.bar(x, means, yerr=sems, width=0.6, capsize=4,
                       color=colors, alpha=0.7, edgecolor="black", linewidth=0.8,
                       error_kw=dict(linewidth=1))
 

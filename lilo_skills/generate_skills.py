@@ -498,15 +498,15 @@ def main():
         "=" * 50,
         f"Data: {time.strftime('%Y-%m-%d %H:%M:%S')}",
         f"Input: {input_path}",
-        f"",
+        "",
         f"Funções analisadas: {len(functions)}",
         f"  SIMPLES: {len(classified['simple'])}",
         f"  MÉDIA:   {len(classified['medium'])}",
         f"  COMPLEXA: {len(classified['complex'])}",
-        f"",
+        "",
         f"Skills geradas: {len(generated)}",
         f"Erros de geração: {len(generation_errors)}",
-        f"",
+        "",
     ]
 
     if generation_errors:
@@ -517,7 +517,7 @@ def main():
 
     if validation_results:
         failed = [v for v in validation_results if not v["valid"]]
-        report_lines.append(f"── Validação ──")
+        report_lines.append("── Validação ──")
         report_lines.append(f"  Válidas: {len(validation_results) - len(failed)}")
         report_lines.append(f"  Inválidas: {len(failed)}")
         for v in failed:
@@ -549,7 +549,7 @@ def main():
     print(f"  Pacotes analisados:     {data.get('relevant_packages', '?')}")
     print(f"  Funções extraídas:      {len(functions)}")
     print(f"  Skills geradas:         {len(generated)}")
-    print(f"  Skills por pacote:")
+    print("  Skills por pacote:")
     for pkg, count in sorted(registry.get("by_package", {}).items(), key=lambda x: -x[1])[:10]:
         print(f"    {pkg}: {count}")
     print(f"\n  Diretório: {SCRIPT_DIR}")

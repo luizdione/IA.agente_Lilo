@@ -57,7 +57,6 @@ class ExportAgent:
         export_csv = config.get("export_csv", True)
 
         d = ingested_data
-        exp_type = classification.experiment_type.value
 
         # 1. Gerar .pzfx
         pzfx_path = str(out / f"{filename}.pzfx")
@@ -116,9 +115,6 @@ class ExportAgent:
 
         title = ET.SubElement(table, "Title")
         title.text = "Data"
-
-        # Determinar tipo de tabela Prism
-        table_type = self._get_prism_table_type(classification)
 
         # Colunas e dados
         df = data.df

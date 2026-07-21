@@ -129,7 +129,7 @@ def _body(pkg: str, items: list[dict]) -> str:
         "chamada via MCP tool `lilo_run_skill` ou import direto:\n"
     )
     lines.append("\n```python")
-    lines.append(f"from lilo_skills import run_skill")
+    lines.append("from lilo_skills import run_skill")
     lines.append(f'res = run_skill("{items[0]["name"]}", **kwargs)')
     lines.append("```\n")
     lines.append("\n## Funcoes\n")
