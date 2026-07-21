@@ -15,8 +15,10 @@ Matriz padrão (RTX 3060 12GB, jul/2026):
   code         qwen2.5-coder:14b          leitura/worker de código (cabe em 12GB)
   plan         qwen3:14b                  planner/reasoning (modo thinking)
   autocomplete qwen2.5-coder:7b-instruct  SQL/autocomplete rápido
-  embed        mxbai-embed-large:latest   RAG. Upgrade: `bge-m3` (multilíngue PT+EN),
-                                          mas TROCAR EXIGE RE-INDEXAR data/scholar_brain/
+  embed        mxbai-embed-large:latest   NÃO consumido pelo RAG do ScholarAgent (que usa
+                                          `SCHOLAR_EMBED_MODEL` via sentence-transformers,
+                                          hoje paraphrase-multilingual-MiniLM). Reservado
+                                          para um embed via Ollama, se um dia ligado.
   worker_cloud gpt-oss:120b-cloud         conhecimento factual via Ollama Cloud (0 VRAM)
 """
 from __future__ import annotations
