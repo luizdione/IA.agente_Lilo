@@ -4,6 +4,19 @@
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
 > commits (atual: V17).
 
+## v12.4 — 2026-07-20 (V17.2: modularização do CSS do dashboard)
+
+Refatoração de organização — **sem mudança de comportamento** (validada byte-a-byte).
+
+- **`dashboard.py`: 2994 → 2437 linhas (−557).** Os 3 blocos de CSS estático
+  (global, histórico, welcome) foram extraídos para `dashboard_styles.py`
+  (`GLOBAL_CSS`, `HISTORICO_CSS`, `WELCOME_CSS`), injetados nos mesmos pontos.
+- CSS **dinâmico** (f-string dependente de variáveis — `nav_button`, `stop_button`,
+  card 3D do Villa) permanece inline.
+- Validação: o dashboard reconstruído é idêntico ao original (prova byte-a-byte);
+  sobe sem erros e renderiza igual (navegador via `read_page` + console limpo);
+  120/120 testes.
+
 ## v12.3 — 2026-07-20 (V17.1: polimento de código e tooling de qualidade)
 
 Continuação da auditoria V17. Higiene de código e prevenção de regressões.
