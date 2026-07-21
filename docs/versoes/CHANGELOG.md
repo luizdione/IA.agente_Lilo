@@ -4,6 +4,22 @@
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
 > commits (atual: V17).
 
+## v12.3 — 2026-07-20 (V17.1: polimento de código e tooling de qualidade)
+
+Continuação da auditoria V17. Higiene de código e prevenção de regressões.
+
+- **Limpeza cosmética:** 8 variáveis mortas removidas (efeitos colaterais
+  preservados — p. ex. `ax.bar()` mantido, só a atribuição saiu), 11 f-strings
+  sem placeholder normalizadas, `global _agents` redundante removido.
+- **SyntaxWarnings zerados:** 31 skills auto-geradas tinham docstrings com LaTeX
+  (`\log`, `\ln`) em strings não-raw → convertidas para r-strings; o gerador
+  `generate_skills.py` passa a emitir r-docstring (previne a regressão).
+- **Tooling de qualidade:** `[tool.ruff]` no `pyproject.toml`, `.editorconfig`,
+  `scripts/check.py` (saúde num comando: sintaxe → pyflakes → pytest) e
+  `requirements-dev.txt` (deps de lint/teste).
+- Estado: 338 `.py` sem erro de sintaxe, 0 escape warnings, 0 nomes indefinidos,
+  120/120 testes.
+
 ## v12.2 — 2026-07-19 (V17: auditoria completa, reconciliação de versionamento e limpeza)
 
 Sessão de auditoria e reorganização (branch `arch-v11`). Motivada por uma migração

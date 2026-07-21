@@ -13,6 +13,7 @@ streamlit run dashboard.py          # UI principal -> http://localhost:8100
 python lilo.py "pergunta"           # CLI
 python lilo.py health               # status de backends/subagentes
 python scripts\test_mcp_stdio.py --profile claude_code   # valida o MCP
+python scripts\check.py             # saude do codigo (sintaxe+pyflakes+pytest)
 ```
 
 ## MCP: qual profile usar (importante p/ tokens)
