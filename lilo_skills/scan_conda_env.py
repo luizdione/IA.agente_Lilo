@@ -506,7 +506,7 @@ def main():
     medium = [f for f in functions if not f["all_primitive_params"] and not f["has_complex_params"]]
     complex_fns = [f for f in functions if f["has_complex_params"]]
 
-    print(f"\nClassificação prévia:")
+    print("\nClassificação prévia:")
     print(f"  SIMPLES (todos params primitivos): {len(simple)}")
     print(f"  MÉDIA (params não-primitivos mas sem complexos): {len(medium)}")
     print(f"  COMPLEXA (requer objetos específicos): {len(complex_fns)}")

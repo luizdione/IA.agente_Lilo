@@ -62,10 +62,10 @@ def install() -> int:
     bat_target = HOOKS_DIR / (HOOK_NAME + "_diag.bat")
     bat_target.write_text(BAT_HOOK, encoding="utf-8", newline="\r\n")
 
-    print(f"[install_hooks] OK")
+    print("[install_hooks] OK")
     print(f"  hook ativo:    {target}")
     print(f"  diag manual:   {bat_target}")
-    print(f"  validador:     scripts/pre_commit_ast_check.py")
+    print("  validador:     scripts/pre_commit_ast_check.py")
     print()
     print("Teste: edite um .py, faca git add, e tente commit.")
     print("Bypass de emergencia: git commit --no-verify")

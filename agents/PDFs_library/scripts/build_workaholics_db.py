@@ -403,12 +403,12 @@ def scan_directory(root: Path, db_path: Path,
                 stats["pdfs_total"] += 1
                 if limit is not None and processed >= limit:
                     if verbose:
-                        print(f"[Scanner] Limite atingido. Parando.")
+                        print("[Scanner] Limite atingido. Parando.")
                     break
 
                 try:
                     st = pdf.stat()
-                except OSError as e:
+                except OSError:
                     stats["errors"] += 1
                     continue
 

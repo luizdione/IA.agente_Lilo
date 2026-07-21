@@ -276,7 +276,6 @@ class StatsAgent:
     def _mann_whitney(self, arrays, alpha, base) -> StatsResult:
         a, b = arrays[0], arrays[1] if len(arrays) > 1 else arrays[0]
         stat, p = stats.mannwhitneyu(a, b, alternative="two-sided")
-        n_total = len(a) + len(b)
         r = 1 - (2 * stat) / (len(a) * len(b))
         return StatsResult(
             test_full_name="Mann-Whitney U test",

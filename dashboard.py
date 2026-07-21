@@ -34,7 +34,7 @@ from shared.chat_memory import get_memory
 # derrubar o dashboard caso o modulo nao esteja presente.
 try:
     import dashboard_cowork as cowork
-except Exception as _cw_err:  # pragma: no cover
+except Exception:  # pragma: no cover
     cowork = None
 
 load_env()

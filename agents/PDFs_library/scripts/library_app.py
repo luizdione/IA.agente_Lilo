@@ -478,7 +478,6 @@ def render_indexed_paper(p: dict):
     dataset_status = cur.get("dataset_status", "")
 
     # Linha de meta no header
-    meta_bits = []
     head_label = f"{authors_short} ({year})" if authors_short else year
     meta_html = f"{_esc(head_label)}"
     if journal:
@@ -633,7 +632,7 @@ def run_scanner_async(extra_root: Optional[str] = None):
 
 with st.sidebar:
     st.markdown("## 📚 LILO Biblioteca")
-    st.caption(f"Raiz: `Artigos PDF`")
+    st.caption("Raiz: `Artigos PDF`")
 
     # Acoes globais
     col_a, col_b = st.columns(2)
@@ -816,9 +815,6 @@ with st.sidebar:
                 with c_main:
                     # Indent em espacos nao-quebraveis (visual de tree)
                     indent_str = "   " * level
-                    # Icone — book aberto p/ tema folha, livros p/ pasta
-                    icon_emoji = "📂" if (has_kids and is_open) else \
-                                 "📁" if has_kids else "📖"
                     display_name = child["name"]
                     if len(display_name) > 30:
                         display_name = display_name[:28] + "..."
