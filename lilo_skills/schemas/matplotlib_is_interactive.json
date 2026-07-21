@@ -1,0 +1,9 @@
+{
+  "name": "matplotlib_is_interactive",
+  "description": "Return whether to redraw after every plotting command.\n\n.. note::\n\n    This function is only intended for use in backends. End users should\n    use `.pyplot.isinteractive` instead.",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}

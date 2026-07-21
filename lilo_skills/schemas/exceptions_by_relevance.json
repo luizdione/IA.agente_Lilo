@@ -1,0 +1,20 @@
+{
+  "name": "exceptions_by_relevance",
+  "description": "Create a key function that can be used to sort errors by relevance.\n\nArguments:\n    weak (set):\n        a collection of validator names to consider to be \"weak\".\n        If there are two errors at the",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "weak": {
+        "type": "string",
+        "description": "weak (Any)",
+        "default": "frozenset({'oneOf', 'anyOf'})"
+      },
+      "strong": {
+        "type": "string",
+        "description": "strong (Any)",
+        "default": "frozenset()"
+      }
+    },
+    "required": []
+  }
+}

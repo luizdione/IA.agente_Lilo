@@ -12,6 +12,7 @@ Uso:
 
 import sqlite3
 import os
+import tempfile
 from datetime import datetime, date
 from pathlib import Path
 from typing import Optional
@@ -22,7 +23,45 @@ from .utils import PROJECT_ROOT
 
 log = get_logger("CostTracker")
 
-DB_PATH = PROJECT_ROOT / "logs" / "cost_tracking.db"
+# 2026-05-20: caminho configuravel via env -- permite mover o SQLite
+# volatil para fora de pastas sincronizadas (OneDrive) onde o SQLite
+# pode lancar "disk I/O error"/locking. Default inalterado.
+DB_PATH = Path(os.environ.get(
+    "LILO_COST_DB", str(PROJECT_ROOT / "logs" / "cost_tracking.db")))
+
+# 2026-05-31 (V10.2): fallback automatico para path gravavel.
+# Quando o path primario e read-only / disco cheio / sandbox compartilhado,
+# o codigo antigo soltava WARN "disk I/O error" a CADA log_request e ainda
+# pagava o custo de abrir a conexao (latencia por stage, secao 3.2 do
+# relat. 2026-05-30). Agora testamos a gravabilidade UMA vez no boot e, se
+# falhar, degradamos para tempfile silenciosamente. Se nem o tempfile
+# funcionar, a telemetria e desativada (no-op) em vez de spammar/atrasar.
+_TEMP_DB = Path(tempfile.gettempdir()) / "lilo_cost_tracking.db"
+
+
+def _resolve_writable_db(preferred: Path) -> tuple[Optional[Path], bool]:
+    """Retorna (path_gravavel, degraded). path=None => telemetria off.
+
+    Tenta o path preferido; se nao for gravavel, cai para tempfile. Se nem
+    o tempfile servir, devolve (None, True) e o tracker vira no-op.
+    """
+    for candidate, is_fallback in ((preferred, False), (_TEMP_DB, True)):
+        try:
+            candidate.parent.mkdir(parents=True, exist_ok=True)
+            # Teste real de escrita SQLite (mais fiel que os.access).
+            with sqlite3.connect(str(candidate)) as conn:
+                conn.execute("CREATE TABLE IF NOT EXISTS _probe (x INTEGER)")
+            if is_fallback:
+                log.warning(
+                    "CostTracker: path primario nao-gravavel; usando fallback "
+                    "tempfile %s (telemetria preservada, sem spam de I/O).",
+                    candidate)
+            return candidate, is_fallback
+        except Exception as _e:
+            log.debug("CostTracker: path %s indisponivel: %s", candidate, _e)
+    log.warning("CostTracker: nenhum path gravavel; telemetria DESATIVADA "
+                "nesta sessao (no-op, sem custo por stage).")
+    return None, True
 
 
 @dataclass
@@ -42,31 +81,39 @@ class CostTracker:
     """Rastreia custos e uso de modelos em SQLite local."""
 
     def __init__(self, db_path: Optional[Path] = None):
-        self.db_path = db_path or DB_PATH
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._init_db()
+        preferred = db_path or DB_PATH
+        # V10.2: resolve um path gravavel UMA vez; se nada servir, no-op.
+        resolved, degraded = _resolve_writable_db(preferred)
+        self.db_path = resolved
+        self.enabled = resolved is not None
+        self.degraded = degraded
+        if self.enabled:
+            self._init_db()
 
     def _init_db(self):
-        with sqlite3.connect(str(self.db_path)) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS requests (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp TEXT NOT NULL,
-                    date TEXT NOT NULL,
-                    backend TEXT NOT NULL,
-                    model TEXT,
-                    subagent TEXT,
-                    tier TEXT,
-                    tokens_in INTEGER DEFAULT 0,
-                    tokens_out INTEGER DEFAULT 0,
-                    cost_usd REAL DEFAULT 0.0,
-                    query_preview TEXT,
-                    duration_ms INTEGER DEFAULT 0
-                )
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_date ON requests(date)
-            """)
+        try:
+            with sqlite3.connect(str(self.db_path)) as conn:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS requests (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT NOT NULL,
+                        date TEXT NOT NULL,
+                        backend TEXT NOT NULL,
+                        model TEXT,
+                        subagent TEXT,
+                        tier TEXT,
+                        tokens_in INTEGER DEFAULT 0,
+                        tokens_out INTEGER DEFAULT 0,
+                        cost_usd REAL DEFAULT 0.0,
+                        query_preview TEXT,
+                        duration_ms INTEGER DEFAULT 0
+                    )
+                """)
+                conn.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_date ON requests(date)
+                """)
+        except Exception as _e:
+            log.warning("CostTracker._init_db falhou (telemetria nao-fatal; disco cheio/lock?): %s", _e)
 
     def log_request(
         self,
@@ -81,31 +128,40 @@ class CostTracker:
         duration_ms: int = 0,
     ):
         """Registra uma chamada LLM."""
-        now = datetime.now()
-        with sqlite3.connect(str(self.db_path)) as conn:
-            conn.execute(
-                """INSERT INTO requests
-                   (timestamp, date, backend, model, subagent, tier, tokens_in, tokens_out, cost_usd, query_preview, duration_ms)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    now.isoformat(),
-                    now.strftime("%Y-%m-%d"),
-                    backend,
-                    model or "",
-                    subagent,
-                    tier,
-                    tokens_in,
-                    tokens_out,
-                    cost_usd,
-                    query_preview[:80],
-                    duration_ms,
-                ),
-            )
-        log.info(f"Logged: {backend}/{model} | ${cost_usd:.4f} | {tokens_in+tokens_out} tokens")
+        if not self.enabled:
+            return  # V10.2: telemetria desativada -> no-op (sem latencia/spam)
+        try:
+            now = datetime.now()
+            with sqlite3.connect(str(self.db_path)) as conn:
+                conn.execute(
+                    """INSERT INTO requests
+                       (timestamp, date, backend, model, subagent, tier, tokens_in, tokens_out, cost_usd, query_preview, duration_ms)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        now.isoformat(),
+                        now.strftime("%Y-%m-%d"),
+                        backend,
+                        model or "",
+                        subagent,
+                        tier,
+                        tokens_in,
+                        tokens_out,
+                        cost_usd,
+                        query_preview[:80],
+                        duration_ms,
+                    ),
+                )
+            log.info(f"Logged: {backend}/{model} | ${cost_usd:.4f} | {tokens_in+tokens_out} tokens")
+        except Exception as _e:
+            log.warning("CostTracker.log_request falhou (telemetria nao-fatal): %s", _e)
 
     def daily_summary(self, target_date: Optional[str] = None) -> dict:
         """Resumo de custos do dia."""
         d = target_date or date.today().isoformat()
+        if not self.enabled:
+            return {"date": d, "total_requests": 0, "total_cost_usd": 0.0,
+                    "total_tokens_in": 0, "total_tokens_out": 0,
+                    "by_backend": {}, "by_subagent": {}, "disabled": True}
         with sqlite3.connect(str(self.db_path)) as conn:
             row = conn.execute(
                 """SELECT
@@ -141,6 +197,8 @@ class CostTracker:
 
     def recent_requests(self, limit: int = 20) -> list[dict]:
         """Últimas N requests."""
+        if not self.enabled:
+            return []
         with sqlite3.connect(str(self.db_path)) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(

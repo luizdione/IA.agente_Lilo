@@ -1,0 +1,16 @@
+{
+  "name": "artist_cache",
+  "description": "Simple lightweight unbounded cache.  Sometimes called \"memoize\".",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "user_function": {
+        "type": "string",
+        "description": "user_function (Any)"
+      }
+    },
+    "required": [
+      "user_function"
+    ]
+  }
+}

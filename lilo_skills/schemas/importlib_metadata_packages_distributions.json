@@ -1,0 +1,9 @@
+{
+  "name": "importlib_metadata_packages_distributions",
+  "description": "Return a mapping of top-level packages to their\ndistributions.\n\n>>> import collections.abc\n>>> pkgs = packages_distributions()\n>>> all(isinstance(dist, collections.abc.Sequence) for dist in pkgs.value",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}

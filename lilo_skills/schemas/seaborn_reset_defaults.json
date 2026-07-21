@@ -1,0 +1,9 @@
+{
+  "name": "seaborn_reset_defaults",
+  "description": "Restore all RC params to default settings.",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}

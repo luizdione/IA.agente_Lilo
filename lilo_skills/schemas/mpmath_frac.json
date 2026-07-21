@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_frac",
+  "description": "Gives the fractional part of `x`, defined as\n`\\mathrm{frac}(x) = x - \\lfloor x \\rfloor` (see :func:`~mpmath.floor`).\nIn effect, this computes `x` modulo 1, or `x+n` where\n`n \\in \\mathbb{Z}` is such th",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}

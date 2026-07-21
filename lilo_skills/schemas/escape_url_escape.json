@@ -1,0 +1,21 @@
+{
+  "name": "escape_url_escape",
+  "description": "Returns a URL-encoded version of the given value.\n\nIf ``plus`` is true (the default), spaces will be represented\nas \"+\" instead of \"%20\".  This is appropriate for query strings\nbut not for the path co",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "value": {
+        "type": "string",
+        "description": "value (Union)"
+      },
+      "plus": {
+        "type": "boolean",
+        "description": "plus (bool)",
+        "default": true
+      }
+    },
+    "required": [
+      "value"
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "differentiate_array_namespace",
+  "description": "Get the array API compatible namespace for the arrays xs.\n\nParameters\n----------\n*arrays : sequence of array_like\n    Arrays used to infer the common namespace.\n\nReturns\n-------\nnamespace : module\n   ",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "arrays": {
+        "type": "string",
+        "description": "arrays (Any)"
+      }
+    },
+    "required": [
+      "arrays"
+    ]
+  }
+}

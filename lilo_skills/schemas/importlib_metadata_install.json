@@ -1,0 +1,9 @@
+{
+  "name": "importlib_metadata_install",
+  "description": "Class decorator for installation on sys.meta_path.\n\nAdds the backport DistributionFinder to sys.meta_path and\nattempts to disable the finder functionality of the stdlib\nDistributionFinder.",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}

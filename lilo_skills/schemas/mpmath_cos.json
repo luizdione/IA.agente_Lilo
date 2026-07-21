@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_cos",
+  "description": "Computes the cosine of `x`, `\\cos(x)`.\n\n    >>> from mpmath import *\n    >>> mp.dps = 25; mp.pretty = True\n    >>> cos(pi/3)\n    0.5\n    >>> cos(100000001)\n    -0.9802850113244713353133243\n    >>> cos",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "numpy_from_dlpack",
+  "description": "from_dlpack(x, /, *, device=None, copy=None)\n\nCreate a NumPy array from an object implementing the ``__dlpack__``\nprotocol. Generally, the returned NumPy array is a view of the input\nobject. See [1]_ ",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "args": {
+        "type": "string",
+        "description": "args (Any)"
+      }
+    },
+    "required": [
+      "args"
+    ]
+  }
+}

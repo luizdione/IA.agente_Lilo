@@ -18,8 +18,7 @@ Uso:
 """
 
 import re
-import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
@@ -55,8 +54,11 @@ TIER_MODELS = {
     ExecutionTier.OLLAMA_FAST: get_env("OLLAMA_MODEL_FAST", "qwen2.5-coder:7b-instruct"),
     ExecutionTier.OLLAMA: get_env("OLLAMA_MODEL", "llama3.1:8b-instruct-q8_0"),
     ExecutionTier.OLLAMA_HEAVY: get_env("OLLAMA_MODEL_CODE", "qwen2.5-coder:14b"),
-    ExecutionTier.CLAUDE_SONNET: "claude-sonnet-4-20250514",
-    ExecutionTier.CLAUDE_OPUS: "claude-opus-4-20250514",
+    # Atualizado 2026-05-07 para Claude 4.5/4.6 (familia atual).
+    # Variavel LILO_CLAUDE_SONNET / LILO_CLAUDE_OPUS permitem override
+    # sem editar codigo (importante quando Anthropic publicar novas versoes).
+    ExecutionTier.CLAUDE_SONNET: get_env("LILO_CLAUDE_SONNET", "claude-sonnet-4-5"),
+    ExecutionTier.CLAUDE_OPUS: get_env("LILO_CLAUDE_OPUS", "claude-opus-4-5"),
 }
 
 
@@ -105,9 +107,24 @@ COMPLEX_INDICATORS = [
     # Bioinformática
     "blast", "alinhamento", "docking", "molecular dynamics",
     "phylogen", "transcriptom", "proteom", "genom",
+    # Dinâmica molecular / química computacional (adicionado 2026-05-06)
+    "openmm", "gromacs", "amber", "namd", "charmm",
+    "nvt", "npt", "equilibration", "minimization",
+    "force field", "forcefield", "trajectory",
+    "rmsd", "rmsf", "radius of gyration", "sasa",
+    "mmgbsa", "mmpbsa", "umbrella sampling", "free energy",
+    "steered md", "metadynamics", "pmf", "well-tempered",
+    "particle coordinate",
     # Análise complexa
     "analise completa", "analise estatistica",
     "multiple", "multivariada",
+    # Prism AI / Análise científica
+    "prism", "graphpad", "pzfx", "publicacao cientifica",
+    "grafico cientifico", "boxplot com pontos",
+    "shapiro-wilk", "levene", "mann-whitney",
+    "kruskal-wallis", "post-hoc", "bonferroni",
+    "effect size", "tamanho de efeito", "cohen",
+    "dados experimentais", "comparar grupos",
 ]
 
 # Palavras que indicam tarefa simples
@@ -143,8 +160,27 @@ class PolicyEngine:
 
     def __init__(self, config: PolicyConfig = None):
         self.config = config or PolicyConfig()
+        # V16: a fonte de verdade do gasto do dia e o CostTracker (SQLite,
+        # PERSISTENTE), lido lazy por _today_cost() -> sobrevive a restart e faz
+        # rollover de data sozinho. _daily_cost vira FALLBACK em-processo, usado
+        # so quando a telemetria esta desabilitada (DB read-only).
         self._daily_cost = 0.0
         log.info(f"PolicyEngine init | budget=${self.config.daily_budget_usd}/dia | cloud={'ON' if self.config.allow_cloud else 'OFF'}")
+
+    def _today_cost(self) -> float:
+        """Gasto (estimado) de HOJE. Fonte de verdade = CostTracker persistente.
+        FAIL-SAFE: se a telemetria estiver desabilitada (DB nao-gravavel), cai no
+        acumulador em-processo (_daily_cost) -- degradado, mas NUNCA libera gasto
+        cloud ilimitado (nao fail-open)."""
+        try:
+            from .cost_tracker import get_tracker
+            summ = get_tracker().daily_summary()
+            if summ and not summ.get("disabled"):
+                return float(summ.get("total_cost_usd", 0.0))
+            log.debug("budget: telemetria desabilitada -> fallback em-processo")
+        except Exception as e:
+            log.debug("budget: leitura do CostTracker falhou (%s); fallback", e)
+        return self._daily_cost
 
     def decide(
         self,
@@ -232,17 +268,20 @@ class PolicyEngine:
         )
 
     def record_cost(self, cost: float):
-        """Registra custo de uma chamada para controle de budget."""
+        """Registra custo de uma chamada (mantem o fallback em-processo em dia).
+        A persistencia real e do CostTracker (gravado em lilo.route)."""
         self._daily_cost += cost
-        if self._daily_cost >= self.config.daily_budget_usd * 0.9:
-            log.warning(f"Budget quase esgotado: ${self._daily_cost:.4f} / ${self.config.daily_budget_usd}")
+        spent = self._today_cost()
+        if spent >= self.config.daily_budget_usd * 0.9:
+            log.warning(f"Budget quase esgotado: ${spent:.4f} / ${self.config.daily_budget_usd}")
 
     @property
     def budget_remaining(self) -> float:
-        return max(0, self.config.daily_budget_usd - self._daily_cost)
+        return max(0.0, self.config.daily_budget_usd - self._today_cost())
 
     def reset_daily(self):
-        """Reseta o custo diário (chamar à meia-noite)."""
+        """Reseta o fallback em-processo. (O rollover diario real e automatico:
+        _today_cost le daily_summary do dia corrente no CostTracker.)"""
         self._daily_cost = 0.0
 
     # ── Métodos privados ─────────────────────────────────────────────────────
@@ -341,13 +380,21 @@ class PolicyEngine:
             if tier in (ExecutionTier.OLLAMA_FAST, ExecutionTier.OLLAMA):
                 return ExecutionTier.OLLAMA_HEAVY, "Análise profunda de PDF → modelo pesado"
 
+        if subagent == "prism":
+            # Prism AI: estatística é local (scipy), LLM só para writing
+            if ctx.get("enhance_with_llm", True):
+                if tier in (ExecutionTier.OLLAMA_FAST,):
+                    return ExecutionTier.OLLAMA, "Prism AI + escrita científica → Ollama"
+            else:
+                return ExecutionTier.NO_LLM, "Prism AI sem LLM — scipy local"
+
         return tier, reason
 
     def _budget_allows(self, tier: ExecutionTier, input_len: int) -> bool:
         """Verifica se o budget permite usar esse tier."""
         tokens_est = max(input_len // 4, 100)
         estimated_cost = COST_PER_1K.get(tier, 0.0) * (tokens_est / 1000)
-        return (self._daily_cost + estimated_cost) <= self.config.daily_budget_usd
+        return (self._today_cost() + estimated_cost) <= self.config.daily_budget_usd
 
     def get_fallback(self, tier: ExecutionTier) -> ExecutionTier:
         """Retorna o próximo tier para fallback."""
@@ -373,7 +420,7 @@ class PolicyEngine:
         """Retorna status atual do Policy Engine."""
         return {
             "daily_budget_usd": self.config.daily_budget_usd,
-            "daily_cost_usd": self._daily_cost,
+            "daily_cost_usd": self._today_cost(),
             "budget_remaining_usd": self.budget_remaining,
             "allow_cloud": self.config.allow_cloud,
             "prefer_local": self.config.prefer_local,

@@ -1,0 +1,16 @@
+{
+  "name": "escape_xhtml_escape",
+  "description": "Escapes a string so it is valid within HTML or XML.\n\nEscapes the characters ``<``, ``>``, ``\"``, ``'``, and ``&``.\nWhen used in attribute values the escaped strings must be enclosed\nin quotes.\n\n.. ver",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "value": {
+        "type": "string",
+        "description": "value (Union)"
+      }
+    },
+    "required": [
+      "value"
+    ]
+  }
+}

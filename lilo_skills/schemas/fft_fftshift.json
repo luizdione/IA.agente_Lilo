@@ -1,0 +1,20 @@
+{
+  "name": "fft_fftshift",
+  "description": "Shift the zero-frequency component to the center of the spectrum.\n\nThis function swaps half-spaces for all axes listed (defaults to all).\nNote that ``y[0]`` is the Nyquist component only if ``len(x)``",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "axes": {
+        "type": "string",
+        "description": "axes (Any)"
+      }
+    },
+    "required": [
+      "x"
+    ]
+  }
+}

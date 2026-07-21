@@ -1,0 +1,9 @@
+{
+  "name": "numpy_getbufsize",
+  "description": "Return the size of the buffer used in ufuncs.\n\nReturns\n-------\ngetbufsize : int\n    Size of ufunc buffer in bytes.\n\nExamples\n--------\n>>> import numpy as np\n>>> np.getbufsize()\n8192",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}

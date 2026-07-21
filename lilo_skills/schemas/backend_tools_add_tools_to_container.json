@@ -1,0 +1,45 @@
+{
+  "name": "backend_tools_add_tools_to_container",
+  "description": "Add multiple tools to the container.\n\nParameters\n----------\ncontainer : Container\n    `.backend_bases.ToolContainerBase` object that will get the tools\n    added.\ntools : list, optional\n    List in th",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "container": {
+        "type": "string",
+        "description": "container (Any)"
+      },
+      "tools": {
+        "type": "string",
+        "description": "tools (Any)",
+        "default": [
+          [
+            "navigation",
+            [
+              "home",
+              "back",
+              "forward"
+            ]
+          ],
+          [
+            "zoompan",
+            [
+              "pan",
+              "zoom",
+              "subplots"
+            ]
+          ],
+          [
+            "io",
+            [
+              "save",
+              "help"
+            ]
+          ]
+        ]
+      }
+    },
+    "required": [
+      "container"
+    ]
+  }
+}

@@ -51,7 +51,7 @@ desktop.ini
 logs/
 *.log
 *.db
-!memory/Dockerfile
+# (memory/Dockerfile arquivado em _ARCHIVE_v10/v9_servers)
 
 # ── Temporários ──────────────────────────────────────────────
 *.tmp
@@ -85,3 +85,35 @@ build/
 dist/
 node_modules/
 frontend/build/
+
+# -- Artefatos locais acidentais (nao versionar) --
+backups/
+_mount_probe_*.txt
+_sentinel_test.txt
+/C/
+pytest-cache-files-*/
+
+# Documentos gerados pelo docgen (V13.2)
+data/docgen/
+
+# Biometria de voz (voiceprint do dono) - NAO versionar
+data/voiceprint/
+
+# ScholarAgent: base vetorial local (RAG) — centenas de MB, NUNCA versionar
+data/scholar_brain/
+scholaragent/brain_data*/
+audit/
+
+# Configs com credenciais (fora do git; ver *.example)
+config.yaml
+config/litellm_config.yaml
+config/litellm_config.docker.yaml
+
+# ── Dados de runtime (vivem no OneDrive, nao no repo de codigo) ──────────────
+# Notas de projeto, sinteses e conteudo gerados em uso; podem conter dados
+# reais do usuario. O repo versiona so o CODIGO (ver CLAUDE.md).
+data/projects/
+data/syntheses/
+conteudo_digital/
+.project-memory/
+versoes/

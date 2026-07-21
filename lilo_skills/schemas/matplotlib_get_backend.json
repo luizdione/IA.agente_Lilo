@@ -1,0 +1,15 @@
+{
+  "name": "matplotlib_get_backend",
+  "description": "Return the name of the current backend.\n\nParameters\n----------\nauto_select : bool, default: True\n    Whether to trigger backend resolution if no backend has been\n    selected so far. If True, this ens",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "auto_select": {
+        "type": "string",
+        "description": "auto_select (Any)",
+        "default": true
+      }
+    },
+    "required": []
+  }
+}

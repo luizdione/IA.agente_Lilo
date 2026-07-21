@@ -18,10 +18,33 @@ pandas>=2.1.0
 PyMuPDF>=1.23.0
 pdfminer.six>=20221105
 
+# RAG / ScholarAgent (biblioteca local de papers — pacote scholaragent/ na raiz)
+chromadb>=0.5
+sentence-transformers>=3.0
+
 # sqlite3 já vem com Python — nenhum pacote extra necessário
 
 # MCP (Model Context Protocol — PyCharm + Claude Desktop)
 mcp>=1.0.0
 
-# Logging
-structlog>=24.1.0
+# HTTP API (lilo_api.py — plataforma hibrida, opcional)
+fastapi>=0.110.0
+uvicorn>=0.29.0
+sse-starlette>=2.0.0
+pydantic>=2.5.0
+
+# Web search
+duckduckgo-search>=6.0
+lxml>=5.0.0  # usado por lilo_skills/build_paper (build_journal_profile); NAO p/ bs4
+
+# Bioinformática / Dinâmica Molecular (opcional — instalar via conda preferencialmente)
+# openmm>=8.1
+# mdanalysis>=2.7
+# mdtraj>=1.9
+# rdkit>=2024.3
+# biopython>=1.83
+python-pptx
+openpyxl
+faster-whisper
+librosa
+soundfile

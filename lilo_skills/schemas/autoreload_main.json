@@ -1,0 +1,9 @@
+{
+  "name": "autoreload_main",
+  "description": "Command-line wrapper to re-run a script whenever its source changes.\n\nScripts may be specified by filename or module name::\n\n    python -m tornado.autoreload -m tornado.test.runtests\n    python -m tor",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}

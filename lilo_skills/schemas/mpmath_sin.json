@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_sin",
+  "description": "Computes the sine of `x`, `\\sin(x)`.\n\n    >>> from mpmath import *\n    >>> mp.dps = 25; mp.pretty = True\n    >>> sin(pi/3)\n    0.8660254037844386467637232\n    >>> sin(100000001)\n    0.1975887055794968",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}

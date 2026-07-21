@@ -1,0 +1,16 @@
+{
+  "name": "intranges_intranges_from_list",
+  "description": "Represent a list of integers as a sequence of ranges:\n((start_0, end_0), (start_1, end_1), ...), such that the original\nintegers are exactly those x such that start_i <= x < end_i for some i.\n\nRanges ",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "list_": {
+        "type": "string",
+        "description": "list_ (List)"
+      }
+    },
+    "required": [
+      "list_"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "seaborn_get_dataset_names",
+  "description": "Report available example datasets, useful for reporting issues.\n\nRequires an internet connection.",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}

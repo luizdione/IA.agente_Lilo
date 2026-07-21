@@ -1,0 +1,16 @@
+{
+  "name": "gen_singledispatch",
+  "description": "Single-dispatch generic function decorator.\n\nTransforms a function into a generic function, which can have different\nbehaviours depending upon the type of its first argument. The decorated\nfunction ac",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "func": {
+        "type": "string",
+        "description": "func (Any)"
+      }
+    },
+    "required": [
+      "func"
+    ]
+  }
+}

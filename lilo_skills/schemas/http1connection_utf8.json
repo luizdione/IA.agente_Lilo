@@ -1,0 +1,16 @@
+{
+  "name": "http1connection_utf8",
+  "description": "Converts a string argument to a byte string.\n\nIf the argument is already a byte string or None, it is returned unchanged.\nOtherwise it must be a unicode string and is encoded as utf8.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "value": {
+        "type": "string",
+        "description": "value (Union)"
+      }
+    },
+    "required": [
+      "value"
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "ctx_iv_mpi_from_str",
+  "description": "Parse an interval number given as a string.\n\nAllowed forms are\n\n\"-1.23e-27\"\n    Any single decimal floating-point literal.\n\"a +- b\"  or  \"a (b)\"\n    a is the midpoint of the interval and b is the half",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "s": {
+        "type": "string",
+        "description": "s (Any)"
+      },
+      "prec": {
+        "type": "string",
+        "description": "prec (Any)"
+      }
+    },
+    "required": [
+      "s",
+      "prec"
+    ]
+  }
+}

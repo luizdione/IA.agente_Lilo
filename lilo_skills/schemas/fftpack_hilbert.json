@@ -1,0 +1,21 @@
+{
+  "name": "fftpack_hilbert",
+  "description": "Return Hilbert transform of a periodic sequence x.\n\nIf x_j and y_j are Fourier coefficients of periodic functions x\nand y, respectively, then::\n\n  y_j = sqrt(-1)*sign(j) * x_j\n  y_0 = 0\n\nParameters\n--",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "_cache": {
+        "type": "string",
+        "description": "_cache (Any)",
+        "default": "<_thread._local object at 0x744f61cb2390>"
+      }
+    },
+    "required": [
+      "x"
+    ]
+  }
+}

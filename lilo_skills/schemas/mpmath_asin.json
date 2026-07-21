@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_asin",
+  "description": "Computes the inverse sine or arcsine of `x`, `\\sin^{-1}(x)`.\nSince `-1 \\le \\sin(x) \\le 1` for real `x`, the inverse\nsine is real-valued only for `-1 \\le x \\le 1`.\nOn this interval, it is defined to be",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}

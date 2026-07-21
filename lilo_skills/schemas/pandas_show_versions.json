@@ -1,0 +1,15 @@
+{
+  "name": "pandas_show_versions",
+  "description": "Provide useful information, important for bug reports.\n\nIt comprises info about hosting operation system, pandas version,\nand versions of other installed relative packages.\n\nParameters\n----------\nas_j",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "as_json": {
+        "type": "string",
+        "description": "as_json (str | bool)",
+        "default": false
+      }
+    },
+    "required": []
+  }
+}

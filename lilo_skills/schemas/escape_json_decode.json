@@ -1,0 +1,16 @@
+{
+  "name": "escape_json_decode",
+  "description": "Returns Python objects for the given JSON string.\n\nSupports both `str` and `bytes` inputs.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "value": {
+        "type": "string",
+        "description": "value (Union)"
+      }
+    },
+    "required": [
+      "value"
+    ]
+  }
+}

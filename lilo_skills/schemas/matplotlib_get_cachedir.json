@@ -1,0 +1,9 @@
+{
+  "name": "matplotlib_get_cachedir",
+  "description": "Return the string path of the cache directory.\n\nThe procedure used to find the directory is the same as for\n`get_configdir`, except using ``$XDG_CACHE_HOME``/``$HOME/.cache`` instead.",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}

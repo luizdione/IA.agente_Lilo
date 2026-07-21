@@ -1,0 +1,19 @@
+{
+  "name": "pandas_test",
+  "description": "Run the pandas test suite using pytest.\n\nBy default, runs with the marks -m \"not slow and not network and not db\"\n\nParameters\n----------\nextra_args : list[str], default None\n    Extra marks to run the",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "extra_args": {
+        "type": "array",
+        "description": "extra_args (list[str] | None)"
+      },
+      "run_doctests": {
+        "type": "boolean",
+        "description": "run_doctests (bool)",
+        "default": false
+      }
+    },
+    "required": []
+  }
+}

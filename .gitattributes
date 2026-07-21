@@ -1,0 +1,36 @@
+# LILO — normalização de fim-de-linha (evita ruído CRLF↔LF no diff)
+# Regra geral: o git detecta texto e normaliza para LF no repositório.
+* text=auto
+
+# Código e config: sempre LF no repositório
+*.py    text eol=lf
+*.pyi   text eol=lf
+*.sh    text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.json  text eol=lf
+*.toml  text eol=lf
+*.md    text eol=lf
+*.cfg   text eol=lf
+*.ini   text eol=lf
+
+# Scripts Windows: precisam de CRLF para rodar corretamente
+*.bat   text eol=crlf
+*.ps1   text eol=crlf
+*.cmd   text eol=crlf
+
+# Binários: nunca normalizar
+*.ico   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.pdf   binary
+*.db    binary
+*.sqlite binary
+*.zip   binary
+*.pzf   binary
+*.pzfx  binary
+*.xlsx  binary
+*.docx  binary
+*.pptx  binary

@@ -1,0 +1,16 @@
+{
+  "name": "numpy_fromfile",
+  "description": "fromfile(file, dtype=float, count=-1, sep='', offset=0, *, like=None)\n\nConstruct an array from data in a text or binary file.\n\nA highly efficient way of reading binary data with a known data-type,\nas ",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "args": {
+        "type": "string",
+        "description": "args (Any)"
+      }
+    },
+    "required": [
+      "args"
+    ]
+  }
+}

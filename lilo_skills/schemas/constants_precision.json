@@ -1,0 +1,16 @@
+{
+  "name": "constants_precision",
+  "description": "Relative precision in physical_constants indexed by key\n\nParameters\n----------\nkey : Python string\n    Key in dictionary `physical_constants`\n\nReturns\n-------\nprec : float\n    Relative precision in `p",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "key": {
+        "type": "string",
+        "description": "key (str)"
+      }
+    },
+    "required": [
+      "key"
+    ]
+  }
+}

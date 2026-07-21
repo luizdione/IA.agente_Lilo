@@ -1,0 +1,32 @@
+# pyproject.toml — tooling do LILO (V16).
+# NAO declara build/packaging: o LILO roda dos scripts/dashboard, nao e um
+# pacote pip. Centraliza apenas a config do pytest p/ rodar a suite num comando
+# (`pytest`) e separar testes que exigem backend (Ollama/GPU) dos puros.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -p no:cacheprovider"
+markers = [
+    "requires_ollama: precisa do Ollama local (localhost:11434); pula se ausente",
+    "requires_gpu: pesa na GPU (modelos grandes); pula sem backend ou com LILO_SKIP_GPU=1",
+]
+filterwarnings = [
+    # aifc/sunau removidos no Python 3.13 (audioread, via librosa) -> ruido.
+    "ignore::DeprecationWarning",
+]
+
+# ── Ruff (linter/formatter, opcional) ───────────────────────────────────────
+# Config pronta; requer `pip install ruff`. Uso: `ruff check .` (o PyCharm/VSCode
+# tambem a leem). Mantem o que a auditoria V17 limpou (imports/f-strings/escapes).
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+extend-exclude = ["_ARCHIVE_v10", "lilo_skills/skills"]  # skills auto-geradas
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]   # pyflakes + pycodestyle + isort
+ignore = ["E501"]               # comprimento de linha nao e bloqueante aqui
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]        # re-exports de pacote
+"tests/**" = ["F401", "F811"]   # fixtures/reimports em testes

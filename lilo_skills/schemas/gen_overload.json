@@ -1,0 +1,16 @@
+{
+  "name": "gen_overload",
+  "description": "Decorator for overloaded functions/methods.\n\nIn a stub file, place two or more stub definitions for the same\nfunction in a row, each decorated with @overload.  For example:\n\n  @overload\n  def utf8(val",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "func": {
+        "type": "string",
+        "description": "func (Any)"
+      }
+    },
+    "required": [
+      "func"
+    ]
+  }
+}

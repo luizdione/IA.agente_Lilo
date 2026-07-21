@@ -1,0 +1,16 @@
+{
+  "name": "escape_xhtml_unescape",
+  "description": "Un-escapes an XML-escaped string.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "value": {
+        "type": "string",
+        "description": "value (Union)"
+      }
+    },
+    "required": [
+      "value"
+    ]
+  }
+}

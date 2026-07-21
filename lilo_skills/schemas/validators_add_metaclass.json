@@ -1,0 +1,16 @@
+{
+  "name": "validators_add_metaclass",
+  "description": "Class decorator for creating a class with a metaclass.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "metaclass": {
+        "type": "string",
+        "description": "metaclass (Any)"
+      }
+    },
+    "required": [
+      "metaclass"
+    ]
+  }
+}

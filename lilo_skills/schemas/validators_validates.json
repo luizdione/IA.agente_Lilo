@@ -1,0 +1,16 @@
+{
+  "name": "validators_validates",
+  "description": "Register the decorated validator for a ``version`` of the specification.\n\nRegistered validators and their meta schemas will be considered when\nparsing ``$schema`` properties' URIs.\n\nArguments:\n\n    ve",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "version": {
+        "type": "string",
+        "description": "version (Any)"
+      }
+    },
+    "required": [
+      "version"
+    ]
+  }
+}

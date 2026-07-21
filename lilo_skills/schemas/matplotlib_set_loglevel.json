@@ -1,0 +1,16 @@
+{
+  "name": "matplotlib_set_loglevel",
+  "description": "Configure Matplotlib's logging levels.\n\nMatplotlib uses the standard library `logging` framework under the root\nlogger 'matplotlib'.  This is a helper function to:\n\n- set Matplotlib's root logger leve",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "level": {
+        "type": "string",
+        "description": "level (Any)"
+      }
+    },
+    "required": [
+      "level"
+    ]
+  }
+}

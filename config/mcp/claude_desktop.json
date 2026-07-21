@@ -1,0 +1,32 @@
+{
+ "_comment": "Perfil MCP para Claude Desktop. Profile 'opus' = 18 tools curadas. Apos otimizacao 2026-05-12, o profile 'desktop' (10 tools) consome 1670 tokens no system prompt -- 19.6% MENOS que Desktop Commander (2077 tokens). RECOMENDADO: DESLIGAR Desktop Commander quando este config estiver ativo (DC e o profile desktop do LILO oferecem fs_* e run_* sobrepostos). Para desligar DC, remova o bloco 'desktop-commander' da secao 'mcpServers' deste arquivo no APPDATA.",
+ "_profiles_disponiveis": {
+  "opus": "18 tools curadas para Claude Opus 4.x (recomendado p/ Claude Desktop)",
+  "desktop": "10 tools (todas as fs_* + run_* + composed)",
+  "bio": "27 tools focadas em pesquisa biomolecular (sem run_shell)",
+  "pycharm": "subset para PyCharm AI Assistant",
+  "http": "reservado para lilo_api.py"
+ },
+ "_otimizacao_tokens_2026-05-12": {
+  "antes": "DC (2077 tok) + LILO desktop (3575 tok) = 5652 tokens overhead",
+  "depois_so_lilo_desktop": "1670 tokens (-70%)",
+  "depois_so_lilo_opus": "~2400 tokens (-58%)",
+  "como_desligar_DC": "Editar %APPDATA%\\Claude\\claude_desktop_config.json e remover/comentar o bloco mcpServers.desktop-commander"
+ },
+ "mcpServers": {
+  "lilo": {
+   "command": "C:\\Users\\luizd\\miniforge3\\python.exe",
+   "args": [
+    "C:\\Users\\luizd\\OneDrive\\Data_Science\\Projetos\\IA.agente\\lilo_mcp.py",
+    "--profile",
+    "opus"
+   ],
+   "env": {
+    "PYTHONPATH": "C:\\Users\\luizd\\OneDrive\\Data_Science\\Projetos\\IA.agente",
+    "OLLAMA_HOST": "http://localhost:11434",
+    "LILO_KEEP_ALIVE": "2h",
+    "LILO_SERVER_PROFILE": "claude_desktop"
+   }
+  }
+ }
+}

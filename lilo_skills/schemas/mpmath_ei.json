@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_ei",
+  "description": "Computes the exponential integral or Ei-function, `\\mathrm{Ei}(x)`.\nThe exponential integral is defined as\n\n.. math ::\n\n  \\mathrm{Ei}(x) = \\int_{-\\infty\\,}^x \\frac{e^t}{t} \\, dt.\n\nWhen the integration",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}

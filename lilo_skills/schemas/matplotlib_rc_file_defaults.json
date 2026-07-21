@@ -1,0 +1,9 @@
+{
+  "name": "matplotlib_rc_file_defaults",
+  "description": "Restore the `.rcParams` from the original rc file loaded by Matplotlib.\n\nStyle-blacklisted `.rcParams` (defined in\n``matplotlib.style.core.STYLE_BLACKLIST``) are not updated.",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}

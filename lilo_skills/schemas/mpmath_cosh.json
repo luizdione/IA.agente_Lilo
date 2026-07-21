@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_cosh",
+  "description": "Computes the hyperbolic cosine of `x`,\n`\\cosh(x) = (e^x + e^{-x})/2`. Values and limits include::\n\n    >>> from mpmath import *\n    >>> mp.dps = 25; mp.pretty = True\n    >>> cosh(0)\n    1.0\n    >>> co",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}

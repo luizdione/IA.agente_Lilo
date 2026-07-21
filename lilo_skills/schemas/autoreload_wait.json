@@ -1,0 +1,9 @@
+{
+  "name": "autoreload_wait",
+  "description": "Wait for a watched file to change, then restart the process.\n\nIntended to be used at the end of scripts like unit test runners,\nto run the tests again after any source file changes (but see also\nthe c",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}

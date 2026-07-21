@@ -1,0 +1,9 @@
+{
+  "name": "matplotlib_get_configdir",
+  "description": "Return the string path of the configuration directory.\n\nThe directory is chosen as follows:\n\n1. If the MPLCONFIGDIR environment variable is supplied, choose that.\n2. On Linux, follow the XDG specifica",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}

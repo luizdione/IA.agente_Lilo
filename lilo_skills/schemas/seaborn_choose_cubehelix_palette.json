@@ -1,0 +1,15 @@
+{
+  "name": "seaborn_choose_cubehelix_palette",
+  "description": "Launch an interactive widget to create a sequential cubehelix palette.\n\nThis corresponds with the :func:`cubehelix_palette` function. This kind\nof palette is good for data that range between relativel",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "as_cmap": {
+        "type": "string",
+        "description": "as_cmap (Any)",
+        "default": false
+      }
+    },
+    "required": []
+  }
+}

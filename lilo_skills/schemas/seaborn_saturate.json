@@ -1,0 +1,16 @@
+{
+  "name": "seaborn_saturate",
+  "description": "Return a fully saturated color with the same hue.\n\nParameters\n----------\ncolor : matplotlib color\n    hex, rgb-tuple, or html color name\n\nReturns\n-------\nnew_color : rgb tuple\n    saturated color code",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "color": {
+        "type": "string",
+        "description": "color (Any)"
+      }
+    },
+    "required": [
+      "color"
+    ]
+  }
+}

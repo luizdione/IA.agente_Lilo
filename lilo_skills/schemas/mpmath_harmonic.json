@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_harmonic",
+  "description": "If `n` is an integer, ``harmonic(n)`` gives a floating-point\napproximation of the `n`-th harmonic number `H(n)`, defined as\n\n.. math ::\n\n    H(n) = 1 + \\frac{1}{2} + \\frac{1}{3} + \\ldots + \\frac{1}{n}",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "fft_set_workers",
+  "description": "Context manager for the default number of workers used in `scipy.fft`\n\nParameters\n----------\nworkers : int\n    The default number of workers to use\n\nExamples\n--------\n>>> import numpy as np\n>>> from s",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "workers": {
+        "type": "string",
+        "description": "workers (Any)"
+      }
+    },
+    "required": [
+      "workers"
+    ]
+  }
+}

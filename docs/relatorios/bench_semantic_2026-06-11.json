@@ -1,0 +1,241 @@
+{
+  "date": "2026-06-11",
+  "profile": "desktop_dev",
+  "backend": "ollama",
+  "degraded_mode": false,
+  "max_iterations_cap": 3,
+  "iters_tested": [
+    1
+  ],
+  "repeat": 1,
+  "judge": true,
+  "totals": {
+    "runs": 9,
+    "froze": 0,
+    "bugs": 0,
+    "degraded": 0,
+    "avg_quality": 69.0,
+    "avg_quality_llm": 60.8
+  },
+  "by_iter": {
+    "1": {
+      "avg_wall_s": 68.47,
+      "std_wall_s": 6.73,
+      "avg_quality": 69.0,
+      "avg_quality_llm": 60.8,
+      "bugs": 0,
+      "degraded": 0,
+      "froze": 0,
+      "n": 9
+    }
+  },
+  "rows": [
+    {
+      "domain": "conhecimentos_gerais",
+      "iters_requested": 1,
+      "rep": 0,
+      "route_domain": "geral",
+      "complexity": "simple",
+      "wall_s": 68.803,
+      "froze": false,
+      "bug": false,
+      "degraded": false,
+      "error": "",
+      "path": "pipeline",
+      "quality": 74,
+      "out_len": 3536,
+      "quality_llm": 6,
+      "quality_llm_criteria": {
+        "factual_accuracy": 2,
+        "technical_depth": 1,
+        "completeness": 0,
+        "clarity_structure": 3
+      },
+      "quality_llm_just": "A resposta fornece informações precisas sobre os pilares de uma dieta equilibrada e como eles afetam o metabolismo energético. No entanto, falta a discussão completa dos micronutrientes e sua relação com o metabolismo energético."
+    },
+    {
+      "domain": "historia",
+      "iters_requested": 1,
+      "rep": 0,
+      "route_domain": "geral",
+      "complexity": "simple",
+      "wall_s": 66.19,
+      "froze": false,
+      "bug": false,
+      "degraded": false,
+      "error": "",
+      "path": "pipeline",
+      "quality": 65,
+      "out_len": 2371,
+      "quality_llm": 73,
+      "quality_llm_criteria": {
+        "factual_accuracy": 20,
+        "technical_depth": 15,
+        "completeness": 18,
+        "clarity_structure": 20
+      },
+      "quality_llm_just": "A resposta fornece uma visão geral correta das causas econômicas e sociais da Revolução Francesa. No entanto, falha em cobrir todos os fatores específicos mencionados na pergunta, como a crise financeira devido às guerras com a Grã-Bretanha e à expansão colonial, inflação alta afetando os preços dos"
+    },
+    {
+      "domain": "geografia",
+      "iters_requested": 1,
+      "rep": 0,
+      "route_domain": "geral",
+      "complexity": "simple",
+      "wall_s": 73.054,
+      "froze": false,
+      "bug": false,
+      "degraded": false,
+      "error": "",
+      "path": "pipeline",
+      "quality": 65,
+      "out_len": 2332,
+      "quality_llm": 42,
+      "quality_llm_criteria": {
+        "factual_accuracy": 15,
+        "technical_depth": 10,
+        "completeness": 8,
+        "clarity_structure": 9
+      },
+      "quality_llm_just": "A resposta fornece informações gerais sobre a formação e importância das bacias hidrográficas do Brasil. No entanto, falta detalhes específicos sobre os processos geológicos, climáticos e hidrológicos envolvidos na formação dessas bacias. Além disso, não menciona as escalas ou dados quantitativos re"
+    },
+    {
+      "domain": "quimica",
+      "iters_requested": 1,
+      "rep": 0,
+      "route_domain": "geral",
+      "complexity": "simple",
+      "wall_s": 77.924,
+      "froze": false,
+      "bug": false,
+      "degraded": false,
+      "error": "",
+      "path": "pipeline",
+      "quality": 73,
+      "out_len": 3463,
+      "quality_llm": 66,
+      "quality_llm_criteria": {
+        "factual_accuracy": 25,
+        "technical_depth": 18,
+        "completeness": 0,
+        "clarity_structure": 23
+      },
+      "quality_llm_just": ""
+    },
+    {
+      "domain": "biologia",
+      "iters_requested": 1,
+      "rep": 0,
+      "route_domain": "geral",
+      "complexity": "simple",
+      "wall_s": 65.049,
+      "froze": false,
+      "bug": false,
+      "degraded": false,
+      "error": "",
+      "path": "pipeline",
+      "quality": 71,
+      "out_len": 3443,
+      "quality_llm": 6,
+      "quality_llm_criteria": {
+        "factual_accuracy": 1,
+        "technical_depth": 2,
+        "completeness": 0,
+        "clarity_structure": 3
+      },
+      "quality_llm_just": "A resposta contém informações factualmente incorretas e invenções. A replicação do DNA em eucariotos envolve mais etapas e enzimas do que as mencionadas na resposta. Além disso, a estrutura da resposta é confusa e não cobre todas as partes pedidas na pergunta."
+    },
+    {
+      "domain": "fisica",
+      "iters_requested": 1,
+      "rep": 0,
+      "route_domain": "geral",
+      "complexity": "simple",
+      "wall_s": 58.774,
+      "froze": false,
+      "bug": false,
+      "degraded": false,
+      "error": "",
+      "path": "pipeline",
+      "quality": 69,
+      "out_len": 2414,
+      "quality_llm": 86,
+      "quality_llm_criteria": {
+        "factual_accuracy": 25,
+        "technical_depth": 18,
+        "completeness": 20,
+        "clarity_structure": 23
+      },
+      "quality_llm_just": "A resposta fornece uma explicação precisa do princípio da incerteza de Heisenberg e suas implicações físicas. No entanto, falta a discussão sobre como o princípio afeta as interpretações quânticas, como a superposição e o colapso da função de onda."
+    },
+    {
+      "domain": "matematica",
+      "iters_requested": 1,
+      "rep": 0,
+      "route_domain": "geral",
+      "complexity": "simple",
+      "wall_s": 71.799,
+      "froze": false,
+      "bug": false,
+      "degraded": false,
+      "error": "",
+      "path": "pipeline",
+      "quality": 68,
+      "out_len": 2454,
+      "quality_llm": 96,
+      "quality_llm_criteria": {
+        "factual_accuracy": 25,
+        "technical_depth": 24,
+        "completeness": 23,
+        "clarity_structure": 24
+      },
+      "quality_llm_just": "A resposta fornece uma explicação precisa e detalhada do Teorema Fundamental do Cálculo. No entanto, a introdução da tarefa é confusa e não está relacionada com o domínio matemático."
+    },
+    {
+      "domain": "agropecuaria",
+      "iters_requested": 1,
+      "rep": 0,
+      "route_domain": "geral",
+      "complexity": "simple",
+      "wall_s": 76.606,
+      "froze": false,
+      "bug": false,
+      "degraded": false,
+      "error": "",
+      "path": "pipeline",
+      "quality": 72,
+      "out_len": 3234,
+      "quality_llm": 86,
+      "quality_llm_criteria": {
+        "factual_accuracy": 25,
+        "technical_depth": 18,
+        "completeness": 20,
+        "clarity_structure": 23
+      },
+      "quality_llm_just": "A resposta fornece informações precisas sobre os fatores edafoclimáticos que afetam a produtividade da soja no Cerrado brasileiro. No entanto, falta uma discussão detalhada dos métodos utilizados para analisar esses fatores e suas interações."
+    },
+    {
+      "domain": "veterinaria",
+      "iters_requested": 1,
+      "rep": 0,
+      "route_domain": "geral",
+      "complexity": "simple",
+      "wall_s": 58.03,
+      "froze": false,
+      "bug": false,
+      "degraded": false,
+      "error": "",
+      "path": "pipeline",
+      "quality": 64,
+      "out_len": 3483,
+      "quality_llm": 86,
+      "quality_llm_criteria": {
+        "factual_accuracy": 25,
+        "technical_depth": 18,
+        "completeness": 20,
+        "clarity_structure": 23
+      },
+      "quality_llm_just": "A resposta fornece informações precisas sobre os sinais clínicos, diagnóstico e manejo da cinomose em cães. No entanto, falta uma discussão crítica completa do impacto da doença e das estratégias de prevenção."
+    }
+  ]
+}

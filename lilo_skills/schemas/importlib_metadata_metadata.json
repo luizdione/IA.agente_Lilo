@@ -1,0 +1,16 @@
+{
+  "name": "importlib_metadata_metadata",
+  "description": "Get the metadata for the named package.\n\n:param distribution_name: The name of the distribution package to query.\n:return: A PackageMetadata containing the parsed metadata.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "distribution_name": {
+        "type": "string",
+        "description": "distribution_name (Any)"
+      }
+    },
+    "required": [
+      "distribution_name"
+    ]
+  }
+}

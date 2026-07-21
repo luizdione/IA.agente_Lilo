@@ -1,0 +1,21 @@
+{
+  "name": "mpmath_expjpi",
+  "description": "Convenience function for computing `e^{i \\pi x}`.\nEvaluation is accurate near zeros (see also :func:`~mpmath.cospi`,\n:func:`~mpmath.sinpi`)::\n\n    >>> from mpmath import *\n    >>> mp.dps = 25; mp.pret",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "x": {
+        "type": "string",
+        "description": "x (Any)"
+      },
+      "kwargs": {
+        "type": "string",
+        "description": "kwargs (Any)"
+      }
+    },
+    "required": [
+      "x",
+      "kwargs"
+    ]
+  }
+}
