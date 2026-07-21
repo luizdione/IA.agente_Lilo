@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_ceil(x: str, kwargs: str):
-    """
+    r"""
     Computes the ceiling of `x`, `\lceil x \rceil`, defined as
 the smallest integer greater than or equal to `x`::
 

@@ -7,7 +7,7 @@ Tags: geral
 
 
 def numpy_issubdtype(arg1: str, arg2: str):
-    """
+    r"""
     Returns True if first argument is a typecode lower/equal in type hierarchy.
 
 This is like the builtin :func:`issubclass`, but for `dtype`\ s.

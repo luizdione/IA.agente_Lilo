@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""
+r"""
 scripts/lilo_diag.py
 ====================
 Diagnostico rapido do LILO -- roda no Windows nativo com:

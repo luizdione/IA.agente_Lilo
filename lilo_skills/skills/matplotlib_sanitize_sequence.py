@@ -7,7 +7,7 @@ Tags: bioinformatica, visualizacao
 
 
 def matplotlib_sanitize_sequence(data: str):
-    """
+    r"""
     [*Deprecated*] 
 
 Notes

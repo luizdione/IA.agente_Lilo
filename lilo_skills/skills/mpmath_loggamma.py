@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_loggamma(x: str, kwargs: str):
-    """
+    r"""
     Computes the principal branch of the log-gamma function,
 `\ln \Gamma(z)`. Unlike `\ln(\Gamma(z))`, which has infinitely many
 complex branch cuts, the principal log-gamma function only has a single

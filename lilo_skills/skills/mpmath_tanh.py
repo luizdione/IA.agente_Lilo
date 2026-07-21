@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_tanh(x: str, kwargs: str):
-    """
+    r"""
     Computes the hyperbolic tangent of `x`,
 `\tanh(x) = \sinh(x)/\cosh(x)`. Values and limits include::
 

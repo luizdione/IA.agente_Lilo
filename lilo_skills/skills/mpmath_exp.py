@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_exp(x: str, kwargs: str):
-    """
+    r"""
     Computes the exponential function,
 
 .. math ::

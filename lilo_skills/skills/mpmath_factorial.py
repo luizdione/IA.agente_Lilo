@@ -7,7 +7,7 @@ Tags: bioinformatica, matematica
 
 
 def mpmath_factorial(x: str, kwargs: str):
-    """
+    r"""
     Computes the factorial, `x!`. For integers `n \ge 0`, we have
 `n! = 1 \cdot 2 \cdots (n-1) \cdot n` and more generally the factorial
 is defined for real or complex `x` by `x! = \Gamma(x+1)`.

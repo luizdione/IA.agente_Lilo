@@ -7,7 +7,7 @@ Tags: machine_learning, matematica
 
 
 def mpmath_floor(x: str, kwargs: str):
-    """
+    r"""
     Computes the floor of `x`, `\lfloor x \rfloor`, defined as
 the largest integer less than or equal to `x`::
 

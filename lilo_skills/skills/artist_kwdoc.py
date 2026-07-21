@@ -7,7 +7,7 @@ Tags: visualizacao
 
 
 def artist_kwdoc(artist: str):
-    """
+    r"""
     Inspect an `~matplotlib.artist.Artist` class (using `.ArtistInspector`) and
 return information about its settable properties and their current values.
 

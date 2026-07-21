@@ -7,7 +7,7 @@ Tags: matematica
 
 
 def mpmath_atan(x: str, kwargs: str):
-    """
+    r"""
     Computes the inverse tangent or arctangent of `x`, `\tan^{-1}(x)`.
 This is a real-valued function for all real `x`, with range
 `(-\pi/2, \pi/2)`.

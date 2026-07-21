@@ -7,7 +7,7 @@ Tags: visualizacao
 
 
 def matplotlib_validate_backend(s: str):
-    """
+    r"""
     [*Deprecated*] 
 
 Notes

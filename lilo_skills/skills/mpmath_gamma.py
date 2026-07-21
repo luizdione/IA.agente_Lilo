@@ -7,7 +7,7 @@ Tags: bioinformatica, matematica
 
 
 def mpmath_gamma(x: str, kwargs: str):
-    """
+    r"""
     Computes the gamma function, `\Gamma(x)`. The gamma function is a
 shifted version of the ordinary factorial, satisfying
 `\Gamma(n) = (n-1)!` for integers `n > 0`. More generally, it

@@ -208,7 +208,7 @@ Tags: {", ".join(get_tags(func))}
 
 
 def {wrapper_name}({params_str}):
-    """
+    r"""
     {doc_lines}
 
     Args:
