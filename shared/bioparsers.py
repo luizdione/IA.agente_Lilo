@@ -16,6 +16,12 @@ Uso:
     from shared.bioparsers import parse_bio_log
     print(parse_bio_log("/caminho/vina.log"))        # kind='auto'
     print(parse_bio_log("/caminho/run.vcf", "vcf"))
+
+NOTA DE PRECISAO (V20.1, apos auditoria adversarial): estes parsers substituem o
+log bruto no contexto -- o usuario NAO ve mais o original. Portanto qualquer
+descarte silencioso de linha e um erro de DADO CIENTIFICO. As regexes aceitam
+numeros com/sem casa decimal e virgula decimal (pt-BR), e o parser AVISA quando a
+numeracao de poses tem lacuna, em vez de reportar um "melhor" que nao e o melhor.
 """
 from __future__ import annotations
 
@@ -43,13 +49,20 @@ def _read(path: Path) -> str:
 # ── Deteccao de formato ──────────────────────────────────────────────────────
 def detect(path: Path, text: str) -> str:
     name = path.name.lower()
+    parent = path.parent.name.lower()
     head = text[:4000]
     if name.endswith((".vcf", ".vcf.gz")) or head.lstrip().startswith("##fileformat=VCF"):
         return "vcf"
-    if "fastqc" in name or ">>Basic Statistics" in head or head.startswith("##FastQC"):
+    # FastQC: fastqc_data.txt, summary.txt (dentro de *_fastqc/), ou assinatura.
+    if ("fastqc" in name or "fastqc" in parent
+            or ">>Basic Statistics" in head or head.startswith("##FastQC")
+            or re.search(r"^(PASS|WARN|FAIL)\t\S[^\t]*\t", head, re.M)):
         return "fastqc"
-    if ("AutoDock Vina" in head or "REMARK VINA RESULT" in text
-            or re.search(r"affinity\s*\|?\s*\(?kcal", head, re.I)):
+    # Vina: ancorar na ESTRUTURA da tabela (nao em 'affinity' solto, que aparece
+    # em CSVs de docking e geraria falso-positivo).
+    if ("REMARK VINA RESULT" in text
+            or re.search(r"^\s*mode\s*\|\s*affinity\b", head, re.I | re.M)
+            or re.search(r"\(kcal/mol\)\s*\|\s*rmsd", head, re.I)):
         return "vina"
     if re.search(r"\b(Cq|Ct)\b", head) and re.search(r"\b(Sample|Amostra|Well)\b", head, re.I):
         return "qpcr"
@@ -57,46 +70,85 @@ def detect(path: Path, text: str) -> str:
 
 
 # ── VINA ─────────────────────────────────────────────────────────────────────
+# Casa uma linha INTEIRA da tabela. Casa decimal OPCIONAL: o Vina 1.2.x imprime
+# os RMSD do modo 1 como "0" (defaultfloat, sem std::fixed), nao "0.000" -- com
+# decimal obrigatorio a MELHOR POSE era descartada em silencio. [^\S\r\n] = espaco
+# que NAO inclui quebra de linha (impede montar 'pose' com numeros de linhas
+# diferentes).
+_VINA_ROW = re.compile(
+    r"[^\S\r\n]*(\d+)[^\S\r\n]+(-?\d+(?:\.\d+)?)[^\S\r\n]+(\d+(?:\.\d+)?)[^\S\r\n]+(\d+(?:\.\d+)?)[^\S\r\n]*")
+_VINA_SEP = re.compile(r"^[-+\s]*-{3,}\+[-+\s]*$", re.M)
+_VINA_REMARK = re.compile(
+    r"REMARK VINA RESULT:\s*(-?\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)")
+
+
 def parse_vina(text: str) -> str:
     rows = []
-    # (a) linhas de tabela do stdout: "   1       -9.2      0.000      0.000"
-    for m in re.finditer(r"^\s*(\d+)\s+(-?\d+\.\d+)\s+(\d+\.\d+)\s+(\d+\.\d+)\s*$",
-                         text, re.M):
-        rows.append((int(m.group(1)), float(m.group(2)),
-                     float(m.group(3)), float(m.group(4))))
-    # (b) REMARK VINA RESULT do(s) PDBQT de saida (sem numero de modo)
+    # Ancorar no corpo da tabela (apos a linha separadora "-----+------+-----"),
+    # para compensar o relaxamento da regex e evitar casar "1 2 3 4" solto.
+    body = text
+    m_sep = _VINA_SEP.search(text)
+    if m_sep:
+        body = text[m_sep.end():]
+    for ln in body.splitlines():
+        m = _VINA_ROW.fullmatch(ln)
+        if m:
+            rows.append((int(m.group(1)), float(m.group(2)),
+                         float(m.group(3)), float(m.group(4))))
+    # (b) REMARK VINA RESULT dos PDBQT de saida (sem numero de modo).
     if not rows:
-        for i, m in enumerate(re.finditer(
-                r"REMARK VINA RESULT:\s*(-?\d+\.\d+)\s+(\d+\.\d+)\s+(\d+\.\d+)", text), 1):
+        for i, m in enumerate(_VINA_REMARK.finditer(text), 1):
             rows.append((i, float(m.group(1)), float(m.group(2)), float(m.group(3))))
     if not rows:
         return "[vina] nenhuma tabela de afinidades reconhecida no arquivo."
+
     rows.sort(key=lambda r: r[0])
     best = min(rows, key=lambda r: r[1])
-    lines = ["AutoDock Vina — %d pose(s). Melhor: modo %d = %.2f kcal/mol"
-             % (len(rows), best[0], best[1]),
-             "modo  affinity(kcal/mol)  rmsd_lb  rmsd_ub"]
+    out = []
+    # Defesa contra descarte silencioso: se a numeracao nao for 1..N contigua,
+    # alguma linha nao foi reconhecida -> avisar em vez de mentir sobre a melhor pose.
+    modos = [r[0] for r in rows]
+    if modos[0] != 1 or modos != list(range(modos[0], modos[0] + len(modos))):
+        out.append("[vina] AVISO: numeracao de modos com lacuna (%s) -- alguma linha "
+                   "nao foi reconhecida; a 'melhor pose' pode nao ser a real."
+                   % ", ".join(str(m) for m in modos[:12]))
+    out.append("AutoDock Vina — %d pose(s). Melhor: modo %d = %.2f kcal/mol"
+               % (len(rows), best[0], best[1]))
+    out.append("modo  affinity(kcal/mol)  rmsd_lb  rmsd_ub")
     for mode, aff, lb, ub in rows[:20]:
-        lines.append("%4d  %17.2f  %7.3f  %7.3f" % (mode, aff, lb, ub))
+        out.append("%4d  %17.2f  %7.3f  %7.3f" % (mode, aff, lb, ub))
     if len(rows) > 20:
-        lines.append("... (%d modos omitidos)" % (len(rows) - 20))
-    return "\n".join(lines)
+        out.append("... (%d modos omitidos)" % (len(rows) - 20))
+    return "\n".join(out)
 
 
 # ── qPCR ─────────────────────────────────────────────────────────────────────
-def _sniff_delim(header: str) -> str:
-    return max(("\t", ",", ";"), key=header.count)
+# Cabecalho valido = linha DELIMITADA com um CAMPO exatamente Cq/Ct (+/- 'Mean').
+# Evita que o preambulo de ABI/QuantStudio ("Comparative CT", texto livre)
+# sequestre a deteccao e derrube o parser inteiro.
+_CQ_HDR = re.compile(r"(Cq|Ct)([ _.\-]?Mean)?", re.I)
+# Cq com ponto OU virgula (exports pt-BR: CFX Maestro / LightCycler / Excel).
+_CQ_VAL = re.compile(r"\d+([.,]\d+)?")
+
+
+def _find_header(lines: list[str]):
+    """Devolve (indice, delimitador) do 1o cabecalho DELIMITADO com coluna Cq/Ct."""
+    for i, ln in enumerate(lines):
+        for delim in ("\t", ",", ";"):
+            if delim not in ln:
+                continue
+            campos = [c.strip().strip('"') for c in ln.split(delim)]
+            if any(_CQ_HDR.fullmatch(c) for c in campos):
+                return i, delim
+    return None, None
 
 
 def parse_qpcr(text: str) -> str:
     import csv, io, statistics as st
     lines = [ln for ln in text.splitlines() if ln.strip()]
-    # localizar a linha de cabecalho (a que tem Cq/Ct)
-    hidx = next((i for i, ln in enumerate(lines)
-                 if re.search(r"\b(Cq|Ct|CT)\b", ln)), None)
+    hidx, delim = _find_header(lines)
     if hidx is None:
-        return "[qpcr] cabecalho com coluna Cq/Ct nao encontrado."
-    delim = _sniff_delim(lines[hidx])
+        return "[qpcr] cabecalho delimitado com coluna Cq/Ct nao encontrado."
     reader = list(csv.reader(io.StringIO("\n".join(lines[hidx:])), delimiter=delim))
     header = [h.strip() for h in reader[0]]
 
@@ -109,39 +161,47 @@ def parse_qpcr(text: str) -> str:
                     return i
         return None
 
-    c_cq = col(r"Cq", r"Ct", r"CT", r"Cq Mean", r"Cq.?Mean")
+    c_cq = col(r"Cq", r"Ct", r"CT", r"Cq[ _.\-]?Mean", r"Ct[ _.\-]?Mean")
     c_sample = col(r"Sample", r"Sample Name", r"Amostra", r"Well")
     c_target = col(r"Target", r"Target Name", r"Detector", r"Gene")
     if c_cq is None:
         return "[qpcr] coluna Cq/Ct nao localizada no cabecalho: %s" % header
 
     groups: dict[str, list[float]] = {}
+    descartados = 0
     for row in reader[1:]:
         if len(row) <= c_cq:
             continue
-        val = row[c_cq].strip()
-        if not re.fullmatch(r"\d+(\.\d+)?", val):
-            continue  # 'Undetermined', vazio, etc.
+        val = row[c_cq].strip().strip('"')
+        if not _CQ_VAL.fullmatch(val):
+            descartados += 1  # 'Undetermined', 'N/A', vazio
+            continue
         key = []
         if c_sample is not None and len(row) > c_sample:
             key.append(row[c_sample].strip())
         if c_target is not None and len(row) > c_target:
             key.append(row[c_target].strip())
-        groups.setdefault(" / ".join([k for k in key if k]) or "(sem nome)", []).append(float(val))
+        name = " / ".join([k for k in key if k]) or "(sem nome)"
+        groups.setdefault(name, []).append(float(val.replace(",", ".")))
 
     if not groups:
-        return "[qpcr] nenhum valor de Cq numerico encontrado."
+        return ("[qpcr] nenhum valor de Cq numerico encontrado "
+                "(%d celula(s) nao-numerica(s), ex.: 'Undetermined')." % descartados)
     out = ["qPCR — %d grupo(s) amostra/alvo (Cq numerico):" % len(groups),
-           "amostra/alvo                     n   Cq_medio  Cq_DP"]
+           "amostra/alvo                     n   Cq_medio  Cq_SD"]
     for name, vals in sorted(groups.items()):
-        dp = st.pstdev(vals) if len(vals) > 1 else 0.0
+        # SD AMOSTRAL (n-1), como MIQE/CFX/QuantStudio reportam.
+        sd = st.stdev(vals) if len(vals) > 1 else 0.0
         out.append("%-32s %3d  %8.2f  %5.2f" % (name[:32], len(vals),
-                                                 st.mean(vals), dp))
+                                                st.mean(vals), sd))
+    if descartados:
+        out.append("(%d celula(s) nao-numerica(s) descartada(s), ex.: 'Undetermined')"
+                   % descartados)
     # parametros de curva-padrao, se presentes no texto livre
     curve = []
-    for lab, pat in (("Eficiencia", r"[Ee]fficien\w*\s*[:=]?\s*(\d+(?:\.\d+)?)\s*%?"),
-                     ("R2", r"R\^?2\s*[:=]?\s*(\d\.\d+)"),
-                     ("Slope", r"[Ss]lope\s*[:=]?\s*(-?\d+\.\d+)")):
+    for lab, pat in (("Eficiencia", r"[Ee]fficien\w*\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*%?"),
+                     ("R2", r"R\^?2\s*[:=]?\s*(\d[.,]\d+)"),
+                     ("Slope", r"[Ss]lope\s*[:=]?\s*(-?\d+[.,]\d+)")):
         m = re.search(pat, text)
         if m:
             curve.append("%s=%s" % (lab, m.group(1)))
@@ -176,10 +236,14 @@ def parse_fastqc(text: str) -> str:
 
 # ── VCF ──────────────────────────────────────────────────────────────────────
 _TS = {("A", "G"), ("G", "A"), ("C", "T"), ("T", "C")}
+# Alelos NAO-variantes: gVCF (GATK <NON_REF>, bcftools <*>) e o 'resto' '*'.
+_NONVAR_ALT = {".", "*", "<NON_REF>", "<*>"}
+_ACGT = set("ACGTN")
 
 
 def parse_vcf_summary(text: str) -> str:
-    total = snps = indels = ti = tv = 0
+    total = snps = indels = svs = ti = tv = 0
+    nonvar = 0
     by_chrom: dict[str, int] = {}
     for ln in text.splitlines():
         if not ln or ln.startswith("#"):
@@ -187,13 +251,18 @@ def parse_vcf_summary(text: str) -> str:
         f = ln.split("\t")
         if len(f) < 5:
             continue
-        chrom, ref, alts = f[0], f[3].upper(), f[4].upper()
+        chrom, ref, alts = f[0], f[3].upper().strip(), f[4].upper().strip()
         for alt in alts.split(","):
-            if alt in (".", "<NON_REF>", "*"):
+            alt = alt.strip()
+            if not alt or alt in _NONVAR_ALT:
+                nonvar += 1          # gVCF: linha de referencia, NAO e variante
                 continue
             total += 1
             by_chrom[chrom] = by_chrom.get(chrom, 0) + 1
-            if len(ref) == 1 and len(alt) == 1:
+            if alt.startswith("<") or "[" in alt or "]" in alt:
+                svs += 1             # simbolico (<DEL>/<DUP>/<INV>) ou breakend
+            elif (len(ref) == 1 and len(alt) == 1
+                  and ref in _ACGT and alt in _ACGT):
                 snps += 1
                 if (ref, alt) in _TS:
                     ti += 1
@@ -202,11 +271,16 @@ def parse_vcf_summary(text: str) -> str:
             else:
                 indels += 1
     if total == 0:
-        return "[vcf] nenhuma variante encontrada (arquivo vazio ou so cabecalho)."
-    titv = (ti / tv) if tv else float("nan")
-    out = ["VCF — %d variantes: %d SNPs, %d indels" % (total, snps, indels),
-           "Ti=%d  Tv=%d  Ti/Tv=%.2f" % (ti, tv, titv),
-           "por cromossomo (top 15):"]
+        extra = (" (%d alelo(s) nao-variante de gVCF ignorado(s))" % nonvar) if nonvar else ""
+        return "[vcf] nenhuma variante encontrada%s." % extra
+    titv = ("%.2f" % (ti / tv)) if tv else "n/a"
+    out = ["VCF — %d variantes: %d SNPs, %d indels, %d SV/simbolicas"
+           % (total, snps, indels, svs),
+           "Ti=%d  Tv=%d  Ti/Tv=%s" % (ti, tv, titv)]
+    if nonvar:
+        out.append("(%d alelo(s) nao-variante de gVCF ignorado(s): <NON_REF>/<*>/*)"
+                   % nonvar)
+    out.append("por cromossomo (top 15):")
     for chrom, n in sorted(by_chrom.items(), key=lambda kv: -kv[1])[:15]:
         out.append("  %-10s %d" % (chrom, n))
     if len(by_chrom) > 15:

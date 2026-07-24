@@ -12,12 +12,12 @@
   "lilo": {
    "command": "C:\\Users\\luizd\\miniforge3\\python.exe",
    "args": [
-    "C:\\Users\\luizd\\OneDrive\\Data_Science\\Projetos\\IA.agente\\lilo_mcp.py",
+    "C:\\github\\IA.agente_Lilo\\lilo_mcp.py",
     "--profile",
     "pycharm"
    ],
    "env": {
-    "PYTHONPATH": "C:\\Users\\luizd\\OneDrive\\Data_Science\\Projetos\\IA.agente",
+    "PYTHONPATH": "C:\\github\\IA.agente_Lilo",
     "LILO_SERVER_PROFILE": "pycharm_assistant",
     "OLLAMA_HOST": "http://127.0.0.1:11434"
    }

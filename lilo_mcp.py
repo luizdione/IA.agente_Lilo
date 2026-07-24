@@ -341,6 +341,21 @@ def lilo_pdf(query: str, file_path: str = "", mode: str = "simple") -> str:
     return handle_tool_call("pdf_summarize", args)
 
 
+def _path_gate(path: str) -> str:
+    """Aplica a allow-list LILO_DESKTOP_ALLOW (a MESMA dos fs_*) as tools de
+    leitura local (lilo_summarize_file, parse_bio_log). Sem isto elas seriam um
+    BYPASS da politica: leriam qualquer arquivo do disco (.env, ~/.ssh) e
+    devolveriam o conteudo destilado ao cliente. Retorna '' se permitido, ou a
+    mensagem de bloqueio. Fail-closed: se a politica nao carregar, bloqueia."""
+    try:
+        from pathlib import Path as _P
+        from agents.desktop.agent import _is_path_allowed
+        ok, why = _is_path_allowed(_P(path))
+        return "" if ok else f"[LILO] acesso negado: {why}"
+    except Exception as e:  # noqa: BLE001
+        return f"[LILO] politica de acesso indisponivel (fail-closed): {e}"
+
+
 @_profile_tool
 def lilo_summarize_file(path: str, question: str = "", max_chars: int = 1200) -> str:
     """Resume QUALQUER arquivo de texto local (.log/.out/.txt/.csv/.json/codigo, e
@@ -356,6 +371,9 @@ def lilo_summarize_file(path: str, question: str = "", max_chars: int = 1200) ->
         max_chars: teto de caracteres do resumo (default 1200 ~= 300 tokens).
     """
     _ensure_lilo()
+    _blocked = _path_gate(path)
+    if _blocked:
+        return _blocked
     try:
         from shared.summarize import summarize_file as _sf
     except Exception as e:
@@ -379,6 +397,9 @@ def parse_bio_log(path: str, kind: str = "auto") -> str:
         kind: 'auto' (default, detecta) | 'vina' | 'qpcr' | 'fastqc' | 'vcf'.
     """
     _ensure_lilo()
+    _blocked = _path_gate(path)
+    if _blocked:
+        return _blocked
     try:
         from shared.bioparsers import parse_bio_log as _pbl
     except Exception as e:

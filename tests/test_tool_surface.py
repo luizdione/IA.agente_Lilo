@@ -77,3 +77,25 @@ def test_agent_registry_preserved():
     assert not missing, ("subagentes sumiram do registry (a consolidação deve "
                          "registrar a instância fundida sob os nomes antigos): %s"
                          % sorted(missing))
+
+
+def test_yaml_cobre_perfis_embarcados():
+    """V20.1: config/profiles.yaml SOBRESCREVE _PROFILE_TOOLS quando o perfil tem
+    mcp_tools como lista. Logo, toda tool declarada no canal EMBARCADO de um
+    perfil deve tambem constar no YAML desse perfil -- senao ela fica MORTA (o
+    YAML e que vigora). Este teste mede o canal EFETIVO e teria pego scholar_brain
+    ausente do YAML de bio/cowork/claude_desktop/claude_code."""
+    from lilo_mcp import (_PROFILE_TOOLS, _load_profiles_yaml_tools,
+                          _KEEP_DEFAULTS)
+    mortas = {}
+    for name, emb in _PROFILE_TOOLS.items():
+        if not isinstance(emb, set):
+            continue  # None = todas as tools
+        _eff, tools = _load_profiles_yaml_tools(name)
+        if tools is None or tools == _KEEP_DEFAULTS:
+            continue  # YAML nao restringe este perfil -> o embarcado ja vigora
+        faltando = emb - set(tools)
+        if faltando:
+            mortas[name] = sorted(faltando)
+    assert not mortas, ("tools no _PROFILE_TOOLS embarcado mas AUSENTES do YAML "
+                        "(vigora o YAML -> ficam mortas): %s" % mortas)

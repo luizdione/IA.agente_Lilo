@@ -117,6 +117,7 @@ profiles:
       - lilo_memory_list
       - lilo_memory_search
       - lilo_scholar
+      - scholar_brain
       - prism_analyze
       - prism_classify
       - lilo_list_local_models
@@ -151,6 +152,7 @@ profiles:
       - lilo_models
       - lilo_pdf
       - lilo_scholar
+      - scholar_brain
       - lilo_sql
       - prism_analyze
       - prism_classify
@@ -203,6 +205,7 @@ profiles:
       - lilo_models
       - lilo_pdf
       - lilo_scholar
+      - scholar_brain
       - lilo_sql
       - prism_analyze
       - prism_classify
@@ -265,6 +268,7 @@ profiles:
       - prism_classify
       - prism_audit
       - lilo_scholar
+      - scholar_brain
       - lilo_pdf
       # V20: sumarizacao local generica + parsers de log bioinfo
       - lilo_summarize_file
