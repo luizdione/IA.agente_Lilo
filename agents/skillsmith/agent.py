@@ -27,12 +27,11 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from shared.base_agent import BaseAgent
-from shared.llm_client import get_client
 from shared.models import WORKER_CLOUD
-from shared.utils import load_env, sanitize_query
+from shared.utils import sanitize_query
 from shared.logger import get_logger
 
-load_env()
+# V19: load_env() e a propriedade `llm` lazy sobem para o BaseAgent (dedup).
 log = get_logger("SkillSmith")
 
 SMITH_MODEL = os.getenv("LILO_SKILLSMITH_MODEL", WORKER_CLOUD)
@@ -50,11 +49,9 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from shared.base_agent import BaseAgent
-from shared.llm_client import get_client
-from shared.utils import load_env, sanitize_query
+from shared.utils import sanitize_query
 from shared.logger import get_logger
 
-load_env()
 log = get_logger("{class_name}")
 
 
@@ -66,15 +63,7 @@ class {class_name}(BaseAgent):
     local_only = False
     latency_class = "fast"
 
-    def __init__(self):
-        super().__init__()
-        self._llm = None
-
-    @property
-    def llm(self):
-        if self._llm is None:
-            self._llm = get_client()
-        return self._llm
+    # V19: llm lazy e load_env herdados do BaseAgent (scaffold enxuto).
 
     def run(self, query: str, context: dict[str, Any] = {{}}) -> str:
         query = sanitize_query(query)
@@ -108,15 +97,7 @@ class SkillSmithAgent(BaseAgent):
     local_only = False
     latency_class = "fast"
 
-    def __init__(self):
-        super().__init__()
-        self._llm = None
-
-    @property
-    def llm(self):
-        if self._llm is None:
-            self._llm = get_client()
-        return self._llm
+    # V19: llm lazy herdado do BaseAgent (dedup).
 
     # ── helpers ──────────────────────────────────────────────────────────────
     @staticmethod
@@ -183,9 +164,10 @@ class SkillSmithAgent(BaseAgent):
             "- **Classe:** `%s`\n\n"
             "### Para ATIVAR (revise e cole em `lilo.py`)\n"
             "1. No `_AGENT_REGISTRY` de `_load_agents()`:\n```python\n%s\n```\n"
-            "2. (opcional) keywords em `_KEYWORD_MAP[\"%s\"]` e tools em "
-            "`get_tool_map()`.\n3. Implemente a lógica em `run()`.\n"
-            % (name, len(tools_norm), cls, reg, name))
+            "2. As keywords de roteamento já vêm do atributo `KEYWORDS` da "
+            "classe (o roteador único lê `capabilities()`); registre tools de "
+            "nome próprio em `get_tool_map()`.\n3. Implemente a lógica em `run()`.\n"
+            % (name, len(tools_norm), cls, reg))
 
     # ── BaseAgent ─────────────────────────────────────────────────────────────
     def run(self, query: str, context: dict[str, Any] = {}) -> str:
@@ -224,7 +206,8 @@ class SkillSmithAgent(BaseAgent):
         ]
 
     def capabilities(self) -> dict:
-        return {"name": self.name, "keywords": self.KEYWORDS, "model": SMITH_MODEL}
+        return {"name": self.name, "description": self.description,
+                "keywords": self.KEYWORDS, "model": SMITH_MODEL}
 
     def health(self) -> dict:
         return {"status": "ok", "model": SMITH_MODEL,

@@ -7,6 +7,12 @@ roteamento explainable.
 from abc import ABC, abstractmethod
 from typing import Any
 from .logger import get_logger
+from .utils import load_env
+
+# V19 (2026-07-23): carrega .env UMA vez, no import do BaseAgent. Todo subagente
+# que herda dele ja tem o ambiente carregado -> elimina o `load_env()` repetido
+# em cada agents/*/agent.py (condensacao de boilerplate, sem fundir agentes).
+load_env()
 
 
 class BaseAgent(ABC):
@@ -18,6 +24,16 @@ class BaseAgent(ABC):
     def __init__(self):
         self.log = get_logger(self.__class__.__name__)
         self.log.info(f"Subagente '{self.name}' inicializado.")
+
+    @property
+    def llm(self):
+        """Cliente LLM lazy compartilhado (Ollama->LiteLLM->Anthropic).
+        V19: sobe a propriedade `llm` duplicada em ~6 agentes para o BaseAgent.
+        Instancia sob demanda (getattr evita exigir __init__ nas subclasses)."""
+        if getattr(self, "_llm", None) is None:
+            from shared.llm_client import get_client
+            self._llm = get_client()
+        return self._llm
 
     @abstractmethod
     def run(self, query: str, context: dict[str, Any] = {}) -> str:

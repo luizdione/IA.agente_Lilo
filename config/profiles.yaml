@@ -53,6 +53,14 @@ profiles:
       - fs_search
       - run_shell
       - run_python
+      # V19: ambiente de analise do dono (conda + R + WSL) + memoria de projetos
+      - run_r
+      - run_wsl
+      - list_conda_envs
+      - exec_env_info
+      - lilo_list_projects
+      - lilo_project_memory
+      - lilo_project_memory_search
       - lilo_memory_set
       - lilo_memory_get
       - lilo_memory_list
@@ -95,6 +103,15 @@ profiles:
       - fs_search
       - run_python
       - run_shell
+      # V19: Desktop nao tem exec/fs nativo -> conjunto completo (conda + R + WSL)
+      # e memoria de projetos (.project-memory).
+      - run_r
+      - run_wsl
+      - list_conda_envs
+      - exec_env_info
+      - lilo_list_projects
+      - lilo_project_memory
+      - lilo_project_memory_search
       - lilo_memory_set
       - lilo_memory_get
       - lilo_memory_list
@@ -249,6 +266,9 @@ profiles:
       - prism_audit
       - lilo_scholar
       - lilo_pdf
+      # V20: sumarizacao local generica + parsers de log bioinfo
+      - lilo_summarize_file
+      - parse_bio_log
       - lilo_memory_set
       - lilo_memory_get
       - lilo_memory_list
@@ -264,6 +284,16 @@ profiles:
       - lilo_health
       - lilo_models
       - villa_route  # V10: novo endpoint de roteamento puro
+      # V19 (2026-07-21): memoria de PROJETOS (.project-memory autorada pelo
+      # Claude) + execucao COMPLEMENTAR (R + descoberta de env conda). run_wsl e
+      # run_python "puro" ficam de fora: o Bash nativo do CC ja cobre (regra de
+      # ouro do CLAUDE.md). O LILO expoe so o que o CC nao tem nativo.
+      - lilo_list_projects
+      - lilo_project_memory
+      - lilo_project_memory_search
+      - run_r
+      - list_conda_envs
+      - exec_env_info
       # V13/V14: complementares ao Read/Write/Bash nativos (redacao/revisao/docs/EDA/meta)
       - scholar_review
       - paper_draft

@@ -17,10 +17,9 @@ _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 
 from shared.base_agent import BaseAgent
-from shared.llm_client import get_client
-from shared.utils import load_env, sanitize_query, truncate
+from shared.utils import sanitize_query, truncate
 
-load_env()
+# V19: load_env() e a propriedade `llm` lazy sobem para o BaseAgent (dedup).
 
 # V15.1: perguntas CONCEITUAIS/definicionais ("o que e", "descreva", "explique"
 # ...) nao precisam do modelo pesado de dominio (ex.: phi3:14b do bioinfo) ->
@@ -64,15 +63,7 @@ class GatewayAgent(BaseAgent):
     local_only = True
     latency_class = "fast"
 
-    def __init__(self):
-        super().__init__()
-        self._llm = None
-
-    @property
-    def llm(self):
-        if self._llm is None:
-            self._llm = get_client()
-        return self._llm
+    # V19: llm lazy herdado do BaseAgent (dedup).
 
     # ── Interface BaseAgent ──────────────────────────────────────────────────
 

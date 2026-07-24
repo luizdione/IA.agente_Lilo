@@ -1,9 +1,0 @@
-{
-  "name": "numpy_get_printoptions",
-  "description": "Return the current print options.\n\nReturns\n-------\nprint_opts : dict\n    Dictionary of current print options with keys\n\n    - precision : int\n    - threshold : int\n    - edgeitems : int\n    - linewidt",
-  "parameters": {
-    "type": "object",
-    "properties": {},
-    "required": []
-  }
-}

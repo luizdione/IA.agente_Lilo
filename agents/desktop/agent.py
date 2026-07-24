@@ -36,9 +36,9 @@ _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 
 from shared.base_agent import BaseAgent  # noqa: E402
-from shared.utils import load_env, get_env  # noqa: E402
+from shared.utils import get_env  # noqa: E402
 
-load_env()
+# V19: load_env() sobe para o BaseAgent (dedup).
 
 
 # -- Allow-list de diretorios -----------------------------------------------
@@ -314,16 +314,21 @@ def run_shell(cmd: str, cwd: Optional[str] = None, timeout: int = 60) -> str:
         return f"[ERRO] {e}"
 
 
-def run_python(code: str, timeout: int = 60) -> str:
-    """Executa snippet Python em subprocess isolado (nao no proc do MCP)."""
+def run_python(code: str, timeout: int = 60, env: Optional[str] = None) -> str:
+    """Executa snippet Python em subprocess isolado (nao no proc do MCP).
+
+    env=None -> Python que roda o LILO (base). env='datascience' (ou outro env
+    conda) -> roda no ambiente de analise do dono (numpy/pandas/scipy/biopython/
+    scikit-learn/statsmodels/snakemake...), via shared.exec_env."""
     # V14: execucao de codigo e RISCO -> sujeita aos modos.
     from shared import exec_mode as _xm
     _g = _xm.gate("python", code[:200])
     if _g:
         return _g
-    if any(b in code for b in ["os.system", "subprocess.call", "subprocess.run"]):
-        # snippets podem chamar shell, mas avisamos
-        pass
+    # V19 (2026-07-21): execucao no ambiente conda de analise do dono.
+    if env:
+        from shared import exec_env as _ee
+        return _ee.run_python(code, env=env, timeout=timeout)
     try:
         r = subprocess.run(
             [sys.executable, "-c", code],
@@ -341,6 +346,50 @@ def run_python(code: str, timeout: int = 60) -> str:
         return f"[ERRO] {e}"
 
 
+def run_r(code: str, env: Optional[str] = None, timeout: int = 180) -> str:
+    """Executa codigo R (Rscript) no ambiente conda de analise (via exec_env).
+    Se o R nao estiver instalado no env, retorna dica acionavel."""
+    from shared import exec_mode as _xm
+    _g = _xm.gate("python", ("R: " + code)[:200])   # exec de codigo = risco 'python'
+    if _g:
+        return _g
+    from shared import exec_env as _ee
+    return _ee.run_r(code, env=env, timeout=timeout)
+
+
+def run_wsl(cmd: str, distro: Optional[str] = None, timeout: int = 120) -> str:
+    """Executa um comando no WSL (Ubuntu por default), via exec_env. Mesmo
+    bloqueio de comandos perigosos + gating de shell/git do run_shell."""
+    danger = _is_cmd_dangerous(cmd)
+    if danger:
+        return f"[ERRO] comando perigoso bloqueado (pattern: {danger})"
+    from shared import exec_mode as _xm
+    if _is_git_write(cmd):
+        _gg = _xm.gate("git_write", "wsl: " + cmd, token=_xm.scope_token(cmd))
+        if _gg:
+            return _gg
+    else:
+        _g = _xm.gate("shell", "wsl: " + cmd)
+        if _g:
+            return _g
+    from shared import exec_env as _ee
+    return _ee.run_wsl(cmd, distro=distro, timeout=timeout)
+
+
+def list_conda_envs() -> str:
+    """Lista os envs conda disponiveis (base, datascience, ...)."""
+    from shared import exec_env as _ee
+    envs = _ee.list_conda_envs()
+    return "\n".join(envs) if envs else "(nenhum env conda encontrado)"
+
+
+def exec_env_info() -> str:
+    """Resumo das capacidades de execucao: envs conda, WSL, Python do LILO."""
+    import json as _j
+    from shared import exec_env as _ee
+    return _j.dumps(_ee.env_info(), ensure_ascii=False, indent=2)
+
+
 # -- BaseAgent wrapper -------------------------------------------------------
 
 class DesktopAgent(BaseAgent):
@@ -348,13 +397,18 @@ class DesktopAgent(BaseAgent):
     Expoe filesystem + shell com allow-list de diretorios."""
 
     name = "desktop"
+    # V19: assinatura por AÇÃO (OPERAR o sistema/rodar código), com keywords
+    # robustas a flexão (arquivos/rodar) que o keyword-router perdia.
     description = (
-        "Desktop Commander LILO: ler/escrever arquivos, listar diretorios, "
-        "executar shell e Python. Restrito a allow-list (LILO_DESKTOP_ALLOW)."
+        "OPERA o sistema/computador: lista e lê/escreve arquivos e pastas, e "
+        "roda comandos de shell e scripts Python (inclusive no conda datascience "
+        "e no WSL). Restrito a allow-list (LILO_DESKTOP_ALLOW)."
     )
-    KEYWORDS = ["arquivo", "file", "diretorio", "directory", "ls", "cat",
-                "shell", "bash", "cmd", "powershell", "executar",
-                "listar", "criar arquivo", "ler arquivo"]
+    KEYWORDS = ["arquivo", "arquivos", "listar arquivos", "file", "diretorio",
+                "diretório", "pasta", "ls", "shell", "bash", "cmd", "powershell",
+                "executar", "rodar", "rodar script", "rodar comando",
+                "executar comando", "rodar python", "listar", "criar arquivo",
+                "ler arquivo", "abrir pasta"]
 
     # V9 (2026-05-22): roteamento cost-aware no Villa_Lobos.
     # Operações de filesystem/shell são locais e rápidas (sem LLM no caminho).
@@ -380,7 +434,18 @@ class DesktopAgent(BaseAgent):
             return run_shell(ctx.get("cmd", query), ctx.get("cwd"),
                              ctx.get("timeout", 60))
         if op == "python":
-            return run_python(ctx.get("code", query), ctx.get("timeout", 60))
+            return run_python(ctx.get("code", query), ctx.get("timeout", 60),
+                              ctx.get("env"))
+        if op == "r":
+            return run_r(ctx.get("code", query), ctx.get("env"),
+                         ctx.get("timeout", 180))
+        if op == "wsl":
+            return run_wsl(ctx.get("cmd", query), ctx.get("distro"),
+                           ctx.get("timeout", 120))
+        if op == "conda_envs":
+            return list_conda_envs()
+        if op == "env_info":
+            return exec_env_info()
         if op == "search":
             return fs_search(ctx.get("root", str(_ROOT)),
                              ctx.get("pattern", query),
@@ -466,15 +531,54 @@ class DesktopAgent(BaseAgent):
             },
             {
                 "name": "run_python",
-                "description": "Executa snippet Python em subprocess isolado.",
+                "description": ("Executa Python em subprocess. env='datascience' "
+                                "roda no conda do dono (numpy/pandas/scipy/biopython/"
+                                "sklearn/statsmodels/snakemake); env vazio = Python do LILO."),
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "code": {"type": "string"},
                         "timeout": {"type": "integer", "default": 60},
+                        "env": {"type": "string", "description": "env conda (ex.: datascience). Vazio=Python do LILO."},
                     },
                     "required": ["code"],
                 },
+            },
+            {
+                "name": "run_r",
+                "description": "Executa codigo R (Rscript) no conda env de analise. Dica acionavel se R ausente.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "code": {"type": "string"},
+                        "env": {"type": "string", "description": "env conda com R (default: datascience)"},
+                        "timeout": {"type": "integer", "default": 180},
+                    },
+                    "required": ["code"],
+                },
+            },
+            {
+                "name": "run_wsl",
+                "description": "Executa comando no WSL (Ubuntu). Bloqueia comandos perigosos.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "cmd": {"type": "string"},
+                        "distro": {"type": "string", "description": "distro WSL (default: Ubuntu)"},
+                        "timeout": {"type": "integer", "default": 120},
+                    },
+                    "required": ["cmd"],
+                },
+            },
+            {
+                "name": "list_conda_envs",
+                "description": "Lista os envs conda disponiveis (base, datascience, ...).",
+                "inputSchema": {"type": "object", "properties": {}},
+            },
+            {
+                "name": "exec_env_info",
+                "description": "Capacidades de execucao: envs conda, distros WSL, Python do LILO.",
+                "inputSchema": {"type": "object", "properties": {}},
             },
         ]
 
@@ -482,5 +586,5 @@ class DesktopAgent(BaseAgent):
         return {
             "status": "ok",
             "allowlist": [str(p) for p in ALLOWLIST],
-            "tools": 7,
+            "tools": len(self.get_tools()),
         }

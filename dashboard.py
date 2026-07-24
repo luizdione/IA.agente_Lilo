@@ -39,6 +39,12 @@ except Exception:  # pragma: no cover
     cowork = None
 
 load_env()
+# V19 (2026-07-23): no dashboard (sessão LONGA, modelo carrega 1x) o roteador por
+# EMBEDDINGS (ML) é o default -> entrega "o orquestrador+ML decide o caminho" no
+# Chat Auto. A CLI/MCP mantêm o keyword global (processo curto). A 1ª pergunta
+# paga o cold-start do modelo (~7s, do cache). Reversível: LILO_ROUTER=keyword no .env.
+import os as _os
+_os.environ.setdefault("LILO_ROUTER", "embed")
 log = get_logger("Dashboard")
 memory = get_memory()
 
@@ -257,22 +263,33 @@ with st.sidebar:
 
     n_agents = len(agents)
     status_icon = "ON" if ollama_ok else "OFF"
-    st.caption(status_icon + " Ollama | " + str(n_agents) + "/6 agentes")
+    st.caption(status_icon + " Ollama | " + str(n_agents) + " agentes (Auto decide)")
 
     st.markdown("---")
-    st.markdown("**SUB-AGENTES**")
+    # V19 (UI plan-first): a PORTA PRINCIPAL e o Chat (Auto) -- o LILO decide o
+    # especialista pela semantica (roteador ML). As 9 abas de especialista deixam
+    # de ser escolhas paralelas na cara do usuario e viram override/observabilidade
+    # num expander, agrupadas por categoria (prenuncia a consolidacao 10->6).
+    st.markdown("**CONVERSAR**")
     nav_button("Chat", "nav_chat", "agent")
-    nav_button("SQL", "nav_sql", "agent")
-    nav_button("PDFs", "nav_pdf", "agent")
-    nav_button("Scholar", "nav_scholar", "agent")
-    nav_button("Biblioteca", "nav_biblioteca", "agent")
-    nav_button("Prism AI", "nav_prism", "agent")
-    nav_button("Villa Lobos", "nav_villa", "agent")
-    nav_button("Desktop", "nav_desktop", "agent")
+    st.caption("No Chat (Auto) o LILO escolhe o especialista sozinho. Os "
+               "especialistas abaixo sao so para forcar/inspecionar.")
 
-    st.markdown("---")
-    st.markdown("**PLATAFORMAS**")
-    nav_button("SciStudio", "nav_scistudio", "agent")
+    _spec_groups = [
+        ("Dados & Estatistica", [("SQL", "nav_sql"), ("Prism AI", "nav_prism")]),
+        ("Literatura", [("PDFs", "nav_pdf"), ("Scholar", "nav_scholar"),
+                        ("Biblioteca", "nav_biblioteca")]),
+        ("Execucao & Sistema", [("Desktop", "nav_desktop")]),
+        ("Orquestracao", [("Villa Lobos", "nav_villa")]),
+        ("Visual", [("SciStudio", "nav_scistudio")]),
+    ]
+    _spec_labels = {lbl for _g, _items in _spec_groups for lbl, _k in _items}
+    with st.expander("Especialistas (override manual)",
+                     expanded=st.session_state.page in _spec_labels):
+        for _gname, _items in _spec_groups:
+            st.caption(_gname)
+            for _lbl, _key in _items:
+                nav_button(_lbl, _key, "agent")
 
     st.markdown("---")
     st.markdown("**COWORK**")
@@ -1134,6 +1151,30 @@ with main_col:
                             st.markdown(response)
                     else:
                         st.markdown(response)
+                    # V19 (plan-first): observabilidade do roteamento no Auto --
+                    # mostra QUAL especialista o roteador ML escolheu, por que e o
+                    # ranking de scores (fecha o ciclo "o orquestrador+ML decide").
+                    if mode == "Auto" and not (_is_conf or _is_blk):
+                        try:
+                            from shared import router as _rt
+                            _caps = {n: a.capabilities() for n, a in agents.items()}
+                            _dec = _rt.route_query(prompt, _caps, available=set(agents))
+                            with st.expander(
+                                    "🧭 Como o LILO decidiu — roteador '%s'" % _dec.method,
+                                    expanded=False):
+                                st.caption(
+                                    "Especialista: **%s**  ·  score %.2f  ·  %s"
+                                    % (_dec.target, _dec.score, _dec.reason))
+                                _ranked = sorted(_dec.scores.items(),
+                                                 key=lambda kv: kv[1], reverse=True)[:6]
+                                if _ranked:
+                                    st.write("**Ranking (%s):**" % (
+                                        "similaridade semântica" if _dec.method == "embed"
+                                        else "match de keywords"))
+                                    for _n, _s in _ranked:
+                                        st.write("- `%s` — %.3f" % (_n, _s))
+                        except Exception:
+                            pass
                     st.session_state.messages.append(
                         {"role": "assistant", "content": response})
                     memory.add_message(st.session_state.current_chat_id, "assistant", response)

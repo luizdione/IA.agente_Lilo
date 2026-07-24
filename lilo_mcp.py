@@ -59,6 +59,11 @@ for i, arg in enumerate(sys.argv):
 #   - pycharm : conjunto reduzido focado em refactoring/codigo
 #   - bio     : focado em biologia molecular / data science (PrismAI + Scholar + PDF + Villa)
 #   - http    : reservado para lilo_api.py
+# ATENCAO (2026-07-21): config/profiles.yaml SOBRESCREVE estas listas quando o
+# perfil esta definido la (mcp_tools como lista). Portanto, ao ADICIONAR uma tool
+# nova a um cliente (claude_code/claude_desktop/pycharm/bio/cowork), atualize
+# TAMBEM config/profiles.yaml -- editar so aqui e no-op para esses perfis. Os
+# perfis com mcp_tools: null (desktop_dev/openclaw) recebem tudo automaticamente.
 _PROFILE_TOOLS = {
     "desktop": None,  # None = registra tudo
     "pycharm": {
@@ -69,6 +74,10 @@ _PROFILE_TOOLS = {
         # Desktop Commander tools (essenciais no PyCharm para refatorar codigo)
         "fs_read", "fs_write", "fs_list", "fs_stat", "fs_search",
         "run_shell", "run_python",
+        # V19: execucao no ambiente de analise do dono (conda + WSL)
+        "run_r", "run_wsl", "list_conda_envs", "exec_env_info",
+        # V19: memoria de projetos (.project-memory)
+        "lilo_list_projects", "lilo_project_memory", "lilo_project_memory_search",
         # Memoria + cost (uteis em qualquer cliente)
         "lilo_memory_set", "lilo_memory_get", "lilo_memory_list",
         "lilo_memory_delete", "lilo_cost_today", "lilo_cost_recent",
@@ -119,6 +128,10 @@ _PROFILE_TOOLS = {
         "fs_read", "fs_write", "fs_list", "fs_stat", "fs_search",
         # Execucao local (Opus nao executa codigo)
         "run_python", "run_shell",
+        # V19: ambiente de analise do dono (conda datascience + R + WSL)
+        "run_r", "run_wsl", "list_conda_envs", "exec_env_info",
+        # V19: memoria de projetos (.project-memory)
+        "lilo_list_projects", "lilo_project_memory", "lilo_project_memory_search",
         # Memoria persistente entre sessoes
         "lilo_memory_set", "lilo_memory_get", "lilo_memory_list",
         "lilo_memory_search",
@@ -154,6 +167,9 @@ _PROFILE_TOOLS = {
         "scholar_brain",
         # PDF cientifico (parsing + sumarizacao especializada em papers)
         "lilo_pdf",
+        # V20: sumarizacao LOCAL de qualquer arquivo + parsers de log bioinfo
+        # (destilam via Ollama/deterministico p/ nao despejar bruto no contexto)
+        "lilo_summarize_file", "parse_bio_log",
         # Memoria persistente entre sessoes (KV SQLite)
         "lilo_memory_set", "lilo_memory_get", "lilo_memory_list",
         "lilo_memory_search", "lilo_memory_stats", "lilo_memory_export",
@@ -162,6 +178,10 @@ _PROFILE_TOOLS = {
         "lilo_cost_today", "lilo_cost_recent",
         # Ollama model manager (info + pull)
         "lilo_pull_model", "lilo_list_local_models",
+        # V19: complementar ao Bash do CC -- R e conda env de analise + WSL info
+        "run_r", "list_conda_envs", "exec_env_info",
+        # V19: memoria de projetos (.project-memory) -- complementar puro ao CC
+        "lilo_list_projects", "lilo_project_memory", "lilo_project_memory_search",
         # Health
         "lilo_health", "lilo_models",
         # V13/V14: complementares ao Claude Code (redacao/revisao/docs/EDA/meta)
@@ -319,6 +339,51 @@ def lilo_pdf(query: str, file_path: str = "", mode: str = "simple") -> str:
     if file_path:
         args["file_path"] = file_path
     return handle_tool_call("pdf_summarize", args)
+
+
+@_profile_tool
+def lilo_summarize_file(path: str, question: str = "", max_chars: int = 1200) -> str:
+    """Resume QUALQUER arquivo de texto local (.log/.out/.txt/.csv/.json/codigo, e
+    PDFs) destilando-o pelo Ollama LOCAL e devolvendo SO o resumo -- o conteudo
+    bruto NAO entra no contexto do Claude. Use no lugar de ler um arquivo grande
+    inteiro (log de docking, saida de pipeline, CSV volumoso) quando so precisa do
+    essencial para decidir. Para planilhas/dados use perfil_dados/graphpad; para
+    papers PDF, lilo_pdf ja e especializado.
+
+    Args:
+        path: caminho do arquivo local a resumir.
+        question: pergunta especifica a responder sobre o arquivo (opcional).
+        max_chars: teto de caracteres do resumo (default 1200 ~= 300 tokens).
+    """
+    _ensure_lilo()
+    try:
+        from shared.summarize import summarize_file as _sf
+    except Exception as e:
+        return f"[LILO] summarize indisponivel: {e}"
+    return _sf(path, question=question, max_chars=max_chars)
+
+
+@_profile_tool
+def parse_bio_log(path: str, kind: str = "auto") -> str:
+    """Converte um LOG de bioinformatica em uma TABELA COMPACTA (dado estruturado),
+    em vez de despejar o log bruto no contexto. Deteccao automatica de formato.
+    Ganho tipico: ~3000 tokens de log -> ~150 de tabela.
+
+    Formatos: 'vina' (AutoDock Vina -> afinidades kcal/mol + RMSD + melhor pose),
+    'qpcr' (export csv/tsv -> Cq por amostra + eficiencia/R2/slope), 'fastqc'
+    (fastqc_data.txt/summary.txt -> modulos PASS/WARN/FAIL), 'vcf' (contagens por
+    tipo de variante, Ti/Tv, por cromossomo).
+
+    Args:
+        path: caminho do log local.
+        kind: 'auto' (default, detecta) | 'vina' | 'qpcr' | 'fastqc' | 'vcf'.
+    """
+    _ensure_lilo()
+    try:
+        from shared.bioparsers import parse_bio_log as _pbl
+    except Exception as e:
+        return f"[LILO] bioparsers indisponivel: {e}"
+    return _pbl(path, kind=kind)
 
 
 @_profile_tool
@@ -734,17 +799,103 @@ def run_shell(cmd: str, cwd: str = "", timeout: int = 60) -> str:
 
 
 @_profile_tool
-def run_python(code: str, timeout: int = 60) -> str:
-    """Executa Python em subprocess com numpy/pandas/scipy/biopython.
-    Use print() para retornar valores.
+def run_python(code: str, timeout: int = 60, env: str = "") -> str:
+    """Executa Python em subprocess. Use print() para retornar valores.
 
     Args:
         code: Codigo Python.
         timeout: 1-300 segundos (default 60).
+        env: env conda (ex.: 'datascience' p/ numpy/pandas/scipy/biopython/
+             sklearn/statsmodels/snakemake). Vazio = Python do LILO.
     """
     _ensure_lilo()
     from agents.desktop.agent import run_python as _rp
-    return _rp(code, timeout)
+    return _rp(code, timeout, env or None)
+
+
+@_profile_tool
+def run_r(code: str, env: str = "", timeout: int = 180) -> str:
+    """Executa codigo R (Rscript) no conda env de analise do dono.
+
+    Args:
+        code: Codigo R.
+        env: env conda com R (default: datascience). Dica acionavel se R ausente.
+        timeout: 1-600 segundos (default 180).
+    """
+    _ensure_lilo()
+    from agents.desktop.agent import run_r as _rr
+    return _rr(code, env or None, timeout)
+
+
+@_profile_tool
+def run_wsl(cmd: str, distro: str = "", timeout: int = 120) -> str:
+    """Executa comando no WSL (Ubuntu por default). Bloqueia comandos perigosos.
+
+    Args:
+        cmd: Comando bash.
+        distro: distro WSL (default: Ubuntu).
+        timeout: 1-600 segundos (default 120).
+    """
+    _ensure_lilo()
+    from agents.desktop.agent import run_wsl as _rw
+    return _rw(cmd, distro or None, timeout)
+
+
+@_profile_tool
+def list_conda_envs() -> str:
+    """Lista os envs conda disponiveis (base, datascience, ...)."""
+    _ensure_lilo()
+    from agents.desktop.agent import list_conda_envs as _lce
+    return _lce()
+
+
+@_profile_tool
+def exec_env_info() -> str:
+    """Capacidades de execucao do LILO: envs conda, distros WSL, Python do LILO."""
+    _ensure_lilo()
+    from agents.desktop.agent import exec_env_info as _ei
+    return _ei()
+
+
+# =============================================================================
+# MEMORIA DE PROJETOS (.project-memory autorada pelo Claude + skills de memoria)
+# =============================================================================
+
+@_profile_tool
+def lilo_list_projects() -> str:
+    """Lista os projetos do dono com memoria .project-memory (nome, arquivos). 100% local."""
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("lilo_list_projects", {})
+
+
+@_profile_tool
+def lilo_project_memory(project: str, max_chars: int = 0) -> str:
+    """Le a memoria .md de um projeto (.project-memory: PROJECT_STATE/CONTEXT/TASKS/KNOWLEDGE).
+
+    Args:
+        project: slug/nome do projeto (ex.: nss_virus, genomas).
+        max_chars: 0 = memoria completa; >0 trunca.
+    """
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("lilo_project_memory",
+                            {"project": project, "max_chars": max_chars})
+
+
+@_profile_tool
+def lilo_project_memory_search(query: str, project: str = "", limit: int = 20) -> str:
+    """Busca textual na memoria .md dos projetos (um ou todos). Local, sem embeddings.
+
+    Args:
+        query: termo de busca.
+        project: vazio = busca em todos os projetos.
+        limit: max resultados (default 20).
+    """
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("lilo_project_memory_search",
+                            {"query": query, "project": project, "limit": limit})
 
 
 # =============================================================================

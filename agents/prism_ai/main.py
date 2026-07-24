@@ -48,9 +48,15 @@ class PrismAgent(BaseAgent):
         "Aceita .xlsx e .csv."
     )
 
+    # Keywords próprias (antes vinham só de config/villa/domains.yaml via
+    # fallback do BaseAgent). Explícitas aqui para o roteador único
+    # (shared/router.py) usar o capabilities() como fonte-de-verdade.
+    KEYWORDS = ["prism", "anova", "t-test", "kruskal", "mann-whitney", "shapiro",
+                "boxplot", "p-valor", "p-value", "comparar grupos", "experimento",
+                "pzfx", "graphpad", "normalidade", "estatistica", "post-hoc"]
+
     # V9 (2026-05-22): roteamento cost-aware no Villa_Lobos.
     # Pipeline estatístico + gráficos + export local; custo baixo, latência média.
-    # (keywords vêm de config/villa/domains.yaml via fallback do BaseAgent.)
     cost_tier = "ollama"
     local_only = True
     latency_class = "medium"

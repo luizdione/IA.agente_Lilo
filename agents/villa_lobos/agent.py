@@ -1470,6 +1470,22 @@ class VillaLobosAgent(BaseAgent):
         `available`: conjunto de nomes de subagentes carregados (opcional);
         se um domínio detectado não estiver disponível, cai em "villa".
         """
+        # V18 (2026-07-21): passo semantico por EMBEDDINGS (opt-in via
+        # LILO_ROUTER=embed, reusa shared/router.py). No default 'keyword' este
+        # bloco e pulado -> a cascata legada (llm -> heuristica -> capabilities)
+        # roda intacta, preservando o contrato de test_villa_routing.
+        if (_os.getenv("LILO_ROUTER", "keyword") or "keyword").strip().lower() == "embed":
+            try:
+                from shared import router as _router
+                dec = _router.route_query(query, self.capability_registry(),
+                                          available=available)
+                if dec.method == "embed":
+                    return dec.target, "embed"
+                if dec.method == "unavailable":
+                    return "villa", "embed"
+                # ambiguo / fallback keyword -> deixa a cascata legada decidir
+            except Exception as _e:
+                log.debug("route_target embed indisponivel (%s); cascata", _e)
         domain = self._route_via_llm(query)
         method = "llm"
         if domain in (None, "none"):
@@ -1675,31 +1691,16 @@ class VillaLobosAgent(BaseAgent):
     def _route_via_capabilities(self, query):
         """Roteia via capabilities() consultando o manifesto de cada agente.
 
-        Pontuacao = soma de matches de keywords (case-insensitive). Retorna o
-        agente com maior pontuacao ou None se nenhum encaixou.
+        V18 (2026-07-21): a pontuacao por fronteira de palavra foi UNIFICADA no
+        roteador unico (shared/router._keyword_route) -- fonte-de-verdade unica,
+        sem duplicar a logica aqui. Comportamento identico (mesma fronteira de
+        palavra, ignora 'villa', maior pontuacao > 0). Preserva a correcao V10.6
+        (match por fronteira de palavra, nao substring). Retorna o agente
+        vencedor ou None.
         """
-        ql = (query or "").lower()
-        best = (None, 0)
-        for name, cap in self.capability_registry().items():
-            if name == "villa":
-                continue
-            score = 0
-            for kw in (cap.get("keywords", []) or []):
-                if not kw:
-                    continue
-                # V10.6 (2026-06-05): match por FRONTEIRA DE PALAVRA, nao
-                # substring. Bug corrigido: o keyword 'cat' do agente desktop
-                # casava dentro de "CATalise" (quimica) e sequestrava a query
-                # profunda para um `fs_list`. Keywords multi-palavra (ex.:
-                # "criar arquivo") seguem casando como frase. \b e unicode-aware
-                # para str em Python 3, entao acentos contam como word-char.
-                if re.search(r"\b" + re.escape(kw.lower()) + r"\b", ql):
-                    score += 1
-            if score > best[1]:
-                best = (name, score)
-        if best[1] > 0:
-            return best[0]
-        return None
+        from shared.router import _keyword_route
+        target, _scores = _keyword_route(query, self.capability_registry())
+        return target
 
     def capabilities(self):
         """Manifesto V8 do orquestrador Villa_Lobos."""

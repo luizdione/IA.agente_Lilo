@@ -1,9 +1,0 @@
-{
-  "name": "matplotlib_matplotlib_fname",
-  "description": "Get the location of the config file.\n\nThe file location is determined in the following order\n\n- ``$PWD/matplotlibrc``\n- ``$MATPLOTLIBRC`` if it is not a directory\n- ``$MATPLOTLIBRC/matplotlibrc``\n- ``",
-  "parameters": {
-    "type": "object",
-    "properties": {},
-    "required": []
-  }
-}

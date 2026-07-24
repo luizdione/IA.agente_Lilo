@@ -14,11 +14,10 @@ sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, str(Path(__file__).parent))
 
 from shared.base_agent import BaseAgent
-from shared.llm_client import get_client
 from shared.models import WORKER_CLOUD
-from shared.utils import load_env, sanitize_query, truncate
+from shared.utils import sanitize_query, truncate
 
-load_env()
+# V19: load_env() e a propriedade `llm` lazy sobem para o BaseAgent (dedup).
 
 
 class ScholarAgent(BaseAgent):
@@ -36,13 +35,16 @@ class ScholarAgent(BaseAgent):
     """
 
     name = "scholar"
+    # V19: assinatura por AÇÃO (BUSCAR literatura ONLINE), separando de pdf
+    # (arquivo local) e paper (redigir).
     description = (
-        "Busca e síntese de literatura científica via PubMed, arXiv e CrossRef. "
-        "Retorna artigos relevantes com resumos, DOIs e formatação de referências."
+        "BUSCA/encontra literatura científica NA INTERNET (PubMed, arXiv, "
+        "CrossRef, OpenAlex): dado um tema, retorna artigos, DOIs e referências. "
+        "NÃO lê arquivos PDF locais e NÃO escreve manuscritos."
     )
 
     KEYWORDS = [
-        "paper", "pubmed", "arxiv", "scholar", "pesquisa", "literatura",
+        "pubmed", "arxiv", "scholar", "pesquisa", "literatura",
         "referência", "artigos sobre", "estudos de", "publicações",
         "buscar artigos", "encontrar papers", "review", "meta-análise",
         # V10.4: fontes externas adicionais (paridade com o Claude).
@@ -62,15 +64,7 @@ class ScholarAgent(BaseAgent):
     local_only = True
     latency_class = "slow"
 
-    def __init__(self):
-        super().__init__()
-        self._llm = None
-
-    @property
-    def llm(self):
-        if self._llm is None:
-            self._llm = get_client()
-        return self._llm
+    # V19: llm lazy herdado do BaseAgent (dedup).
 
     # ── Interface BaseAgent ──────────────────────────────────────────────────
 
@@ -288,12 +282,25 @@ class ScholarAgent(BaseAgent):
     def _format_results(self, results: list[dict]) -> str:
         lines = []
         for i, r in enumerate(results, 1):
+            doi = self._extract_doi(r)
+            ref = f"   🔗 {r['url']}" + (f"  ·  DOI: {doi}" if doi else "")
             lines.append(
                 f"{i}. **{r['title']}**\n"
                 f"   Autores: {r['authors']} ({r['year']}) — {r['source']}\n"
-                f"   🔗 {r['url']}"
+                f"{ref}"
             )
         return "\n\n".join(lines)
+
+    @staticmethod
+    def _extract_doi(r: dict) -> str:
+        """Extrai um DOI (rastreabilidade) de doi/id/url, se presente. V20:
+        digest do scholar sempre expoe DOI quando disponivel."""
+        import re as _re
+        for field in ("doi", "id", "url"):
+            m = _re.search(r"10\.\d{4,9}/[^\s\"']+", str(r.get(field, "") or ""))
+            if m:
+                return m.group(0).rstrip(".,);")
+        return ""
 
     def _synthesize(self, query: str, formatted: str) -> str:
         system = (

@@ -14,10 +14,9 @@ _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 
 from shared.base_agent import BaseAgent
-from shared.llm_client import get_client
-from shared.utils import load_env, sanitize_query, truncate
+from shared.utils import sanitize_query, truncate
 
-load_env()
+# V19: load_env() e a propriedade `llm` lazy sobem para o BaseAgent (dedup).
 
 
 class SQLAgent(BaseAgent):
@@ -37,11 +36,12 @@ class SQLAgent(BaseAgent):
         "e comparativa para bancos SQLite e MySQL."
     )
 
-    # Palavras-chave para roteamento automático pelo orquestrador
+    # V19: keywords SÓ de banco/SQL. Estatística (anova/t-test/shapiro) é do
+    # prism -> removidas daqui para não roubar o roteamento.
     KEYWORDS = [
         "sql", "query", "select", "tabela", "banco", "database",
-        "sqlite", "mysql", "dados", "estatística", "media", "média",
-        "desvio", "correlação", "anova", "t-test", "shapiro",
+        "sqlite", "mysql", "consulta sql", "query sql", "join", "group by",
+        "consultar o banco",
     ]
 
     # V9 (2026-05-22): roteamento cost-aware no Villa_Lobos.
@@ -50,15 +50,7 @@ class SQLAgent(BaseAgent):
     local_only = True
     latency_class = "fast"
 
-    def __init__(self):
-        super().__init__()
-        self._llm = None  # lazy
-
-    @property
-    def llm(self):
-        if self._llm is None:
-            self._llm = get_client()
-        return self._llm
+    # V19: llm lazy herdado do BaseAgent (dedup).
 
     # ── Interface BaseAgent ──────────────────────────────────────────────────
 

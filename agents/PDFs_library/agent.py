@@ -14,10 +14,9 @@ sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, str(Path(__file__).parent))
 
 from shared.base_agent import BaseAgent
-from shared.llm_client import get_client
-from shared.utils import load_env, sanitize_query, truncate
+from shared.utils import sanitize_query, truncate
 
-load_env()
+# V19: load_env() e a propriedade `llm` lazy sobem para o BaseAgent (dedup).
 
 # Caminho padrão para PDFs (configurável via .env)
 import os
@@ -36,15 +35,18 @@ class PDFAgent(BaseAgent):
     """
 
     name = "pdf"
+    # V19: assinatura desambiguada por AÇÃO (resumir um ARQUIVO PDF local),
+    # separando de scholar (busca online) e paper (redigir). Fonte do embed router.
     description = (
-        "Leitura, sumarização e busca semântica em PDFs científicos. "
-        "Extração de introdução, métodos, DOI e metadados de artigos."
+        "Resume e lê um ARQUIVO PDF LOCAL que o usuário já tem no disco: "
+        "sumariza um PDF específico e extrai seu texto/metadados. NÃO busca "
+        "literatura na internet e NÃO escreve textos novos."
     )
 
     KEYWORDS = [
-        "pdf", "artigo", "paper", "documento", "arquivo", "resumo",
-        "sumarize", "sumarizar", "resumir", "introdução", "métodos",
-        "doi", "pubmed", "abstract", "leia", "analise o artigo",
+        "pdf", "arquivo pdf", "resumir pdf", "sumarizar pdf", "ler pdf",
+        "resumir o pdf", "extrair do pdf", "documento pdf", "abrir pdf",
+        "analisar pdf", "sumarize o pdf",
     ]
 
     # V9 (2026-05-22): roteamento cost-aware no Villa_Lobos.
@@ -59,16 +61,6 @@ class PDFAgent(BaseAgent):
         "introduction": "texto analítico para suportar redação de Introdução científica",
         "methods":      "extração estruturada de Métodos e protocolos",
     }
-
-    def __init__(self):
-        super().__init__()
-        self._llm = None
-
-    @property
-    def llm(self):
-        if self._llm is None:
-            self._llm = get_client()
-        return self._llm
 
     # ── Interface BaseAgent ──────────────────────────────────────────────────
 

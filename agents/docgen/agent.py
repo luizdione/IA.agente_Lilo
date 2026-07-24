@@ -27,12 +27,11 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from shared.base_agent import BaseAgent
-from shared.llm_client import get_client
 from shared.models import WORKER_CLOUD
-from shared.utils import load_env, sanitize_query, truncate
+from shared.utils import sanitize_query, truncate
 from shared.logger import get_logger
 
-load_env()
+# V19: load_env() e a propriedade `llm` lazy sobem para o BaseAgent (dedup).
 log = get_logger("DocGenAgent")
 
 DOCGEN_MODEL = os.getenv("LILO_DOCGEN_MODEL", WORKER_CLOUD)
@@ -62,16 +61,6 @@ class DocGenAgent(BaseAgent):
     cost_tier = "ollama"
     local_only = False
     latency_class = "fast"
-
-    def __init__(self):
-        super().__init__()
-        self._llm = None
-
-    @property
-    def llm(self):
-        if self._llm is None:
-            self._llm = get_client()
-        return self._llm
 
     # ── DOCX (markdown -> Word via pandoc) ───────────────────────────────────
     def _md_to_docx(self, md: str, out: Path) -> str:
@@ -227,7 +216,8 @@ class DocGenAgent(BaseAgent):
         ]
 
     def capabilities(self) -> dict:
-        return {"name": self.name, "keywords": self.KEYWORDS,
+        return {"name": self.name, "description": self.description,
+                "keywords": self.KEYWORDS,
                 "model": DOCGEN_MODEL, "out_dir": str(_OUT_DIR),
                 "formats": ["docx", "xlsx", "pptx"]}
 

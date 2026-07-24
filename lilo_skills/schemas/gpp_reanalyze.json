@@ -1,0 +1,25 @@
+{
+  "name": "gpp_reanalyze",
+  "description": "Analisa e extrai o conteúdo de arquivos do GraphPad Prism (.pzf, .pzfx, .pzt): [args: lista/str de CLI; env=datascience; timeout=300s]",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "args": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Argumentos CLI do script (ex.: caminho do arquivo). Pode ser string."
+      },
+      "env": {
+        "type": "string",
+        "default": "datascience",
+        "description": "env conda (numpy/pandas/...). Vazio = Python do LILO."
+      },
+      "timeout": {
+        "type": "integer",
+        "default": 300
+      }
+    }
+  }
+}
