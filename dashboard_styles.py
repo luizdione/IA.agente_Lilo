@@ -77,17 +77,26 @@ section[data-testid="stSidebar"] hr {
     border-color: var(--lilo-border) !important;
     margin: 0.5rem 0 0.4rem 0 !important;
 }
-/* Rotulos de secao (SUB-AGENTES, FERRAMENTAS...) */
+/* Rotulos de secao (CONVERSAR, FERRAMENTAS...) */
 section[data-testid="stSidebar"] .stMarkdown p {
-    margin: 0 0 0.2rem 0 !important;
+    margin: 0.7rem 0 0.3rem 0 !important;   /* respiro acima do rotulo e antes do 1o botao */
     font-size: 0.68rem !important;
     letter-spacing: 1.4px;
     text-transform: uppercase;
     color: var(--lilo-text-dim) !important;
     font-weight: 600;
+    line-height: 1.15 !important;
+}
+/* CORRECAO DO OVERLAP: o Streamlit aplica margin-bottom:-1rem nos
+   stMarkdownContainer contando com o gap ~1rem do bloco vertical para cancelar.
+   Como reduzimos o gap da sidebar para empilhar os botoes, esse -1rem passava a
+   ENGOLIR ~16px do elemento seguinte -> o rotulo de secao ficava SOBRE o botao.
+   Zeramos o -1rem na sidebar; o respiro passa a vir das margens explicitas. */
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {
+    margin-bottom: 0 !important;
 }
 section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {
-    gap: 0.15rem !important;
+    gap: 0.28rem !important;   /* um respiro a mais entre itens (era 0.15rem, apertado demais) */
 }
 
 /* === BOTOES DA SIDEBAR — ghost (transparente), hover suave ============== */

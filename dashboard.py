@@ -249,6 +249,80 @@ def stop_button(key="stop_main"):
         st.warning("Execucao interrompida pelo usuario.")
 
 
+# -- STOP cancelavel do chat -------------------------------------------------
+# Sentinela devolvida enquanto o route()/pipeline ainda esta rodando na thread.
+_CHAT_RUNNING = object()
+
+
+def _render_stop_inline(key="stop_chat_inline"):
+    """Botao ■ Parar (quadrado, vermelho) dentro da bolha do assistente, visivel
+    enquanto o LILO processa. on_click roda no INICIO do proximo rerun de poll."""
+    def _cb():
+        st.session_state.stop_requested = True
+        st.session_state.running = False
+    st.markdown(
+        f'<style>.st-key-{key} button {{'
+        f'background:#C0392B !important;border-color:#C0392B !important;'
+        f'color:#fff !important;border-radius:8px !important;'
+        f'font-weight:700 !important;letter-spacing:0.3px;}}</style>',
+        unsafe_allow_html=True)
+    st.button("■  Parar", key=key, on_click=_cb, use_container_width=True)
+
+
+def _start_or_get_chat_job(job, prompt, ctx, force_tab):
+    """Roda route()/pipeline numa thread daemon e devolve:
+      - _CHAT_RUNNING  enquanto a thread esta viva (o chamador faz poll+rerun);
+      - a string de resposta quando termina;
+      - uma msg de 'interrompido' se o usuario clicou ■ Parar.
+    Streamlit nao mata threads: ao parar, a tarefa de fundo e' apenas DESCARTADA.
+    O poll/st.rerun fica FORA do try/except do chamador (senao a RerunException
+    seria engolida). A thread NAO toca em st.session_state (escreve so em `box`)."""
+    import threading
+    ss = st.session_state
+    if "thread" not in job:
+        use_pipe = bool(ss.get("chat_use_pipeline"))
+        pipe_args = {
+            "query": prompt,
+            "iterations": int(ss.get("chat_pipe_iters", 2)),
+            "use_reader": bool(ss.get("chat_pipe_reader", True)),
+            "base_path": ".",
+        }
+        box = {}
+
+        def _worker():
+            try:
+                if use_pipe:
+                    from lilo import handle_tool_call as _htc
+                    box["r"] = _htc("villa_pipeline", pipe_args)
+                else:
+                    from lilo import route as _route
+                    box["r"] = _route(prompt, context=ctx, tab=force_tab)
+            except Exception as _e:  # noqa: BLE001 -- superficie unica de erro
+                box["r"] = "Erro: " + str(_e)
+
+        th = threading.Thread(target=_worker, daemon=True)
+        try:
+            from streamlit.runtime.scriptrunner import add_script_run_ctx
+            add_script_run_ctx(th)
+        except Exception:
+            pass
+        job["thread"] = th
+        job["box"] = box
+        ss.running = True
+        ss.stop_requested = False
+        th.start()
+
+    if ss.get("stop_requested"):
+        ss.running = False
+        return ("⏹️ **Interrompido pelo usuário.** A tarefa em segundo plano foi "
+                "descartada (o modelo local pode terminar sozinho, mas o resultado "
+                "é ignorado).")
+    if job["thread"].is_alive():
+        return _CHAT_RUNNING
+    ss.running = False
+    return job["box"].get("r", "")
+
+
 # -- Sidebar esquerda --------------------------------------------------------
 with st.sidebar:
     # Logo LILO no topo (icone do projeto). Fallback p/ titulo se nao encontrar.
@@ -990,6 +1064,11 @@ with main_col:
             except Exception:
                 pass
 
+        # STOP cancelavel: nos reruns de poll o st.chat_input volta None; restaura
+        # o prompt do turno em andamento para reentrar no fluxo e continuar o poll.
+        if not prompt and st.session_state.get("_chat_job"):
+            prompt = st.session_state["_chat_job"].get("prompt")
+
         if prompt:
             # Slash command: listar ou executar skill
             if prompt.startswith("/"):
@@ -1066,22 +1145,27 @@ with main_col:
                         st.info(
                             "Nenhuma skill encontrada para: " + skill_query)
             else:
-                # Chat normal
-                st.session_state.messages.append({"role": "user", "content": prompt})
-                with st.chat_message("user"):
-                    st.markdown(prompt)
-
-                # Garantir chat ativo
-                if not st.session_state.current_chat_id:
-                    st.session_state.current_chat_id = memory.new_chat(
-                        title=prompt[:60], subagent="chat",
-                        project_id=st.session_state.current_project)
-                # V15 FASE 0: memoria de turno no chat do dashboard (paridade com
-                # a API HTTP). Carrega o historico ANTES de gravar a msg atual,
-                # senao o prompt do turno entraria duplicado (historico + query).
-                _conv_hist = memory.get_chat_context(
-                    st.session_state.current_chat_id, max_messages=12)
-                memory.add_message(st.session_state.current_chat_id, "user", prompt)
+                # Chat normal (STOP cancelavel: route() roda em thread e o turno e'
+                # retomado a cada rerun de poll -> ver _start_or_get_chat_job).
+                _job = st.session_state.get("_chat_job")
+                _starting = not (_job and _job.get("prompt") == prompt)
+                if _starting:
+                    st.session_state.messages.append({"role": "user", "content": prompt})
+                    with st.chat_message("user"):
+                        st.markdown(prompt)
+                    # Garantir chat ativo
+                    if not st.session_state.current_chat_id:
+                        st.session_state.current_chat_id = memory.new_chat(
+                            title=prompt[:60], subagent="chat",
+                            project_id=st.session_state.current_project)
+                    # V15: carrega o historico ANTES de gravar a msg atual (evita dup).
+                    _conv_hist = memory.get_chat_context(
+                        st.session_state.current_chat_id, max_messages=12)
+                    memory.add_message(st.session_state.current_chat_id, "user", prompt)
+                    _job = {"prompt": prompt, "conv_hist": _conv_hist}
+                    st.session_state._chat_job = _job
+                else:
+                    _conv_hist = _job.get("conv_hist") or []
 
                 with st.chat_message("assistant"):
                     with st.spinner("Pensando..."):
@@ -1156,20 +1240,26 @@ with main_col:
                             else:
                                 _force_tab = "gateway"
                                 ctx["mode"] = mode  # modo do gateway
-                            if st.session_state.get("chat_use_pipeline"):
-                                # V21: toggle "Pipeline completo" -> roda o Villa
-                                # multi-estagio direto (substitui o antigo modulo).
-                                from lilo import handle_tool_call as _htc
-                                response = _htc("villa_pipeline", {
-                                    "query": prompt,
-                                    "iterations": int(st.session_state.get("chat_pipe_iters", 2)),
-                                    "use_reader": bool(st.session_state.get("chat_pipe_reader", True)),
-                                    "base_path": ".",
-                                })
-                            else:
-                                response = route(prompt, context=ctx, tab=_force_tab)
+                            # STOP cancelavel: dispara route()/pipeline numa thread
+                            # e devolve _CHAT_RUNNING enquanto processa. O poll +
+                            # st.rerun fica FORA deste try (senao a RerunException
+                            # seria engolida pelo 'except Exception' abaixo). O flag
+                            # chat_use_pipeline e' lido dentro de _start_or_get_chat_job.
+                            response = _start_or_get_chat_job(
+                                _job, prompt, ctx, _force_tab)
                         except Exception as e:
                             response = "Erro: " + str(e)
+                    # STOP cancelavel: poll FORA do try (o st.rerun nao pode ser
+                    # engolido pelo except). Enquanto processa, mostra o ■ Parar e
+                    # repinta a cada 0.2s ate a thread terminar ou o usuario parar.
+                    if response is _CHAT_RUNNING:
+                        _render_stop_inline("stop_chat_inline")
+                        with st.spinner("Pensando… (clique ■ Parar para interromper)"):
+                            import time as _tpoll
+                            _tpoll.sleep(0.2)
+                        st.rerun()
+                    # Turno concluido (ou interrompido): encerra o job.
+                    st.session_state._chat_job = None
                     # V14: trata pedido de confirmacao / bloqueio (modos de exec).
                     from shared import exec_mode as _xmd
                     _is_conf = _xmd.is_confirm(response)
