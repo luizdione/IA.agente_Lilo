@@ -904,6 +904,27 @@ with main_col:
                         "accept_edits": "Edita arquivos direto; confirma shell",
                         "auto": "Executa tudo sem pedir"}[_exec_mode])
 
+        # V21: toggle do PIPELINE (substitui o antigo modulo "Villa Lobos"). Por
+        # padrao o LILO decide sozinho (resposta direta OU pipeline, via
+        # villa.route_target); aqui o usuario FORCA o multi-estagio
+        # Orchestrator>Planner>Reader>Worker>Reporter.
+        st.session_state.setdefault("chat_pipe_iters", 2)
+        st.session_state.setdefault("chat_pipe_reader", True)
+        _pc1, _pc2 = st.columns([2, 5])
+        with _pc1:
+            _use_pipe = st.checkbox(
+                "🔀 Pipeline completo", key="chat_use_pipeline",
+                help="Forca o pipeline multi-estagio do Villa (Planner>Reader>"
+                     "Worker>Reporter). Mais lento, para tarefas complexas. "
+                     "Desligado = o LILO decide sozinho.")
+        if _use_pipe:
+            with _pc2:
+                _pcc1, _pcc2 = st.columns([1, 1])
+                with _pcc1:
+                    st.number_input("Iteracoes", 1, 5, key="chat_pipe_iters")
+                with _pcc2:
+                    st.checkbox("Usar Reader", key="chat_pipe_reader")
+
         # Anexos via popover (+) -- substitui sidebar 'Anexos'
         _render_attachments_popover("chat")
 
@@ -1135,7 +1156,18 @@ with main_col:
                             else:
                                 _force_tab = "gateway"
                                 ctx["mode"] = mode  # modo do gateway
-                            response = route(prompt, context=ctx, tab=_force_tab)
+                            if st.session_state.get("chat_use_pipeline"):
+                                # V21: toggle "Pipeline completo" -> roda o Villa
+                                # multi-estagio direto (substitui o antigo modulo).
+                                from lilo import handle_tool_call as _htc
+                                response = _htc("villa_pipeline", {
+                                    "query": prompt,
+                                    "iterations": int(st.session_state.get("chat_pipe_iters", 2)),
+                                    "use_reader": bool(st.session_state.get("chat_pipe_reader", True)),
+                                    "base_path": ".",
+                                })
+                            else:
+                                response = route(prompt, context=ctx, tab=_force_tab)
                         except Exception as e:
                             response = "Erro: " + str(e)
                     # V14: trata pedido de confirmacao / bloqueio (modos de exec).
@@ -1229,175 +1261,6 @@ with main_col:
 
 
     # == SQL ==================================================================
-    elif page == "PDFs":
-        st.header("Biblioteca de PDFs")
-        # Anexar PDFs via popover (+) -- substitui sidebar 'Anexos'
-        _render_attachments_popover("pdfs")
-
-        # --- Botoes de gestao da biblioteca (Task 5) ------------------------
-        # Disparam o scanner offline e abrem a UI independente.
-        _SCANNER_PATH = _ROOT / "agents" / "PDFs_library" / "scripts" / "build_workaholics_db.py"
-        _LIBAPP_PATH = _ROOT / "agents" / "PDFs_library" / "scripts" / "library_app.py"
-        # V11.2: path da biblioteca via env (portabilidade). O default
-        # D:\... e a maquina do autor; outra maquina configura
-        # LILO_WORKAHOLICS_ROOT no .env sem editar codigo.
-        _WORKHOL_DEFAULT = get_env(
-            "LILO_WORKAHOLICS_ROOT", r"D:\OneDrive\Documentos\Workaholics")
-
-        bcol1, bcol2, bcol3, bcol4 = st.columns(4)
-        with bcol1:
-            if st.button("📁 Incluir pastas", use_container_width=True,
-                          help="Adicionar diretorio e indexar PDFs"):
-                st.session_state["_pdf_show_addfolder"] = True
-        with bcol2:
-            if st.button("📄 Incluir PDF", use_container_width=True,
-                          help="Adicionar PDF avulso"):
-                st.session_state["_pdf_show_addpdf"] = True
-        with bcol3:
-            if st.button("🔄 Atualizar diretorios",
-                          use_container_width=True,
-                          type="primary",
-                          help="Re-indexa Workaholics em background"):
-                try:
-                    import subprocess
-                    subprocess.Popen(
-                        [sys.executable, str(_SCANNER_PATH),
-                         "--root", _WORKHOL_DEFAULT],
-                        creationflags=getattr(subprocess,
-                                              "CREATE_NEW_CONSOLE", 0))
-                    st.success("Scanner disparado em janela separada.")
-                except Exception as e:
-                    st.error("Erro: " + str(e))
-        with bcol4:
-            if st.button("🌐 Abrir biblioteca",
-                          use_container_width=True,
-                          help="Abre UI Streamlit independente em :8101"):
-                try:
-                    import subprocess
-                    import webbrowser
-                    # Inicia em janela separada (so se ainda nao estiver rodando)
-                    subprocess.Popen(
-                        [sys.executable, "-m", "streamlit", "run",
-                         str(_LIBAPP_PATH), "--server.port", "8101",
-                         "--server.headless", "true"],
-                        creationflags=getattr(subprocess,
-                                              "CREATE_NEW_CONSOLE", 0))
-                    time.sleep(1.5)
-                    webbrowser.open("http://localhost:8101", new=2)
-                except Exception as e:
-                    st.error("Erro: " + str(e))
-
-        # Form: incluir pastas
-        if st.session_state.get("_pdf_show_addfolder"):
-            with st.expander("Incluir pasta", expanded=True):
-                fp = st.text_input(
-                    "Caminho da pasta",
-                    placeholder=_WORKHOL_DEFAULT,
-                    key="pdf_addfolder_path")
-                if st.button("Indexar pasta", key="pdf_addfolder_run",
-                              type="primary"):
-                    if fp and Path(fp).is_dir():
-                        try:
-                            import subprocess
-                            subprocess.Popen(
-                                [sys.executable, str(_SCANNER_PATH),
-                                 "--root", fp],
-                                creationflags=getattr(subprocess,
-                                                      "CREATE_NEW_CONSOLE", 0))
-                            st.success(f"Indexando: {fp}")
-                            st.session_state["_pdf_show_addfolder"] = False
-                        except Exception as e:
-                            st.error(str(e))
-                    else:
-                        st.error("Caminho invalido.")
-
-        # Form: incluir PDF avulso
-        if st.session_state.get("_pdf_show_addpdf"):
-            with st.expander("Incluir PDF avulso", expanded=True):
-                up_avulso = st.file_uploader(
-                    "PDFs", type=["pdf"], accept_multiple_files=True,
-                    key="pdf_avulso_uploader")
-                dest = st.text_input(
-                    "Pasta destino (sera indexada)",
-                    value=str(_ROOT / "agents" / "PDFs_library" / "data"),
-                    key="pdf_avulso_dest")
-                if up_avulso and dest and st.button(
-                        "Salvar e indexar", key="pdf_avulso_save",
-                        type="primary"):
-                    Path(dest).mkdir(parents=True, exist_ok=True)
-                    for u in up_avulso:
-                        with open(Path(dest) / u.name, "wb") as f:
-                            f.write(u.getbuffer())
-                    try:
-                        import subprocess
-                        subprocess.Popen(
-                            [sys.executable, str(_SCANNER_PATH),
-                             "--root", dest],
-                            creationflags=getattr(subprocess,
-                                                  "CREATE_NEW_CONSOLE", 0))
-                        st.success(f"{len(up_avulso)} PDF(s) salvos e indexando.")
-                        st.session_state["_pdf_show_addpdf"] = False
-                    except Exception as e:
-                        st.error(str(e))
-
-        st.markdown("---")
-
-        pdf_dir = Path(get_env("PDF_DIR", str(_ROOT / "agents" / "PDFs_library" / "data")))
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.subheader("Arquivos")
-            pdf_files = list(pdf_dir.rglob("*.pdf")) if pdf_dir.exists() else []
-            pdf_files += list((_ROOT / "agents" / "PDFs_library").rglob("*.pdf"))
-            pdf_files = list({str(f): f for f in pdf_files}.values())
-            # Incluir anexos
-            if st.session_state.attached_files:
-                for af in st.session_state.attached_files:
-                    if af.name.endswith(".pdf"):
-                        save_path = pdf_dir / af.name
-                        pdf_dir.mkdir(parents=True, exist_ok=True)
-                        with open(save_path, "wb") as fout:
-                            fout.write(af.getbuffer())
-                        pdf_files.append(save_path)
-            if pdf_files:
-                pdf_names = [f.name for f in pdf_files]
-                selected_pdf = st.selectbox("Selecione um PDF", pdf_names)
-                selected_path = next(f for f in pdf_files if f.name == selected_pdf)
-                st.caption("Caminho: " + str(selected_path))
-            else:
-                st.warning("Nenhum PDF encontrado")
-                selected_pdf = None
-                selected_path = None
-            up_pdf = st.file_uploader("Upload PDF", type=["pdf"])
-            if up_pdf:
-                save_path = pdf_dir / up_pdf.name
-                pdf_dir.mkdir(parents=True, exist_ok=True)
-                with open(save_path, "wb") as fout:
-                    fout.write(up_pdf.getbuffer())
-                st.success("Salvo: " + str(save_path))
-                st.rerun()
-        with col2:
-            if selected_path:
-                analysis_mode = st.radio(
-                    "Modo", ["simple", "introduction", "methods"],
-                    horizontal=True)
-                c1, c2 = st.columns([2, 1])
-                with c1:
-                    run_pdf = st.button("Analisar PDF", type="primary")
-                with c2:
-                    if st.session_state.running:
-                        stop_button("stop_pdf")
-                if run_pdf:
-                    with st.spinner("Analisando " + selected_pdf + "..."):
-                        if "pdf" in agents:
-                            st.markdown(agents["pdf"].run(
-                                "Analisar " + selected_pdf,
-                                {"file_path": str(selected_path),
-                                 "mode": analysis_mode}))
-                        else:
-                            st.error("PDFAgent indisponivel")
-
-
-    # == Scholar ==============================================================
     elif page == "Scholar":
         st.header("Busca Academica")
         _render_attachments_popover("scholar")
@@ -1443,240 +1306,203 @@ with main_col:
 
 
     elif page == "Biblioteca":
-        st.header("Biblioteca -- RAG local sobre seus PDFs")
-        st.caption("Pergunta a biblioteca ja ingerida (ChromaDB local). Diferente "
-                   "de Scholar (busca online): aqui a fonte sao seus proprios PDFs, "
-                   "e a resposta passa pelo gate de verificacao factual.")
-        _scholar_ask = None
-        try:
-            from shared.scholar_brain import (ask as _scholar_ask,
-                                              library_count as _scholar_count)
-            st.caption("Chunks indexados: %d" % _scholar_count())
-        except Exception as _e:
-            st.warning("ScholarAgent indisponivel: %s" % _e)
-        _q = st.text_input(
-            "Pergunta",
-            placeholder="Ex: O que meus papers dizem sobre eQTL em Nelore?")
-        _verify = st.checkbox("Verificar (gate factual)", value=True)
-        if st.button("Perguntar", type="primary") and _q and _scholar_ask:
-            with st.spinner("Consultando a biblioteca..."):
-                _r = _scholar_ask(_q, verify=_verify)
-            if _r.get("decision"):
-                st.markdown("**Gate de verificacao:** %s" % _r["decision"].upper())
-            st.markdown(_r.get("answer", ""))
-            if _r.get("refs"):
-                with st.expander("Referencias usadas"):
-                    for _ref in _r["refs"]:
-                        st.caption(_ref)
+        # V21: FUSAO -- "Biblioteca de PDFs" (resumir um PDF, PDFAgent) +
+        # "RAG local" (perguntar a biblioteca, scholar_brain) num modulo so.
+        st.header("Biblioteca de PDFs")
+        st.caption("Resuma um PDF especifico ou pergunte a toda a biblioteca ja "
+                   "indexada (RAG local + gate de verificacao factual).")
+        _tab_resumo, _tab_rag = st.tabs(["Resumir um PDF", "Perguntar a biblioteca"])
+        with _tab_resumo:
+            # Anexar PDFs via popover (+) -- substitui sidebar 'Anexos'
+            _render_attachments_popover("pdfs")
 
+            # --- Botoes de gestao da biblioteca (Task 5) ------------------------
+            # Disparam o scanner offline e abrem a UI independente.
+            _SCANNER_PATH = _ROOT / "agents" / "PDFs_library" / "scripts" / "build_workaholics_db.py"
+            _LIBAPP_PATH = _ROOT / "agents" / "PDFs_library" / "scripts" / "library_app.py"
+            # V11.2: path da biblioteca via env (portabilidade). O default
+            # D:\... e a maquina do autor; outra maquina configura
+            # LILO_WORKAHOLICS_ROOT no .env sem editar codigo.
+            _WORKHOL_DEFAULT = get_env(
+                "LILO_WORKAHOLICS_ROOT", r"D:\OneDrive\Documentos\Workaholics")
 
-    # == Prism AI =============================================================
-    elif page == "Villa Lobos":
-        st.header("Villa Lobos -- Pipeline Multi-Estagio")
-        st.caption("Orchestrator > Planner > Reader > Worker > Reporter")
+            bcol1, bcol2, bcol3, bcol4 = st.columns(4)
+            with bcol1:
+                if st.button("📁 Incluir pastas", use_container_width=True,
+                              help="Adicionar diretorio e indexar PDFs"):
+                    st.session_state["_pdf_show_addfolder"] = True
+            with bcol2:
+                if st.button("📄 Incluir PDF", use_container_width=True,
+                              help="Adicionar PDF avulso"):
+                    st.session_state["_pdf_show_addpdf"] = True
+            with bcol3:
+                if st.button("🔄 Atualizar diretorios",
+                              use_container_width=True,
+                              type="primary",
+                              help="Re-indexa Workaholics em background"):
+                    try:
+                        import subprocess
+                        subprocess.Popen(
+                            [sys.executable, str(_SCANNER_PATH),
+                             "--root", _WORKHOL_DEFAULT],
+                            creationflags=getattr(subprocess,
+                                                  "CREATE_NEW_CONSOLE", 0))
+                        st.success("Scanner disparado em janela separada.")
+                    except Exception as e:
+                        st.error("Erro: " + str(e))
+            with bcol4:
+                if st.button("🌐 Abrir biblioteca",
+                              use_container_width=True,
+                              help="Abre UI Streamlit independente em :8101"):
+                    try:
+                        import subprocess
+                        import webbrowser
+                        # Inicia em janela separada (so se ainda nao estiver rodando)
+                        subprocess.Popen(
+                            [sys.executable, "-m", "streamlit", "run",
+                             str(_LIBAPP_PATH), "--server.port", "8101",
+                             "--server.headless", "true"],
+                            creationflags=getattr(subprocess,
+                                                  "CREATE_NEW_CONSOLE", 0))
+                        time.sleep(1.5)
+                        webbrowser.open("http://localhost:8101", new=2)
+                    except Exception as e:
+                        st.error("Erro: " + str(e))
 
-        # 2026-05-08: a aba Villa agora hospeda o gerenciador de Projetos +
-        # Explorador de arquivos (antes na sidebar direita). Selector simples
-        # entre 'Pipeline' (default) e 'Projeto & Arquivos'.
-        villa_view = st.radio(
-            "Modo da aba Villa",
-            ["Pipeline", "Projeto & Arquivos"],
-            horizontal=True,
-            label_visibility="collapsed",
-            key="villa_view_mode",
-        )
+            # Form: incluir pastas
+            if st.session_state.get("_pdf_show_addfolder"):
+                with st.expander("Incluir pasta", expanded=True):
+                    fp = st.text_input(
+                        "Caminho da pasta",
+                        placeholder=_WORKHOL_DEFAULT,
+                        key="pdf_addfolder_path")
+                    if st.button("Indexar pasta", key="pdf_addfolder_run",
+                                  type="primary"):
+                        if fp and Path(fp).is_dir():
+                            try:
+                                import subprocess
+                                subprocess.Popen(
+                                    [sys.executable, str(_SCANNER_PATH),
+                                     "--root", fp],
+                                    creationflags=getattr(subprocess,
+                                                          "CREATE_NEW_CONSOLE", 0))
+                                st.success(f"Indexando: {fp}")
+                                st.session_state["_pdf_show_addfolder"] = False
+                            except Exception as e:
+                                st.error(str(e))
+                        else:
+                            st.error("Caminho invalido.")
 
-        if villa_view == "Projeto & Arquivos":
-            _render_villa_project_explorer(
-                base_path=st.session_state.get("villa_base_path", ".")
-            )
-            st.stop()
+            # Form: incluir PDF avulso
+            if st.session_state.get("_pdf_show_addpdf"):
+                with st.expander("Incluir PDF avulso", expanded=True):
+                    up_avulso = st.file_uploader(
+                        "PDFs", type=["pdf"], accept_multiple_files=True,
+                        key="pdf_avulso_uploader")
+                    dest = st.text_input(
+                        "Pasta destino (sera indexada)",
+                        value=str(_ROOT / "agents" / "PDFs_library" / "data"),
+                        key="pdf_avulso_dest")
+                    if up_avulso and dest and st.button(
+                            "Salvar e indexar", key="pdf_avulso_save",
+                            type="primary"):
+                        Path(dest).mkdir(parents=True, exist_ok=True)
+                        for u in up_avulso:
+                            with open(Path(dest) / u.name, "wb") as f:
+                                f.write(u.getbuffer())
+                        try:
+                            import subprocess
+                            subprocess.Popen(
+                                [sys.executable, str(_SCANNER_PATH),
+                                 "--root", dest],
+                                creationflags=getattr(subprocess,
+                                                      "CREATE_NEW_CONSOLE", 0))
+                            st.success(f"{len(up_avulso)} PDF(s) salvos e indexando.")
+                            st.session_state["_pdf_show_addpdf"] = False
+                        except Exception as e:
+                            st.error(str(e))
 
-        # Anexos como popover (+) acima do input -- substitui a antiga
-        # sidebar 'Anexos'.
-        _render_attachments_popover("villa")
+            st.markdown("---")
 
-        task_input = st.text_area(
-            "Tarefa para o pipeline (/ para skills)",
-            height=100,
-            placeholder="Descreva a tarefa...")
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            iterations = st.number_input(
-                "Iteracoes do Worker",
-                value=2, min_value=1, max_value=5,
-                help=(
-                    "Quantas vezes o Worker re-executa a tarefa, refinando o "
-                    "resultado anterior. Default 2 = sweet spot para research-grade "
-                    "(DM, sintese de literatura, analise estatistica profunda). "
-                    "1 = resposta unica e rapida (~1-2 min). "
-                    "2 = refinamento com auto-critica (~3-5 min). "
-                    "3-5 = analise iterativa profunda (~5-15 min) — usar com cautela "
-                    "na RTX 3060, pode saturar VRAM com modelos 14B."
-                ),
-            )
-        with c2:
-            use_reader = st.checkbox(
-                "Usar Reader",
-                value=True,
-                help=(
-                    "Ativa o estagio 3/5 do pipeline (Reader). O Reader le o plano "
-                    "do Planner e identifica que arquivos/contexto sao necessarios "
-                    "no diretorio Base path. Util quando: a tarefa precisa consultar "
-                    "estrutura do projeto, analisar codigo existente, ou referenciar "
-                    "PDFs locais. DESLIGUE quando: a tarefa e generica (ex: 'explique "
-                    "tripanotione redutase') e nao depende de arquivos seus — economiza "
-                    "~30 segundos por execucao."
-                ),
-            )
-        with c3:
-            base_path = st.text_input(
-                "Base path",
-                value=st.session_state.get("villa_base_path", "."),
-                key="villa_base_path",
-                help=(
-                    "Diretorio raiz que o Reader vai inspecionar. Default '.' = raiz "
-                    "do projeto LILO (C:\\Users\\luizd\\OneDrive\\Data_Science\\Projetos"
-                    "\\IA.agente). Use caminho ABSOLUTO para apontar para outro projeto, "
-                    "ex: D:\\OneDrive\\Documentos\\Workaholics\\Artigos PDF para "
-                    "consultar artigos cientificos. Tambem usado pela aba "
-                    "'Projeto & Arquivos' como root do explorador."
-                ),
-            )
-        bc1, bc2 = st.columns([2, 1])
-        with bc1:
-            run_villa = st.button("Executar Pipeline", type="primary")
-        with bc2:
-            if st.session_state.running:
-                stop_button("stop_villa")
-        if run_villa and task_input:
-            st.session_state.running = True
-            try:
-                # V10.5: progresso stage-a-stage (Cowork-like) quando disponivel.
-                if cowork:
-                    result = cowork.run_villa_with_progress(
-                        st, task_input, iterations=iterations,
-                        allow_delegate=True, use_reader=use_reader,
-                        base_path=base_path)
+            pdf_dir = Path(get_env("PDF_DIR", str(_ROOT / "agents" / "PDFs_library" / "data")))
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                st.subheader("Arquivos")
+                pdf_files = list(pdf_dir.rglob("*.pdf")) if pdf_dir.exists() else []
+                pdf_files += list((_ROOT / "agents" / "PDFs_library").rglob("*.pdf"))
+                pdf_files = list({str(f): f for f in pdf_files}.values())
+                # Incluir anexos
+                if st.session_state.attached_files:
+                    for af in st.session_state.attached_files:
+                        if af.name.endswith(".pdf"):
+                            save_path = pdf_dir / af.name
+                            pdf_dir.mkdir(parents=True, exist_ok=True)
+                            with open(save_path, "wb") as fout:
+                                fout.write(af.getbuffer())
+                            pdf_files.append(save_path)
+                if pdf_files:
+                    pdf_names = [f.name for f in pdf_files]
+                    selected_pdf = st.selectbox("Selecione um PDF", pdf_names)
+                    selected_path = next(f for f in pdf_files if f.name == selected_pdf)
+                    st.caption("Caminho: " + str(selected_path))
                 else:
-                    from lilo import handle_tool_call
-                    with st.spinner("Pipeline Villa Lobos em execucao..."):
-                        result = handle_tool_call("villa_pipeline", {
-                            "query": task_input,
-                            "iterations": iterations,
-                            "use_reader": use_reader,
-                            "base_path": base_path})
-                st.markdown(result)
-                # Salvar no historico
-                if not st.session_state.current_chat_id:
-                    st.session_state.current_chat_id = memory.new_chat(
-                        title="Villa: " + task_input[:40], subagent="villa")
-                memory.add_message(st.session_state.current_chat_id, "user", task_input)
-                memory.add_message(st.session_state.current_chat_id, "assistant", result)
-            except Exception as e:
-                st.error("Erro: " + str(e))
-            finally:
-                st.session_state.running = False
+                    st.warning("Nenhum PDF encontrado")
+                    selected_pdf = None
+                    selected_path = None
+                up_pdf = st.file_uploader("Upload PDF", type=["pdf"])
+                if up_pdf:
+                    save_path = pdf_dir / up_pdf.name
+                    pdf_dir.mkdir(parents=True, exist_ok=True)
+                    with open(save_path, "wb") as fout:
+                        fout.write(up_pdf.getbuffer())
+                    st.success("Salvo: " + str(save_path))
+                    st.rerun()
+            with col2:
+                if selected_path:
+                    analysis_mode = st.radio(
+                        "Modo", ["simple", "introduction", "methods"],
+                        horizontal=True)
+                    c1, c2 = st.columns([2, 1])
+                    with c1:
+                        run_pdf = st.button("Analisar PDF", type="primary")
+                    with c2:
+                        if st.session_state.running:
+                            stop_button("stop_pdf")
+                    if run_pdf:
+                        with st.spinner("Analisando " + selected_pdf + "..."):
+                            if "pdf" in agents:
+                                st.markdown(agents["pdf"].run(
+                                    "Analisar " + selected_pdf,
+                                    {"file_path": str(selected_path),
+                                     "mode": analysis_mode}))
+                            else:
+                                st.error("PDFAgent indisponivel")
+        with _tab_rag:
+            st.caption("Pergunta a biblioteca ja ingerida (ChromaDB local). Diferente "
+                       "de Scholar (busca online): aqui a fonte sao seus proprios PDFs, "
+                       "e a resposta passa pelo gate de verificacao factual.")
+            _scholar_ask = None
+            try:
+                from shared.scholar_brain import (ask as _scholar_ask,
+                                                  library_count as _scholar_count)
+                st.caption("Chunks indexados: %d" % _scholar_count())
+            except Exception as _e:
+                st.warning("ScholarAgent indisponivel: %s" % _e)
+            _q = st.text_input(
+                "Pergunta",
+                placeholder="Ex: O que meus papers dizem sobre eQTL em Nelore?")
+            _verify = st.checkbox("Verificar (gate factual)", value=True)
+            if st.button("Perguntar", type="primary") and _q and _scholar_ask:
+                with st.spinner("Consultando a biblioteca..."):
+                    _r = _scholar_ask(_q, verify=_verify)
+                if _r.get("decision"):
+                    st.markdown("**Gate de verificacao:** %s" % _r["decision"].upper())
+                st.markdown(_r.get("answer", ""))
+                if _r.get("refs"):
+                    with st.expander("Referencias usadas"):
+                        for _ref in _r["refs"]:
+                            st.caption(_ref)
 
-        # Quick Ask
-        st.divider()
-        st.subheader("Quick Ask")
-        qa_input = st.text_input("Pergunta rapida a um agente (/ para skills)")
-        qa_agent = st.selectbox(
-            "Agente", ["worker", "planner", "reader", "orchestrator", "reporter"])
-        bc1, bc2 = st.columns([2, 1])
-        with bc1:
-            run_qa = st.button("Perguntar")
-        with bc2:
-            if st.session_state.running:
-                stop_button("stop_qa")
-        if run_qa and qa_input:
-            with st.spinner("Consultando..."):
-                st.session_state.running = True
-                try:
-                    from lilo import handle_tool_call
-                    result = handle_tool_call("villa_quick_ask", {
-                        "query": qa_input, "agent": qa_agent})
-                    st.markdown(result)
-                except Exception as e:
-                    st.error("Erro: " + str(e))
-                finally:
-                    st.session_state.running = False
-
-
-
-        # ── Card 3D: LLMs default por estagio (rodape da pagina) ─────────────
-        try:
-            from agents.villa_lobos.agent import VILLA_MODELS as _VM
-            _vm_orchestrator = _VM.get("orchestrator", "?")
-            _vm_planner      = _VM.get("planner", "?")
-            _vm_reader       = _VM.get("reader", "?")
-            _vm_worker       = _VM.get("worker", "?")
-            _vm_reporter     = _VM.get("reporter", "?")
-        except Exception:
-            from shared.models import MODELS as _M
-            _vm_orchestrator = _vm_reporter = _M["chat"]
-            _vm_planner      = _M["plan"]
-            _vm_reader = _vm_worker = _M["code"]
-
-        st.markdown(
-            f"""
-<style>
-.villa-3d-card {{
-    background: var(--lilo-bg-card, #FFFFFF);
-    border-radius: 14px;
-    padding: 18px 22px;
-    margin: 14px 0 22px 0;
-    color: var(--lilo-text, #3D3929);
-    box-shadow: 0 2px 10px rgba(61,57,41,0.08);
-    transition: box-shadow 0.2s ease;
-    border: 1px solid var(--lilo-border, #E3E1D7);
-}}
-.villa-3d-card:hover {{
-    box-shadow: 0 6px 18px rgba(61,57,41,0.12);
-}}
-.villa-3d-card .vc-title {{
-    font-family: var(--lilo-serif, Georgia, serif);
-    font-size: 1.05rem; font-weight: 600; letter-spacing: 0.2px;
-    margin: 0 0 10px 0;
-    border-bottom: 1px solid var(--lilo-border, #E3E1D7);
-    padding-bottom: 6px;
-}}
-.villa-3d-card .vc-row {{
-    display: flex; align-items: baseline;
-    margin: 4px 0; font-size: 0.92rem; line-height: 1.45;
-}}
-.villa-3d-card .vc-stage {{
-    min-width: 120px; font-weight: 600; color: var(--lilo-text-dim, #73705F);
-    text-transform: uppercase; letter-spacing: 1px; font-size: 0.78rem;
-}}
-.villa-3d-card .vc-model {{
-    font-family: 'Consolas','Courier New', monospace;
-    background: var(--lilo-bg-soft, #F0EEE6); color: var(--lilo-accent-dark, #C96442);
-    padding: 2px 8px; border-radius: 5px;
-    font-size: 0.86rem;
-}}
-.villa-3d-card .vc-foot {{
-    margin-top: 10px; font-size: 0.78rem;
-    color: var(--lilo-text-dim, #73705F); font-style: italic;
-}}
-</style>
-<div class="villa-3d-card">
-  <div class="vc-title">LLMs default do pipeline (por estagio)</div>
-  <div class="vc-row"><span class="vc-stage">Orchestrator</span> <span class="vc-model">{_vm_orchestrator}</span></div>
-  <div class="vc-row"><span class="vc-stage">Planner</span> <span class="vc-model">{_vm_planner}</span></div>
-  <div class="vc-row"><span class="vc-stage">Reader</span> <span class="vc-model">{_vm_reader}</span></div>
-  <div class="vc-row"><span class="vc-stage">Worker</span> <span class="vc-model">{_vm_worker}</span></div>
-  <div class="vc-row"><span class="vc-stage">Reporter</span> <span class="vc-model">{_vm_reporter}</span></div>
-  <div class="vc-foot">Configuravel em agents/villa_lobos/agent.py (VILLA_MODELS) ou via .env (OLLAMA_MODEL_*).</div>
-</div>
-""",
-            unsafe_allow_html=True,
-        )
-
-    # == Desktop =============================================================
-    # Aba visual para os subagente Desktop (fs_*, run_shell, run_python).
-    # Reusa lilo.handle_tool_call para nao duplicar a logica do agente.
     elif page == "Desktop":
         st.header("Desktop -- Filesystem & Shell")
         st.caption(
@@ -1700,10 +1526,15 @@ with main_col:
 
         from lilo import handle_tool_call as _desk_call
 
-        _tab_read, _tab_write, _tab_list, _tab_search, _tab_shell, _tab_py = st.tabs([
+        _tab_read, _tab_write, _tab_list, _tab_search, _tab_shell, _tab_py, _tab_proj = st.tabs([
             "fs_read", "fs_write", "fs_list", "fs_search",
-            "run_shell", "run_python",
+            "run_shell", "run_python", "Projeto & Arquivos",
         ])
+
+        # V21: explorador de Projeto & Arquivos migrado do antigo modulo Villa Lobos.
+        with _tab_proj:
+            _render_villa_project_explorer(
+                base_path=st.session_state.get("villa_base_path", "."))
 
         # ---- fs_read ----
         with _tab_read:
