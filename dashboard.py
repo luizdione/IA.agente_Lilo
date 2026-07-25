@@ -275,17 +275,22 @@ with st.sidebar:
     st.caption("No Chat (Auto) o LILO escolhe o especialista sozinho. Os "
                "especialistas abaixo sao so para forcar/inspecionar.")
 
+    # V21 (reorg pedida pelo autor): o Chat (Auto) e a PORTA UNICA -- o LILO
+    # roteia sozinho para sql/prism/pdf/scholar (via villa.route_target no
+    # lilo.route). Restam so os ESPECIALISTAS com UI dedicada: a Biblioteca
+    # (resumir PDF + RAG local, fundidos) e o Scholar (busca academica online).
+    # SQL/Prism deixaram de ser modulos (viram roteamento do chat); Villa deixou
+    # de ser modulo (e o motor do chat -> o pipeline vira toggle no proprio chat);
+    # SciStudio saiu (app externo com localhost proprio). Desktop foi p/ FERRAMENTAS.
     _spec_groups = [
-        ("Dados & Estatistica", [("SQL", "nav_sql"), ("Prism AI", "nav_prism")]),
-        ("Literatura", [("PDFs", "nav_pdf"), ("Scholar", "nav_scholar"),
+        ("Literatura", [("Scholar", "nav_scholar"),
                         ("Biblioteca", "nav_biblioteca")]),
-        ("Execucao & Sistema", [("Desktop", "nav_desktop")]),
-        ("Orquestracao", [("Villa Lobos", "nav_villa")]),
-        ("Visual", [("SciStudio", "nav_scistudio")]),
     ]
     _spec_labels = {lbl for _g, _items in _spec_groups for lbl, _k in _items}
-    with st.expander("Especialistas (override manual)",
+    with st.expander("Especialistas (abrir UI dedicada)",
                      expanded=st.session_state.page in _spec_labels):
+        st.caption("O Chat ja resolve tudo sozinho; use aqui so para abrir a UI "
+                   "da Biblioteca de PDFs ou da busca academica.")
         for _gname, _items in _spec_groups:
             st.caption(_gname)
             for _lbl, _key in _items:
@@ -299,6 +304,7 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("**FERRAMENTAS**")
+    nav_button("Desktop", "nav_desktop", "tool")
     nav_button("Skills", "nav_skills", "tool")
     nav_button("Custos", "nav_custos", "tool")
     nav_button("Saude", "nav_health", "tool")
@@ -1223,73 +1229,6 @@ with main_col:
 
 
     # == SQL ==================================================================
-    elif page == "SQL":
-        st.header("Analise SQL")
-        col1, col2 = st.columns([2, 1])
-        with col2:
-            db_files = list(_ROOT.rglob("*.db")) + list(_ROOT.rglob("*.sqlite"))
-            db_names = [str(f.relative_to(_ROOT)) for f in db_files]
-            selected_db = st.selectbox(
-                "Banco de dados",
-                db_names if db_names else ["Nenhum encontrado"])
-            if selected_db and selected_db != "Nenhum encontrado":
-                import sqlite3
-                db_path = _ROOT / selected_db
-                try:
-                    conn = sqlite3.connect(str(db_path))
-                    tables = pd.read_sql(
-                        "SELECT name FROM sqlite_master WHERE type='table'", conn)
-                    st.dataframe(tables, use_container_width=True)
-                    if not tables.empty:
-                        selected_table = st.selectbox("Tabela", tables["name"].tolist())
-                        if selected_table:
-                            schema = pd.read_sql(
-                                "PRAGMA table_info(" + selected_table + ")", conn)
-                            st.dataframe(
-                                schema[["name", "type"]],
-                                use_container_width=True)
-                    conn.close()
-                except Exception as e:
-                    st.error("Erro: " + str(e))
-        with col1:
-            _render_attachments_popover("sql")
-            query_input = st.text_area(
-                "Query SQL ou pergunta (/ para skills)",
-                height=100,
-                placeholder="SELECT * FROM tabela LIMIT 10")
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                run_sql = st.button("Executar SQL", type="primary")
-            with c2:
-                ask_lilo = st.button("Perguntar ao LILO")
-            with c3:
-                if st.session_state.running:
-                    stop_button("stop_sql")
-
-            if run_sql and query_input:
-                if selected_db and selected_db != "Nenhum encontrado":
-                    try:
-                        import sqlite3 as sql3
-                        conn = sql3.connect(str(_ROOT / selected_db))
-                        df = pd.read_sql(query_input, conn)
-                        conn.close()
-                        st.dataframe(df, use_container_width=True)
-                        st.info(str(len(df)) + " registros")
-                    except Exception as e:
-                        st.error("Erro SQL: " + str(e))
-
-            if ask_lilo and query_input:
-                with st.spinner("Processando..."):
-                    if "sql" in agents:
-                        ctx = {}
-                        if selected_db and selected_db != "Nenhum encontrado":
-                            ctx["db_path"] = str(_ROOT / selected_db)
-                        st.markdown(agents["sql"].run(query_input, ctx))
-                    else:
-                        st.error("SQLAgent indisponivel")
-
-
-    # == PDFs =================================================================
     elif page == "PDFs":
         st.header("Biblioteca de PDFs")
         # Anexar PDFs via popover (+) -- substitui sidebar 'Anexos'
@@ -1532,64 +1471,6 @@ with main_col:
 
 
     # == Prism AI =============================================================
-    elif page == "Prism AI":
-        st.header("Prism AI -- Analise Cientifica")
-        st.caption("Pipeline: deteccao > estatistica > graficos > texto > exportacao")
-        _render_attachments_popover("prism")
-        prism = agents.get("prism")
-        if prism:
-            up_data = st.file_uploader("Dados experimentais", type=["xlsx", "csv", "tsv"])
-            c1, c2 = st.columns(2)
-            with c1:
-                lang = st.selectbox("Idioma do texto", ["en", "pt"])
-            with c2:
-                alpha = st.number_input(
-                    "Significancia", value=0.05,
-                    min_value=0.001, max_value=0.20,
-                    step=0.01, format="%.3f")
-            bc1, bc2 = st.columns([2, 1])
-            with bc1:
-                run_prism = st.button("Executar Pipeline", type="primary")
-            with bc2:
-                if st.session_state.running:
-                    stop_button("stop_prism")
-            if up_data and run_prism:
-                import tempfile
-                with tempfile.NamedTemporaryFile(
-                        delete=False, suffix=Path(up_data.name).suffix) as tmp:
-                    tmp.write(up_data.read())
-                    tmp_path = tmp.name
-                output_dir = str(Path(tmp_path).parent / "prism_output")
-                with st.spinner("Pipeline Prism AI..."):
-                    result = prism.run(
-                        "analyze " + tmp_path,
-                        context={"file_path": tmp_path,
-                                 "output_dir": output_dir,
-                                 "language": lang, "alpha": alpha,
-                                 "enhance_with_llm": True})
-                st.markdown(result)
-                out_path = Path(output_dir)
-                if out_path.exists():
-                    for img in out_path.glob("*.png"):
-                        st.image(str(img), caption=img.stem,
-                                 use_container_width=True)
-                    for pzfx in out_path.glob("*.pzfx"):
-                        with open(pzfx, "r") as fh:
-                            st.download_button(
-                                "Baixar .pzfx", fh.read(),
-                                file_name=pzfx.name, mime="application/xml")
-            with st.expander("Status Prism AI"):
-                health = prism.health()
-                for pkg, status in health.get("dependencies", {}).items():
-                    if status == "ok":
-                        st.success(pkg)
-                    else:
-                        st.error(pkg + ": " + str(status))
-        else:
-            st.error("PrismAgent: " + agent_errors.get("prism", "?"))
-
-
-    # == Villa Lobos ==========================================================
     elif page == "Villa Lobos":
         st.header("Villa Lobos -- Pipeline Multi-Estagio")
         st.caption("Orchestrator > Planner > Reader > Worker > Reporter")
@@ -1980,41 +1861,6 @@ with main_col:
                         except Exception as e:
                             st.error("Erro: " + str(e))
 
-
-    # == Skills ===============================================================
-    elif page == "SciStudio":
-        st.header("🎨 SciStudio — Produção de Divulgação Científica")
-        st.caption("Figuras didáticas · **ilustração científica a partir de biblioteca SVG** "
-                   "(bioicons + fontes CC-BY) · graphical abstracts · vídeos didáticos · pôster. "
-                   "Container `scistudio` na porta 8505.")
-        c1, c2 = st.columns([1, 3])
-        with c1:
-            st.link_button("↗ Abrir em nova aba", "http://localhost:8505",
-                           use_container_width=True)
-            try:
-                import json as _json
-                _cat = (_ROOT / "conteudo_digital" / "studio" / "static" / "icons"
-                        / "_catalog" / "icons_catalog.json")
-                if _cat.exists():
-                    _d = _json.loads(_cat.read_text(encoding="utf-8"))
-                    st.metric("Ícones SVG", _d.get("total", 0))
-                    st.caption("Biblioteca por grupo:")
-                    for _k, _v in list(_d.get("by_group", {}).items()):
-                        st.caption(f"• {_k}: {_v}")
-                else:
-                    st.info("Catálogo SVG ausente — rode "
-                            "`conteudo_digital/studio/tools/build_svg_library.py`.")
-            except Exception as _e:
-                log.debug("catalogo svg indisponivel: %s", _e)
-        with c2:
-            try:
-                st.components.v1.iframe("http://localhost:8505/?embed=true",
-                                        height=820, scrolling=True)
-            except Exception:
-                st.warning("Não foi possível embutir o SciStudio. Use o botão "
-                           "'Abrir em nova aba'.")
-        st.info("Se o quadro não carregar, suba o container: `docker compose up -d scistudio` "
-                "na raiz do LILO (ou `docker compose up -d --build` para tudo).")
 
     elif page == "Tarefas":
         if cowork:

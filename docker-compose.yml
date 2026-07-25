@@ -114,23 +114,6 @@ services:
       - lilo_net
     restart: unless-stopped
 
-  # ── SciStudio — produção de divulgação científica (figuras, ilustração SVG,
-  #    graphical abstracts, vídeos didáticos, pôster). Linkado no dashboard LILO. ──
-  scistudio:
-    build:
-      context: ./conteudo_digital/studio
-      dockerfile: Dockerfile
-    container_name: scistudio
-    env_file:
-      - ./conteudo_digital/studio/.env     # GOOGLE_API_KEY + modelos (opcional)
-    volumes:
-      - ./conteudo_digital:/work           # geradores + assets + biblioteca SVG + saídas
-    ports:
-      - "8505:8505"
-    networks:
-      - lilo_net
-    restart: unless-stopped
-
 networks:
   lilo_net:
     driver: bridge
