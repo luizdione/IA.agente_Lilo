@@ -117,3 +117,14 @@ data/syntheses/
 conteudo_digital/
 .project-memory/
 versoes/
+
+# ── REGRA DO AUTOR: escrita/auditoria de ARTIGOS fica FORA do github ─────────
+# Skills e agentes de redacao/auditoria de manuscritos sao IP privado do autor e
+# seguem em PACOTE SEPARADO (distribuicao privada). Os arquivos permanecem em
+# disco (o LILO local continua funcionando); apenas nao sao versionados/publicados.
+agents/paper/
+lilo_skills/skills/build_paper/
+lilo_skills/skills/check_integrity/
+lilo_skills/skills/biblioteca_ref/
+lilo_skills/skills/git_dione/
+lilo_skills/skills/montagem_resultados/

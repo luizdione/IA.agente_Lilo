@@ -1,0 +1,66 @@
+LICENÇA DE USO — LILO (Local Intelligent LLM Orchestrator)
+==========================================================
+
+Copyright (c) 2026 Luiz Dione Barbosa de Melo
+ORCID: 0000-0003-2445-9943
+Instituto Federal de Educação, Ciência e Tecnologia do Rio de Janeiro (IFRJ),
+Rio de Janeiro, Brasil
+Contato / autorizações: luiz.melo@ifrj.edu.br
+
+-----------------------------------------------------------------------------
+ENGLISH SUMMARY (non-binding — the binding terms are in Portuguese below)
+Proprietary license. This software may be used ONLY for non-commercial
+SCIENTIFIC and ACADEMIC purposes, and ONLY with the author's prior WRITTEN
+authorization. Commercial use, redistribution, sublicensing, and distribution
+of derivative works are prohibited without explicit written permission from the
+author. Provided "AS IS", without warranty of any kind. To request permission,
+contact luiz.melo@ifrj.edu.br.
+-----------------------------------------------------------------------------
+
+TERMOS (versão vinculante)
+
+1. DEFINIÇÕES
+   "Software" designa o código-fonte, binários, scripts, documentação e demais
+   artefatos do projeto LILO. "Autor" designa Luiz Dione Barbosa de Melo
+   (ORCID 0000-0003-2445-9943).
+
+2. CONCESSÃO CONDICIONADA
+   O uso deste Software é permitido EXCLUSIVAMENTE para fins CIENTÍFICOS e
+   ACADÊMICOS, sem fins lucrativos, e MEDIANTE AUTORIZAÇÃO PRÉVIA E POR ESCRITO
+   do Autor. Nenhum direito de uso é concedido de forma automática pela simples
+   posse, cópia ou acesso ao Software.
+
+3. RESTRIÇÕES
+   Salvo autorização prévia e por escrito do Autor, é VEDADO:
+   (a) qualquer uso comercial ou com finalidade lucrativa, direta ou indireta;
+   (b) redistribuir, republicar, sublicenciar ou disponibilizar o Software a
+       terceiros, no todo ou em parte;
+   (c) criar e distribuir obras derivadas;
+   (d) oferecer o Software como serviço a terceiros (SaaS) ou em produção.
+
+4. ATRIBUIÇÃO E CITAÇÃO
+   Todo uso autorizado deve creditar o Autor (nome e ORCID 0000-0003-2445-9943)
+   e citar o projeto LILO nas publicações científicas que dele resultarem.
+
+5. COMPONENTES DE TERCEIROS
+   O Software integra e depende de bibliotecas de terceiros (por exemplo:
+   Streamlit, Ollama, SDK da Anthropic, entre outras), cada uma regida por sua
+   própria licença. Esta licença não altera nem substitui as licenças desses
+   componentes, que permanecem em vigor para as respectivas partes.
+
+6. DADOS E RESPONSABILIDADE DO USUÁRIO
+   O usuário é o único responsável pelos dados que processa com o Software e por
+   obter as chaves de API de terceiros (por exemplo, da Anthropic) sob os termos
+   desses provedores.
+
+7. ISENÇÃO DE GARANTIA
+   O SOFTWARE É FORNECIDO "COMO ESTÁ", SEM GARANTIA DE QUALQUER NATUREZA, EXPRESSA
+   OU IMPLÍCITA, INCLUINDO, SEM LIMITAÇÃO, GARANTIAS DE COMERCIABILIDADE,
+   ADEQUAÇÃO A UM FIM ESPECÍFICO E NÃO VIOLAÇÃO. EM NENHUMA HIPÓTESE O AUTOR SERÁ
+   RESPONSÁVEL POR QUAISQUER REIVINDICAÇÕES, DANOS OU OUTRAS RESPONSABILIDADES
+   DECORRENTES DO USO OU DA IMPOSSIBILIDADE DE USO DO SOFTWARE.
+
+8. COMO OBTER AUTORIZAÇÃO
+   Solicitações de autorização de uso devem ser enviadas a: luiz.melo@ifrj.edu.br
+
+Ao usar este Software, o usuário declara ter lido e concordado com estes termos.
