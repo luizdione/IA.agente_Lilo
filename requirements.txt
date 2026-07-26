@@ -35,7 +35,7 @@ pydantic>=2.5.0
 
 # Web search
 duckduckgo-search>=6.0
-lxml>=5.0.0  # usado por lilo_skills/build_paper (build_journal_profile); NAO p/ bs4
+lxml>=5.0.0  # parsing XML/HTML
 
 # Bioinformática / Dinâmica Molecular (opcional — instalar via conda preferencialmente)
 # openmm>=8.1

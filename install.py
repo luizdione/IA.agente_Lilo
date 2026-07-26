@@ -29,7 +29,12 @@ import sys
 import urllib.request
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+if getattr(sys, "frozen", False):
+    # Empacotado como .exe (PyInstaller): a "raiz" e' a pasta onde o exe foi
+    # colocado (espera-se: dentro da pasta do LILO, ao lado de requirements.txt).
+    ROOT = Path(sys.executable).resolve().parent
+else:
+    ROOT = Path(__file__).resolve().parent
 REQ = ROOT / "requirements.txt"
 ENV = ROOT / ".env"
 ENV_EXAMPLE = ROOT / ".env.example"
@@ -50,6 +55,21 @@ def run(cmd, **kw):
     return subprocess.run(cmd, **kw)
 
 
+def pip_python() -> str:
+    """Python que executa o pip. Se este instalador for um .exe CONGELADO
+    (PyInstaller), sys.executable e' o proprio .exe -> localiza um Python do
+    sistema para instalar as dependencias do LILO."""
+    if not getattr(sys, "frozen", False):
+        return sys.executable
+    for cand in ("py", "python3", "python"):
+        exe = shutil.which(cand)
+        if exe:
+            return exe
+    say("[ERRO] Python 3.10+ nao encontrado no sistema. Instale de "
+        "https://www.python.org/downloads/ e rode de novo.", "err")
+    sys.exit(1)
+
+
 # ---------------------------------------------------------------------------
 def check_python():
     if sys.version_info < MIN_PY:
@@ -63,7 +83,7 @@ def check_python():
 def make_venv() -> str:
     venv_dir = ROOT / ".venv"
     if not venv_dir.exists():
-        run([sys.executable, "-m", "venv", str(venv_dir)])
+        run([pip_python(), "-m", "venv", str(venv_dir)])
     py = (venv_dir / ("Scripts" if os.name == "nt" else "bin")
           / ("python.exe" if os.name == "nt" else "python"))
     say("[OK] venv em %s" % venv_dir, "ok")
@@ -171,7 +191,7 @@ def main() -> int:
     say("=" * 60)
 
     check_python()
-    py = make_venv() if args.venv else sys.executable
+    py = make_venv() if args.venv else pip_python()
     pip_install(py)
     ensure_env()
     configure_claude(args.no_input)
