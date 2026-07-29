@@ -79,6 +79,30 @@ for k, v in defaults.items():
         st.session_state[k] = v
 
 
+# -- Warm-up do roteador embed (mata o cold-start ~7s da 1a pergunta) ---------
+@st.cache_resource
+def _warm_embed_router():
+    """Carrega o modelo de embed (sentence-transformers) em BACKGROUND (thread
+    daemon) so quando o roteador embed esta ativo. @st.cache_resource garante 1x
+    por processo (nao re-dispara a cada rerun). A 1a pergunta ja acha o modelo quente."""
+    import os as _o
+    import threading as _t
+    if _o.environ.get("LILO_ROUTER") != "embed":
+        return False
+
+    def _w():
+        try:
+            from shared.router import get_embedder
+            get_embedder()
+        except Exception:
+            pass
+    _t.Thread(target=_w, daemon=True).start()
+    return True
+
+
+_warm_embed_router()
+
+
 # -- Carregar agentes --------------------------------------------------------
 @st.cache_resource
 def load_agents():
@@ -454,7 +478,7 @@ with st.sidebar:
     except Exception as _enr_e:
         log.debug("enrollment de voz indisponivel: %s", _enr_e)
 
-    st.caption("LILO v10.6 -- roteamento Auto -- " + datetime.now().strftime("%H:%M"))
+    st.caption("LILO -- roteamento Auto -- " + datetime.now().strftime("%H:%M"))
 
 
 # -- Pagina ativa -------------------------------------------------------------
