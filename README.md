@@ -1,6 +1,7 @@
 # LILO — Local Intelligent LLM Orchestrator
 
 ![status](https://img.shields.io/badge/status-ativo-brightgreen)
+![version](https://img.shields.io/badge/version-v13.0-blue)
 ![arch](https://img.shields.io/badge/branch-arch--v11-purple)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![local-first](https://img.shields.io/badge/local--first-Ollama-blue)

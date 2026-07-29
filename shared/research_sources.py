@@ -105,10 +105,18 @@ def _req(method, url, *, params=None, json_body=None, headers=None,
     return None
 
 
-def _std(source, title, url, snippet="", authors="", year="", id=""):
+def _std(source, title, url, snippet="", authors="", year="", id="", doi=""):
+    # DOI normalizado (sem prefixo de URL) -> campo estruturado p/ o scholar/citacoes.
+    d = (doi or "").strip()
+    _low = d.lower()
+    for _pfx in ("https://doi.org/", "http://doi.org/", "https://dx.doi.org/", "doi:"):
+        if _low.startswith(_pfx):
+            d = d[len(_pfx):]
+            break
     return {"source": source, "title": (title or "").strip(),
             "url": url or "", "snippet": (snippet or "").strip()[:500],
-            "authors": authors or "", "year": str(year or ""), "id": str(id or "")}
+            "authors": authors or "", "year": str(year or ""),
+            "id": str(id or ""), "doi": d.strip()}
 
 
 def _openalex_abstract(inv):
@@ -147,11 +155,13 @@ def search_pubmed(query, max_results=5):
         if not it:
             continue
         authors = "; ".join(a.get("name", "") for a in it.get("authors", [])[:6])
+        _doi = next((a.get("value", "") for a in (it.get("articleids", []) or [])
+                     if (a.get("idtype") or "").lower() == "doi"), "")
         out.append(_std("pubmed", it.get("title", ""),
                         "https://pubmed.ncbi.nlm.nih.gov/%s/" % uid,
                         snippet=it.get("source", "") + " " + it.get("pubdate", ""),
                         authors=authors, year=(it.get("pubdate", "")[:4]),
-                        id=uid))
+                        id=uid, doi=_doi))
     return out
 
 
@@ -258,7 +268,8 @@ def search_crossref(query, max_results=5):
                         snippet="%s (%s)" % (it.get("container-title", [""])[0]
                                              if it.get("container-title") else "",
                                              it.get("type", "")),
-                        authors=authors, year=yr, id=it.get("DOI", "")))
+                        authors=authors, year=yr, id=it.get("DOI", ""),
+                        doi=it.get("DOI", "")))
     return out
 
 
@@ -279,7 +290,7 @@ def search_semanticscholar(query, max_results=5):
                         p.get("url", "") or ("https://doi.org/%s" % doi if doi else ""),
                         snippet=p.get("abstract", "") or "",
                         authors=authors, year=p.get("year", ""),
-                        id=p.get("paperId", "")))
+                        id=p.get("paperId", ""), doi=doi))
     return out
 
 
@@ -306,7 +317,7 @@ def search_openalex(query, max_results=5):
             doi or w.get("id", ""),
             snippet=_openalex_abstract(w.get("abstract_inverted_index")),
             authors=authors, year=w.get("publication_year", ""),
-            id=w.get("id", "")))
+            id=w.get("id", ""), doi=doi))
     return out
 
 
@@ -327,7 +338,7 @@ def search_europepmc(query, max_results=5):
                         snippet="%s %s" % (r.get("journalTitle", ""),
                                            r.get("pubYear", "")),
                         authors=r.get("authorString", ""),
-                        year=r.get("pubYear", ""), id=ext or doi))
+                        year=r.get("pubYear", ""), id=ext or doi, doi=doi))
     return out
 
 

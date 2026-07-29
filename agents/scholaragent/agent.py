@@ -329,7 +329,7 @@ class ScholarAgent(BaseAgent):
         import re as _re
         seen, out = set(), []
         for r in results:
-            doi = (r.get("id", "") or "").lower()
+            doi = (r.get("doi", "") or r.get("id", "") or "").lower()
             doi = doi.split("doi.org/")[-1].strip("/ ") if "10." in doi else ""
             title = _re.sub(r"[^a-z0-9]", "", (r.get("title", "") or "").lower())[:50]
             key = doi or title

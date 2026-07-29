@@ -2,7 +2,46 @@
 
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
-> commits (atual: V17).
+> commits (atual: V21).
+
+## v13.0 — 2026-07-25 (V18–V21: cérebro plan-and-execute, economia de tokens, release público)
+
+Grande salto desde a v12.5, consolidando as rodadas internas V18–V21.
+
+### Cérebro plan-and-execute (V18/V19)
+- **Roteador único** `shared/router.py` (embeddings/keyword sobre `capabilities()`) como
+  porta de entrada; `_KEYWORD_MAP` do `lilo.py` eliminado (fim da 4ª cópia de keywords de
+  roteamento). Assinaturas dos agentes desambiguadas por AÇÃO → roteamento 67%→83% no
+  golden-set. Observabilidade "🧭 Como o LILO decidiu" no Chat Auto.
+- UI **plan-first**: Chat/Auto vira a porta principal; boilerplate (`load_env`/`llm`)
+  centralizado em `shared/base_agent.py` (8 agentes enxutos, sem god-classes). 199
+  skills-lixo podadas (scan de sintaxe 340→168 `.py`).
+- Capacidades locais: lê a `.project-memory` de 19 projetos; roda no conda `datascience`
+  e no WSL via o agente `desktop` (`run_python(env=)`, `run_r`, `run_wsl`).
+
+### Economia de tokens do Claude (V20/V20.1)
+- Perfil MCP `claude_code` passou a **vigorar** (só o complementar; sem `fs_*`/`run_*` que
+  o Claude Code já tem nativos). Tools novas `lilo_summarize_file` (destila arquivos via
+  Ollama local, 0 token Claude) e `parse_bio_log` (Vina/qPCR/FastQC/VCF → tabela compacta),
+  ambas atrás da allow-list `LILO_DESKTOP_ALLOW`. Auditoria adversarial → correções + 18 testes.
+
+### Reorganização dos módulos do dashboard (V20)
+- Chat = porta única; SQL/Prism/Villa deixam de ser módulos (viram roteamento do chat;
+  pipeline Villa = toggle no chat); PDFs+RAG fundidos em "Biblioteca"; Desktop →
+  FERRAMENTAS; **SciStudio** desacoplado (app externo).
+
+### Release público + UI + hardening (V21 — 2026-07-25)
+- **Rodar do github:** o app deixou de servir a cópia velha do OneDrive; `.env` lido via
+  hardlink; launcher `START_LILO_WINDOWS.bat` + atalho `LILO.lnk` reapontados.
+- **UI:** overlap da sidebar corrigido (`margin-bottom:-1rem` do Streamlit × gap reduzido);
+  **botão ■ Parar** cancelável no chat (`route()` em thread daemon + poll não-bloqueante).
+- **Release:** `README` reescrito; `LICENSE` (uso científico/acadêmico c/ autorização do
+  autor); instalador multiplataforma `install.py`/`.ps1`/`.sh` + `setup_LILO.exe`;
+  `scripts/sleep_consolidate.py` (consolidação de memória no ocioso, Ollama local).
+- **DOI no scholar** populado na origem (`shared/research_sources.py`) + dedup por DOI.
+- `.env.example` alinhado aos modelos atuais (`gemma3:12b`/`qwen3:14b`); **warm-up do embed**
+  no dashboard (mata o cold-start ~7s da 1ª pergunta).
+- **Regra do autor:** IP de escrita/auditoria de artigos removido do repo **e do histórico**.
 
 ## v12.5 — 2026-07-21 (V17.3: centralização de modelos + modernização do parque Ollama)
 
