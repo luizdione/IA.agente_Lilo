@@ -116,7 +116,7 @@ data/projects/
 data/syntheses/
 conteudo_digital/
 .project-memory/
-versoes/
+/versoes/
 
 # ── REGRA DO AUTOR: escrita/auditoria de ARTIGOS fica FORA do github ─────────
 # Skills e agentes de redacao/auditoria de manuscritos sao IP privado do autor e
