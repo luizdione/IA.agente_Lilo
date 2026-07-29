@@ -1,0 +1,36 @@
+# LILO — requirements.lock  (versoes FIXADAS = reproducibilidade de release)
+#
+# Gerado a partir de um install LIMPO VALIDADO (venv, 2026-07-25): todo o
+# requirements.txt instalou E importou nestas versoes exatas. Use este arquivo
+# para um install reproduzivel (evita que um `pip install` futuro puxe uma versao
+# nova com breaking change):
+#
+#     pip install -r requirements.lock
+#
+# O requirements.txt segue com faixas `>=` para flexibilidade do dia-a-dia; este
+# lock fixa as DIRETAS (as transitivas o pip resolve). Regenerar apos validar um
+# novo conjunto:  pip freeze > requirements.lock  (num venv limpo).
+
+python-dotenv==1.2.2
+requests==2.34.2
+httpx==0.28.1
+anthropic==0.120.2
+ollama==0.6.2
+streamlit==1.60.0
+pandas==3.0.5
+PyMuPDF==1.28.0
+pdfminer.six==20260107
+chromadb==1.5.9
+sentence-transformers==5.6.1
+mcp==2.0.0
+fastapi==0.140.13
+uvicorn==0.51.0
+sse-starlette==3.4.6
+pydantic==2.13.4
+duckduckgo-search==8.1.1
+lxml==6.1.1
+python-pptx==1.0.2
+openpyxl==3.1.5
+faster-whisper==1.2.1
+librosa==0.11.0
+soundfile==0.14.0

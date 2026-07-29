@@ -9,12 +9,14 @@ import os
 
 # --- LLM local (Lilo / Ollama, formato Ollama /api/generate) ---
 LLM_URL = os.environ.get("SCHOLAR_LLM_URL", "http://localhost:11434/api/generate")
-LLM_MODEL = os.environ.get("SCHOLAR_LLM_MODEL", "llama3.1:8b-instruct-q8_0")
+LLM_MODEL = os.environ.get("SCHOLAR_LLM_MODEL", "gemma3:12b")
 
-# --- Embeddings locais (sentence-transformers) ---
-# Multilíngue PT/EN (~470MB, CPU-friendly). Alternativas: all-MiniLM-L6-v2 (leve, só EN),
-# BAAI/bge-m3 (melhor qualidade, ~2GB). Trocar exige re-ingestão (muda a dimensão).
-EMBED_MODEL = os.environ.get("SCHOLAR_EMBED_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
+# --- Embeddings locais (default: bge-m3 via Ollama, GPU, 1024-dim) ---
+# bge-m3 = melhor qualidade multilíngue PT/EN, rodando no Ollama (sem torch+CUDA no
+# Python). Fallback automático p/ sentence-transformers CPU se o Ollama não responder.
+# Aponte SCHOLAR_EMBED_MODEL p/ um modelo HF (ex.: paraphrase-multilingual-MiniLM-L12-v2)
+# para forçar CPU. Trocar de modelo muda a dimensão -> exige re-ingestão do RAG.
+EMBED_MODEL = os.environ.get("SCHOLAR_EMBED_MODEL", "bge-m3")
 
 # --- Reranker (cross-encoder; ausência cai para triagem por tokens) ---
 # Padrão: multilíngue leve (~470MB, CPU). Máxima qualidade: BAAI/bge-reranker-v2-m3 (~2.3GB).

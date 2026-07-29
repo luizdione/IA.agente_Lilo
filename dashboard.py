@@ -93,7 +93,7 @@ def _warm_embed_router():
     def _w():
         try:
             from shared.router import get_embedder
-            get_embedder()
+            get_embedder().embed_query("warm")  # carrega o bge-m3 na VRAM do Ollama
         except Exception:
             pass
     _t.Thread(target=_w, daemon=True).start()
