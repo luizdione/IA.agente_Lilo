@@ -34,6 +34,11 @@ class ExecutionTier(str, Enum):
     OLLAMA_FAST = "ollama_fast"
     OLLAMA = "ollama"
     OLLAMA_HEAVY = "ollama_heavy"
+    # V18 E1: Ollama Cloud (ex.: gpt-oss:120b-cloud) — provedor que varios
+    # subagentes ja usavam como DEFAULT mas o Policy nem modelava (invisivel
+    # ao budget e a telemetria). Nesta fase o tier existe para rotulo e
+    # telemetria: NAO entra em decide() nem na cadeia de fallback.
+    OLLAMA_CLOUD = "ollama_cloud"
     CLAUDE_SONNET = "claude_sonnet"
     CLAUDE_OPUS = "claude_opus"
 
@@ -44,6 +49,8 @@ COST_PER_1K = {
     ExecutionTier.OLLAMA_FAST: 0.0,
     ExecutionTier.OLLAMA: 0.0,
     ExecutionTier.OLLAMA_HEAVY: 0.0,
+    # Assinatura Ollama Cloud: sem cobranca por request (custo marginal 0).
+    ExecutionTier.OLLAMA_CLOUD: 0.0,
     ExecutionTier.CLAUDE_SONNET: 0.006,
     ExecutionTier.CLAUDE_OPUS: 0.045,
 }
@@ -54,6 +61,8 @@ TIER_MODELS = {
     ExecutionTier.OLLAMA_FAST: get_env("OLLAMA_MODEL_FAST", "qwen2.5-coder:7b-instruct"),
     ExecutionTier.OLLAMA: get_env("OLLAMA_MODEL", "llama3.1:8b-instruct-q8_0"),
     ExecutionTier.OLLAMA_HEAVY: get_env("OLLAMA_MODEL_CODE", "qwen2.5-coder:14b"),
+    ExecutionTier.OLLAMA_CLOUD: get_env("VILLA_WORKER_GENERAL_MODEL",
+                                        "gpt-oss:120b-cloud"),
     # Atualizado 2026-05-07 para Claude 4.5/4.6 (familia atual).
     # Variavel LILO_CLAUDE_SONNET / LILO_CLAUDE_OPUS permitem override
     # sem editar codigo (importante quando Anthropic publicar novas versoes).

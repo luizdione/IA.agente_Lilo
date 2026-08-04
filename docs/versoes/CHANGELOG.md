@@ -4,6 +4,37 @@
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
 > commits (atual: V18).
 
+## v12.6 — 2026-08-04 (V18.1: H2 parcial — E1 catálogo, E4 memória, E5 gate cloud)
+
+Primeiro lote estrutural (H2) do roadmap de `docs/tecnico/analise_open_agent_studio.md`.
+Tudo aditivo e default-safe; 138/138 testes.
+
+- **E1 — catálogo central de modelos.** Novo `shared/model_catalog.py`: fonte
+  única de metadados por modelo (provedor, contexto em tokens, capacidades,
+  latência, custo USD/MTok), com heurísticas p/ modelos fora do catálogo
+  (`*-cloud` → Ollama Cloud; `claude-*` → família Anthropic, desconhecida
+  assume preço Opus — fail-safe). `ExecutionTier.OLLAMA_CLOUD` passa a existir
+  (só rótulo/telemetria nesta fase: não entra em `decide()` nem no fallback).
+  Telemetria do Villa rotula estágios em Ollama Cloud como `ollama_cloud`
+  (antes apareciam como `ollama` — o único provedor cloud em uso era invisível
+  na página Custos). Preços Anthropic do QW4 migrados p/ o catálogo.
+  `missing_models()` pronto p/ validação de boot (fiação no health fica p/ E1b).
+- **E4 — memória de projeto na síntese de diretório.** `_KEY_FILES` ganha
+  `CLAUDE.md, TASKS.md, CONTEXT.md, DECISIONS.md, NOTES.md, ARCHITECTURE.md,
+  AGENTS.md` (exatamente os arquivos que a spec pede como memória e que
+  faltavam), e a síntese ganha a seção "Memória do projeto" com snippets
+  curtos dos `.md` de `docs/` e `prompts/` (1 nível, máx. 8 arquivos ×
+  600 chars — bounded). Refresh automático por mtime fica p/ E4b.
+- **E5 — gate de privacidade pré-cloud.** Novo kind `cloud_send` no
+  `exec_mode` + `_cloud_gate` no `llm_client`, aplicado em TODOS os caminhos
+  de despacho quando o destino é cloud (Anthropic ou `*-cloud`): `auto`
+  (default) → passa e **loga** destino+tamanho; `ask`/`accept_edits` → pede
+  confirmação (mesmo fluxo do shell); `plan` → acumula no plano e bloqueia.
+  Fecha o requisito "nunca enviar sem autorização explícita" da spec sem
+  mudar o comportamento default. Kill-switch: `LILO_CLOUD_GATE=0`.
+- Testes: `tests/shared/test_model_catalog.py` (E1+E4+E5, 11 testes).
+  Estado: 138/138, `scripts/check.py` == TUDO OK ==.
+
 ## v12.5 — 2026-08-04 (V18: quick wins QW1–QW7 da análise "Open Agent Studio")
 
 Aplicação do horizonte H1 do roadmap de `docs/tecnico/analise_open_agent_studio.md`

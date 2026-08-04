@@ -1443,6 +1443,14 @@ class VillaLobosAgent(BaseAgent):
             from shared.cost_tracker import get_tracker
             if (effective_tier or "").startswith("claude"):
                 backend_label = effective_tier
+            elif backend_label == "ollama":
+                # V18 E1: Ollama Cloud era registrado como "ollama" -- o unico
+                # provedor cloud em uso ficava invisivel na telemetria por
+                # backend (pagina Custos). Rotulo via catalogo central.
+                from shared.model_catalog import (
+                    PROVIDER_OLLAMA_CLOUD, get_model_info)
+                if get_model_info(model).provider == PROVIDER_OLLAMA_CLOUD:
+                    backend_label = "ollama_cloud"
             get_tracker().log_request(
                 backend=backend_label, model=model,
                 subagent="villa_%s" % role, tier=effective_tier,

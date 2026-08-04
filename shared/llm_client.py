@@ -55,31 +55,58 @@ MODELS = {
 }
 DEFAULT_MODEL = MODELS["chat"]
 
-# V18 QW4: precos USD por MILHAO de tokens (input, output) por familia Claude.
-# Conferidos em 2026-08-04 na doc de pricing da Anthropic. Cache ephemeral:
-# leitura = 0.10x preco de input; escrita (TTL 5min) = 1.25x.
-ANTHROPIC_PRICES_MTOK = {
-    "claude-opus":   (5.00, 25.00),
-    "claude-sonnet": (3.00, 15.00),
-    "claude-haiku":  (1.00, 5.00),
-}
-
-
 def _anthropic_cost_usd(model, usage) -> float:
-    """Custo REAL de uma resposta Anthropic a partir do bloco `usage`."""
-    for prefix, (p_in, p_out) in ANTHROPIC_PRICES_MTOK.items():
-        if str(model).startswith(prefix):
-            break
-    else:
-        # Modelo fora da tabela: assume preco Opus (superestimar e fail-safe
-        # para o budget diario; subestimar liberaria gasto alem do teto).
-        p_in, p_out = ANTHROPIC_PRICES_MTOK["claude-opus"]
+    """Custo REAL de uma resposta Anthropic a partir do bloco `usage` (QW4).
+
+    V18 E1: precos vem do catalogo central (shared/model_catalog); familia
+    desconhecida superestima com preco Opus (fail-safe p/ budget). Cache
+    ephemeral: escrita (TTL 5min) = 1.25x input; leitura = 0.10x input."""
+    from .model_catalog import anthropic_prices_mtok
+    p_in, p_out = anthropic_prices_mtok(model)
     tok_in   = getattr(usage, "input_tokens", 0) or 0
     tok_out  = getattr(usage, "output_tokens", 0) or 0
     cache_w  = getattr(usage, "cache_creation_input_tokens", 0) or 0
     cache_r  = getattr(usage, "cache_read_input_tokens", 0) or 0
     return (tok_in * p_in + cache_w * p_in * 1.25 + cache_r * p_in * 0.10
             + tok_out * p_out) / 1_000_000.0
+
+
+def _cloud_gate(destination, model, payload_chars):
+    """V18 E5: gate de privacidade PRE-envio a provedor cloud.
+
+    Ate aqui "tem chave / modelo cloud" == "pode enviar": nenhum ponto unico
+    confirmava ou sequer registrava a saida de conteudo da maquina (requisito
+    da spec analisada: "nunca enviar sem autorizacao explicita"). Semantica
+    por modo de execucao (shared/exec_mode): auto -> passa e LOGA destino+
+    tamanho; ask/accept_edits -> pede confirmacao (mesmo fluxo do shell);
+    plan -> acumula no plano e bloqueia. LILO_CLOUD_GATE=0 desliga
+    (comportamento pre-V18). Retorna None (pode enviar) ou a string de
+    bloqueio/confirmacao que o chamador deve devolver SEM enviar nada."""
+    if str(get_env("LILO_CLOUD_GATE", "1")).strip().lower() in (
+            "0", "false", "off"):
+        return None
+    try:
+        from .exec_mode import gate, get_mode
+        preview = "%s <- modelo=%s (~%d chars de prompt+system)" % (
+            destination, model, payload_chars)
+        blocked = gate("cloud_send", preview)
+        if blocked:
+            log.info("cloud_send retido (modo=%s): %s", get_mode(), preview)
+            return blocked
+        log.info("cloud_send: %s", preview)
+    except Exception as e:  # o gate NUNCA derruba a chamada por erro interno
+        log.debug("cloud gate indisponivel: %s", e)
+    return None
+
+
+def _maybe_cloud_gate(model, prompt, system):
+    """Aplica o gate E5 somente quando o destino e cloud (catalogo E1)."""
+    from .model_catalog import PROVIDER_OLLAMA, get_model_info
+    info = get_model_info(model)
+    if info.provider == PROVIDER_OLLAMA:
+        return None
+    return _cloud_gate(info.provider, model,
+                       len(str(prompt or "")) + len(str(system or "")))
 
 # System prompt padrao para nivel PhD
 DEFAULT_SYSTEM = (
@@ -195,14 +222,28 @@ class LLMClient:
             }
             claude_model = claude_models.get(tier, claude_models["claude_sonnet"])
             log.info("Tier %s -> Anthropic API (%s)", tier, claude_model)
+            blocked = _maybe_cloud_gate(claude_model, prompt, system)  # V18 E5
+            if blocked:
+                return blocked
             return self._chat_anthropic(prompt, system, temperature, max_tokens, model=claude_model)
 
         if tier and tier.startswith("ollama"):
             model = model or DEFAULT_MODEL
             log.info("Tier %s -> Ollama (%s)", tier, model)
+            blocked = _maybe_cloud_gate(model, prompt, system)  # V18 E5 (*-cloud)
+            if blocked:
+                return blocked
             return self._chat_ollama(prompt, system, model, temperature, max_tokens, cot=cot)
 
         model = model or DEFAULT_MODEL
+
+        # V18 E5: gate pre-cloud tambem no caminho por backend detectado
+        # (modelos *-cloud via Ollama/LiteLLM e o backend anthropic).
+        _gate_model = (model if self.backend != "anthropic"
+                       else get_env("LILO_CLAUDE_SONNET", "claude-sonnet-4-5"))
+        blocked = _maybe_cloud_gate(_gate_model, prompt, system)
+        if blocked:
+            return blocked
 
         if self.backend == "litellm":
             return self._chat_litellm(prompt, system, model, temperature, max_tokens)

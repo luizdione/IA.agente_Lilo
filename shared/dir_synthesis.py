@@ -52,12 +52,22 @@ _KEY_FILES = [
     "README", "README.md", "README.rst", "README.txt",
     "CHANGELOG", "CHANGELOG.md",
     "TODO", "TODO.md", "PLAN.md", "ROADMAP.md",
+    # V18 E4 (analise Open Agent Studio): arquivos de MEMORIA de projeto no
+    # estilo Claude -- eram exatamente os que faltavam nesta lista.
+    "CLAUDE.md", "TASKS.md", "CONTEXT.md", "DECISIONS.md", "NOTES.md",
+    "ARCHITECTURE.md", "AGENTS.md",
     "requirements.txt", "pyproject.toml", "setup.py", "setup.cfg",
     "package.json", "Cargo.toml", "go.mod", "Gemfile",
     "Makefile", "Dockerfile", "docker-compose.yml", "docker-compose.yaml",
     ".env.example", "config.yaml", "config.yml", "config.toml",
     "LICENSE", "LICENSE.md", "LICENSE.txt",
 ]
+
+# V18 E4: diretorios de memoria/contexto cujo .md (1 nivel) entra na sintese
+# com snippet CURTO -- a spec pede docs/ e prompts/ como memoria do projeto.
+_MEMORY_DOC_DIRS = ("docs", "prompts")
+_MAX_MEMORY_DOCS = 8
+_MEMORY_DOC_SNIPPET = 600
 
 # Limites para nao gerar .md gigante
 _MAX_TREE_ENTRIES = 300
@@ -181,6 +191,25 @@ def _collect_todos(root: Path) -> list[tuple[str, str]]:
     return out
 
 
+def _find_memory_docs(root: Path, exclude: set[Path]) -> list[Path]:
+    """V18 E4: .md de docs/ e prompts/ (1 nivel) como memoria do projeto.
+
+    Limitado a _MAX_MEMORY_DOCS arquivos com snippet curto -- complementa os
+    _KEY_FILES sem inflar a sintese."""
+    found: list[Path] = []
+    for dname in _MEMORY_DOC_DIRS:
+        d = root / dname
+        if not d.is_dir():
+            continue
+        for p in sorted(d.glob("*.md")):
+            if not p.is_file() or p in exclude:
+                continue
+            found.append(p)
+            if len(found) >= _MAX_MEMORY_DOCS:
+                return found
+    return found
+
+
 def _git_log_summary(root: Path, n: int = 15) -> list[str]:
     """Se o diretorio for um repo git, retorna ultimos N commits."""
     if not (root / ".git").exists():
@@ -262,6 +291,7 @@ def synthesize_directory(path: str | Path,
     # Coletar dados
     counts, total_bytes, total_files = _ext_stats(root)
     key_files = _find_key_files(root)
+    memory_docs = _find_memory_docs(root, exclude=set(key_files))  # V18 E4
     git_commits = _git_log_summary(root) if include_git else []
     todos = _collect_todos(root) if include_todos else []
     tree_lines, tree_count = (_build_tree(root) if include_tree else ([], 0))
@@ -336,6 +366,22 @@ def synthesize_directory(path: str | Path,
         lines.append("")
 
     # ---- Arquivos-chave (snippet de READMEs e manifestos) ----
+    # ---- Memoria do projeto (V18 E4: docs/ e prompts/) ----
+    if memory_docs:
+        lines.append("## Memoria do projeto (docs/, prompts/)")
+        for md in memory_docs:
+            lines.append(f"### `{md.relative_to(root)}`")
+            snippet = _read_text_safe(md, _MEMORY_DOC_SNIPPET)
+            if snippet:
+                lines.append("")
+                lines.append("```markdown")
+                lines.append(snippet[:_MEMORY_DOC_SNIPPET])
+                if len(snippet) > _MEMORY_DOC_SNIPPET:
+                    lines.append("... (truncado)")
+                lines.append("```")
+                lines.append("")
+        lines.append("")
+
     if key_files:
         lines.append("## Arquivos-chave")
         for kf in key_files:
