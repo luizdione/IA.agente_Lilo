@@ -4,6 +4,31 @@
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
 > commits (atual: V18).
 
+## v12.7 — 2026-08-04 (V18.2: skill /diagnostico_lilo — auditoria com 0 tokens)
+
+Skill de diagnóstico para desenvolvimento/correções gastando o mínimo de tokens:
+a varredura pesada é um script determinístico (sem LLM); o Claude só interpreta
+o relatório compacto e devolve o plano.
+
+- **`scripts/diagnostico_lilo.py`** — auditoria em 5 níveis, offline-safe:
+  (A) código: sintaxe + pytest (`--fast` pula); (B) fiação: registro de agentes
+  importa? keyword-map órfão? tools dos profiles existem no `lilo_mcp`? (a
+  classe de bug "paper fantasma" vira check permanente); (C) envs: `.env.example`
+  vs leituras reais (canais mortos, com wrapper `_env_flag` e allowlist p/ envs
+  dinâmicas `VILLA_TIER_*`); (D) runtime best-effort (Ollama+`missing_models`
+  do catálogo E1, LiteLLM, Anthropic, custo gravável, KV) — offline vira INFO;
+  (E) docs: drift de versão README×CHANGELOG. Saída compacta com IDs
+  (`[P1][B-REG-AUSENTE] ...`), `--json` completo, exit 2/1/0 por severidade.
+- **`.claude/skills/diagnostico_lilo/SKILL.md`** — a skill `/diagnostico_lilo`
+  (Claude Code): protocolo de economia de tokens (rodar o script PRIMEIRO, não
+  re-explorar o que ele já checou, citar achados por ID, só plano — sem aplicar)
+  + **rubrica padrão-ouro Claude Code** (10 dimensões → equivalente LILO →
+  próximo degrau, amarrada ao roadmap E1..E8/S1..S5).
+- Estreia do próprio diagnóstico pegou e corrigiu: drift do badge do README
+  (12.4.0 → 12.6.0) e `LILO_CLOUD_GATE` fora do `.env.example`.
+- `tests/test_diagnostico.py` (smoke offline). Estado: 139/139,
+  `scripts/check.py` == TUDO OK ==.
+
 ## v12.6 — 2026-08-04 (V18.1: H2 parcial — E1 catálogo, E4 memória, E5 gate cloud)
 
 Primeiro lote estrutural (H2) do roadmap de `docs/tecnico/analise_open_agent_studio.md`.
