@@ -55,6 +55,32 @@ MODELS = {
 }
 DEFAULT_MODEL = MODELS["chat"]
 
+# V18 QW4: precos USD por MILHAO de tokens (input, output) por familia Claude.
+# Conferidos em 2026-08-04 na doc de pricing da Anthropic. Cache ephemeral:
+# leitura = 0.10x preco de input; escrita (TTL 5min) = 1.25x.
+ANTHROPIC_PRICES_MTOK = {
+    "claude-opus":   (5.00, 25.00),
+    "claude-sonnet": (3.00, 15.00),
+    "claude-haiku":  (1.00, 5.00),
+}
+
+
+def _anthropic_cost_usd(model, usage) -> float:
+    """Custo REAL de uma resposta Anthropic a partir do bloco `usage`."""
+    for prefix, (p_in, p_out) in ANTHROPIC_PRICES_MTOK.items():
+        if str(model).startswith(prefix):
+            break
+    else:
+        # Modelo fora da tabela: assume preco Opus (superestimar e fail-safe
+        # para o budget diario; subestimar liberaria gasto alem do teto).
+        p_in, p_out = ANTHROPIC_PRICES_MTOK["claude-opus"]
+    tok_in   = getattr(usage, "input_tokens", 0) or 0
+    tok_out  = getattr(usage, "output_tokens", 0) or 0
+    cache_w  = getattr(usage, "cache_creation_input_tokens", 0) or 0
+    cache_r  = getattr(usage, "cache_read_input_tokens", 0) or 0
+    return (tok_in * p_in + cache_w * p_in * 1.25 + cache_r * p_in * 0.10
+            + tok_out * p_out) / 1_000_000.0
+
 # System prompt padrao para nivel PhD
 DEFAULT_SYSTEM = (
     "Voce e o LILO, assistente de IA para um PhD em Biologia Molecular "
@@ -322,10 +348,12 @@ class LLMClient:
 
     def _chat_anthropic(self, prompt, system, temperature, max_tokens, model=None):
         import anthropic
+        import time as _time
         client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
         # Default atualizado 2026-05-07 (Claude 4.5/4.6); override via LILO_CLAUDE_SONNET.
         model = model or get_env("LILO_CLAUDE_SONNET", "claude-sonnet-4-5")
         log.info("Anthropic API -> %s", model)
+        _t0 = _time.time()
 
         # Prompt caching (2026-06-13): marca o bloco `system` como cacheavel
         # (cache_control ephemeral). E ADITIVO e seguro -- a API ignora o cache
@@ -352,6 +380,30 @@ class LLMClient:
         except TypeError:
             # SDK antigo sem suporte a `system` em blocos -> string simples.
             msg = client.messages.create(system=system, **common)
+        # V18 QW4: grava o custo REAL a partir do `usage` da resposta -- ate a
+        # V17 o usage era DESCARTADO e o CostTracker so recebia a estimativa
+        # chars/4 de lilo.route (tokens_in/out sempre 0, cache invisivel).
+        # Centralizado aqui, TODOS os callers (gateway, villa, review, judge)
+        # ganham telemetria real de graca. Nao-fatal: telemetria nunca derruba
+        # a resposta. O budget do Policy (_today_cost) le o tracker, entao o
+        # gate diario passa a operar sobre gasto real.
+        try:
+            u = getattr(msg, "usage", None)
+            if u is not None:
+                from .cost_tracker import get_tracker
+                get_tracker().log_request(
+                    backend="anthropic", model=model, subagent="llm_client",
+                    tier="anthropic_real",
+                    tokens_in=(getattr(u, "input_tokens", 0) or 0)
+                    + (getattr(u, "cache_creation_input_tokens", 0) or 0)
+                    + (getattr(u, "cache_read_input_tokens", 0) or 0),
+                    tokens_out=getattr(u, "output_tokens", 0) or 0,
+                    cost_usd=_anthropic_cost_usd(model, u),
+                    query_preview=prompt[:80],
+                    duration_ms=int((_time.time() - _t0) * 1000),
+                )
+        except Exception as _e:
+            log.debug("telemetria de custo anthropic falhou: %s", _e)
         return msg.content[0].text
 
 

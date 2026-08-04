@@ -2084,6 +2084,19 @@ with main_col:
                 st.metric("Tokens IN", summary["total_tokens_in"])
             with c4:
                 st.metric("Tokens OUT", summary["total_tokens_out"])
+            # V18 QW5: latencia agregada do dia (duration_ms ja era gravado
+            # por request; faltava p50/p95 -- antes so a tabela 'Recentes').
+            lat = tracker.latency_summary()
+            if lat.get("count"):
+                l1, l2, l3, l4 = st.columns(4)
+                with l1:
+                    st.metric("Latencia p50", "%d ms" % lat["p50_ms"])
+                with l2:
+                    st.metric("Latencia p95", "%d ms" % lat["p95_ms"])
+                with l3:
+                    st.metric("Latencia media", "%d ms" % lat["avg_ms"])
+                with l4:
+                    st.metric("Amostras (hoje)", lat["count"])
             st.divider()
             cb, cs = st.columns(2)
             with cb:

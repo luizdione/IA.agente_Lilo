@@ -2,7 +2,57 @@
 
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
-> commits (atual: V17).
+> commits (atual: V18).
+
+## v12.5 — 2026-08-04 (V18: quick wins QW1–QW7 da análise "Open Agent Studio")
+
+Aplicação do horizonte H1 do roadmap de `docs/tecnico/analise_open_agent_studio.md`
+(gap analysis vs spec externa). Tudo aditivo e default-safe; 127/127 testes.
+
+- **QW1 — `agents/paper` fantasma neutralizado.** O diretório nunca foi commitado
+  (existe só na máquina de origem) mas estava registrado em `lilo.py`/README/testes.
+  `tests/test_paper_agent.py` ganha `pytest.importorskip` (pula limpo em checkout
+  sem o diretório) e `test_skillsmith::test_scaffold_refuses_existing_agent` deixa
+  de depender do fantasma — antes, em máquina limpa, o teste **criava**
+  `agents/paper/` de verdade (scaffold real via `_scaffold("paper", ...)`),
+  poluindo o repo; agora exercita a guarda com `gateway` (versionado).
+  *Pendente na máquina de origem: commitar o `agents/paper/` real.*
+- **QW2 — fiação policy→agentes, fase 1 (observabilidade).** Novo
+  `BaseAgent.resolve_model()`: loga a divergência entre a decisão do Policy
+  Engine (`ctx["_model"]`, escrita em `lilo.route` e até a V17 ignorada por
+  TODOS os subagentes) e o modelo que o agente realmente usa. Ligado em
+  gateway, docgen, skillsmith, scholar (review) e Villa (`_call_agent`, por
+  stage). Comportamento inalterado; enforcement fica para o catálogo de
+  modelos (E1).
+- **QW3 — limites de custo mortos aplicados.** `LILO_MAX_SINGLE_COST` passa a
+  barrar chamada única acima do teto em `_budget_allows`; `LILO_ALLOW_CLOUD`
+  volta a ser lida (nuvem = flag ligada **E** chave presente; default preserva
+  o comportamento anterior). `PolicyConfig.allow_cloud` vira `default_factory`
+  (relê o ambiente a cada instância). + `tests/shared/test_policy_budget.py`.
+- **QW4 — custo REAL da Anthropic.** `_chat_anthropic` deixa de descartar o
+  `usage` da resposta: grava tokens (input/output/cache write/cache read) e
+  custo real no CostTracker (preços por família conferidos em 2026-08-04;
+  cache write 1,25×, read 0,10×; modelo desconhecido superestima com preço
+  Opus — fail-safe p/ budget). `lilo.route` zera a estimativa p/ tiers
+  `claude_*` (evita dupla contagem — e o custo fantasma que era registrado
+  mesmo quando o agente nem chamava a Anthropic). O gate diário do Policy
+  passa a operar sobre gasto real. + `tests/shared/test_cost_telemetry.py`.
+- **QW5 — latência agregada.** `CostTracker.latency_summary()` (p50/p95/média
+  por dia, nearest-rank, stdlib) + linha de métricas na página Custos do
+  dashboard (`duration_ms` já era gravado por request; faltava agregar).
+- **QW6 — CI mínimo.** `.github/workflows/tests.yml` roda
+  `python scripts/check.py` (sintaxe + pyflakes + pytest) em push/PR, com
+  `requirements-ci.txt` (subconjunto validado, sem chromadb/torch). Um CI
+  assim teria pego o paper fantasma meses atrás.
+- **QW7 — higiene de config.** `docker-compose.yml`: `scistudio` atrás de
+  profile (build context ausente do repo quebrava `docker compose up` em
+  checkout limpo); `Dockerfile.api` 3.11→3.13 (alvo do repo);
+  `.env.example` documenta `LILO_LLM_RETRIES/BACKOFF`, `LILO_ANTHROPIC_CACHE`,
+  `LILO_MAX_SINGLE_COST`, `LILO_COST_DB`, `LILO_SERVER_PROFILE`,
+  `LILO_SKILLSMITH_MODEL/DOCGEN/REVIEW`, alinha `LLM_TIMEOUT` (120→300, valor
+  real do código) e anota `OPENAI_API_KEY` como reservada ao LiteLLM.
+- Estado: 127/127 testes (120 anteriores − 6 do paper que agora pulam limpo
+  + 13 novos), `scripts/check.py` == TUDO OK ==.
 
 ## v12.4 — 2026-07-20 (V17.2: modularização do CSS do dashboard)
 

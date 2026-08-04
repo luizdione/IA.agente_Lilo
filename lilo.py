@@ -282,12 +282,21 @@ def route(query, tab=None, context=None):
             result = f"[LILO] Erro: {e}"
 
     duration = int((time.time() - t0) * 1000)
+    # V18 QW4: para tiers claude_* o custo REAL (usage da resposta) e gravado
+    # pelo llm_client (backend="anthropic"); registrar TAMBEM a estimativa aqui
+    # dupla-contaria o gasto do dia -- e registrava custo fantasma quando o
+    # agente nem chamava a Anthropic (a decisao da policy nao e consumida
+    # pelos agentes, ver QW2). Zeramos o custo estimado neste registro; ele
+    # segue vivo no fallback em-processo (record_cost), usado apenas quando a
+    # telemetria SQLite esta desabilitada.
+    logged_cost = (0.0 if decision.tier.value.startswith("claude")
+                   else decision.estimated_cost)
     tracker.log_request(
         backend=decision.tier.value,
         model=decision.model or "",
         subagent=target,
         tier=decision.tier.value,
-        cost_usd=decision.estimated_cost,
+        cost_usd=logged_cost,
         query_preview=orig_query[:80],
         duration_ms=duration,
     )

@@ -18,7 +18,7 @@ Uso:
 """
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
@@ -73,6 +73,26 @@ class Decision:
     subagent: Optional[str] = None
 
 
+def _env_flag(name: str, default: str = "1") -> bool:
+    """Le flag booleana do ambiente ('1'/'true'/'yes'/'on' = ligada)."""
+    return str(get_env(name, default) or "").strip().lower() in (
+        "1", "true", "yes", "on")
+
+
+def _cloud_allowed() -> bool:
+    """V18 QW3: nuvem = LILO_ALLOW_CLOUD ligada E chave presente.
+
+    LILO_ALLOW_CLOUD existia no .env.example desde sempre mas NUNCA era lida
+    -- o gate real era so a presenca de ANTHROPIC_API_KEY. Agora =0/false
+    desliga o cloud sem precisar remover a chave do .env. default=true
+    preserva o comportamento anterior. default_factory (nao default de
+    classe) para reler o ambiente a cada PolicyConfig() -- testavel e
+    coerente com hot-reload.
+    """
+    return _env_flag("LILO_ALLOW_CLOUD", "true") and bool(
+        get_env("ANTHROPIC_API_KEY", ""))
+
+
 @dataclass
 class PolicyConfig:
     """Configuração do Policy Engine (editável via .env ou dashboard)."""
@@ -82,7 +102,7 @@ class PolicyConfig:
     medium_threshold: int = 2000
     long_threshold: int = 8000
     prefer_local: bool = True
-    allow_cloud: bool = bool(get_env("ANTHROPIC_API_KEY", ""))
+    allow_cloud: bool = field(default_factory=_cloud_allowed)
 
 
 # ── Detecção de tarefas sem LLM ─────────────────────────────────────────────
@@ -394,6 +414,15 @@ class PolicyEngine:
         """Verifica se o budget permite usar esse tier."""
         tokens_est = max(input_len // 4, 100)
         estimated_cost = COST_PER_1K.get(tier, 0.0) * (tokens_est / 1000)
+        # V18 QW3: teto POR CHAMADA (LILO_MAX_SINGLE_COST) -- o campo era lido
+        # no boot e nunca consultado. Chamada unica acima do teto degrada de
+        # tier mesmo com budget diario sobrando.
+        if estimated_cost > self.config.max_single_cost_usd:
+            log.info(
+                "budget: custo estimado $%.4f excede teto por chamada $%.2f "
+                "(tier %s barrado)", estimated_cost,
+                self.config.max_single_cost_usd, tier.value)
+            return False
         return (self._today_cost() + estimated_cost) <= self.config.daily_budget_usd
 
     def get_fallback(self, tier: ExecutionTier) -> ExecutionTier:

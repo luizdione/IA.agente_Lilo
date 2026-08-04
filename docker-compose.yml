@@ -116,7 +116,12 @@ services:
 
   # ── SciStudio — produção de divulgação científica (figuras, ilustração SVG,
   #    graphical abstracts, vídeos didáticos, pôster). Linkado no dashboard LILO. ──
+  # V18 QW7: atras do profile `scistudio` — o build context
+  # ./conteudo_digital/studio NAO esta neste repositorio (existe so na maquina
+  # de origem); sem o profile, `docker compose up -d --build` quebrava em
+  # qualquer checkout limpo. Para subir: docker compose --profile scistudio up -d
   scistudio:
+    profiles: ["scistudio"]
     build:
       context: ./conteudo_digital/studio
       dockerfile: Dockerfile

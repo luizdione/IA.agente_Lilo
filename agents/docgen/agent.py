@@ -194,8 +194,9 @@ class DocGenAgent(BaseAgent):
                 "Redija um relatorio em Markdown sobre:\n%s\n\n%s" % (
                     query, ("DADOS/CONTEXTO:\n" + ctx["data"]
                             if ctx.get("data") else "")),
-                system=sys_p, model=DOCGEN_MODEL, temperature=0.3,
-                max_tokens=4096)
+                # V18 QW2: loga divergencia policy->agente (modelo inalterado).
+                system=sys_p, model=self.resolve_model(ctx, DOCGEN_MODEL),
+                temperature=0.3, max_tokens=4096)
         except Exception as e:
             return "[docgen] LLM (%s) falhou: %s" % (DOCGEN_MODEL, e)
         docx_msg = self._md_to_docx(md, _out_path(name, "docx"))

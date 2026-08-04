@@ -41,8 +41,12 @@ def test_scaffold_rejects_invalid_name(smith):
 
 
 def test_scaffold_refuses_existing_agent(smith):
-    # 'paper' ja existe -> nao sobrescreve, nao escreve nada.
-    out = smith._scaffold("paper", "x", [], [])
+    # V18 QW1: usava 'paper', que NUNCA foi commitado (existe so na maquina de
+    # origem) -- em checkout limpo o teste nao so falhava como CRIAVA
+    # agents/paper/ de verdade (poluia o repo e fazia a suite do paper rodar
+    # contra o stub na rodada seguinte). 'gateway' esta versionado no repo,
+    # entao a guarda anti-sobrescrita e exercida em qualquer maquina.
+    out = smith._scaffold("gateway", "x", [], [])
     assert "ja existe" in out.lower()
 
 

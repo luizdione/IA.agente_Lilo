@@ -14,6 +14,16 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+# V18 QW1: agents/paper/ existe apenas na maquina de origem -- o diretorio
+# NUNCA foi commitado (git log -- agents/paper vazio), embora esteja registrado
+# em lilo.py/_KEYWORD_MAP e citado no README/docs. Em checkout limpo ou CI o
+# import da fixture estourava ERRO de coleta; pular a suite inteira e o
+# comportamento honesto ate o diretorio ser commitado (ver
+# docs/tecnico/analise_open_agent_studio.md, secao 4).
+pytest.importorskip(
+    "agents.paper.agent",
+    reason="agents/paper/ ausente neste checkout (nunca commitado)")
+
 
 @pytest.fixture()
 def paper():

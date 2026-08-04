@@ -488,6 +488,9 @@ class VillaLobosAgent(BaseAgent):
         # V15 FASE 2: estilo de resposta -> aplicado SO na saida (reporter) via
         # compose_system em _call_agent (nao nos estagios de raciocinio).
         self._cur_response_style = (context or {}).get("response_style")
+        # V18 QW2: decisao do Policy Engine (ate a V17 escrita em ctx['_model']
+        # e ignorada por todos) -> guardada p/ log de divergencia por stage.
+        self._cur_policy_model = (context or {}).get("_model")
 
         if allow_delegate:
             specialist = self._delegate_to_specialist(query, context)
@@ -1279,6 +1282,12 @@ class VillaLobosAgent(BaseAgent):
         if role in ("worker", "reader") and not getattr(
                 self, "_cur_code_intent", False):
             model = VILLA_WORKER_GENERAL_MODEL
+        # V18 QW2: observabilidade da divergencia policy->stage (sem mudar o
+        # modelo; enforcement fica para o catalogo de modelos, E1).
+        _pm = getattr(self, "_cur_policy_model", None)
+        if _pm and _pm != model:
+            log.debug("modelo: policy sugeriu %s; stage %s usara %s",
+                      _pm, role, model)
         effective_tier = tier or DEFAULT_STAGE_TIERS.get(role, "ollama")
         # V15 FASE 0/1/2: honestidade/seguranca/estilo via compose_system.
         # Orcamento de tokens: bloco COMPLETO so no 'reporter' (saida ao

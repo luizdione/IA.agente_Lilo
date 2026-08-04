@@ -57,6 +57,13 @@ Conclusão estratégica: **religar canais antes de construir salas novas.** ~60%
 
 ### H1 — Quick wins (dias; alto valor, baixo risco)
 
+> **Status: QW1–QW7 aplicados na V18 (2026-08-04)** — detalhes em
+> `docs/versoes/CHANGELOG.md` v12.5. Ressalvas: no QW1 o caminho executado foi
+> o plano B (importorskip + teste do skillsmith desacoplado do fantasma — que,
+> descobriu-se, **criava** `agents/paper/` em checkout limpo); commitar o
+> diretório real continua pendente na máquina de origem. QW2 está na fase 1
+> (log de divergência, sem enforcement — ver E1).
+
 | ID | O quê | Onde | Nota |
 |---|---|---|---|
 | QW1 | Resolver o `paper` fantasma: commitar o diretório da máquina Windows (preferido) **ou** desregistrar (`lilo.py:61`, tools MCP) + `pytest.importorskip` no teste | `agents/paper/`, `lilo.py`, `lilo_mcp.py`, `tests/test_paper_agent.py` | Recuperação de estado; risco zero |

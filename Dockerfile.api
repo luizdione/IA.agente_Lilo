@@ -1,6 +1,7 @@
 # Dockerfile.api — imagem do agente híbrido LILO (lilo_api.py)
 # V10.3 (2026-05-31). Build leve: só as deps de runtime da API + agentes.
-FROM python:3.11-slim
+# V18 QW7: 3.11 -> 3.13 (alinhado ao alvo do repo: pyproject target-version py313).
+FROM python:3.13-slim
 
 WORKDIR /app
 

@@ -133,6 +133,8 @@ class GatewayAgent(BaseAgent):
                     f"Pergunta conceitual em '{mode}' -> modelo leve: {model}")
             else:
                 self.log.info(f"Modelo selecionado para modo '{mode}': {model}")
+        # V18 QW2: observabilidade da divergencia policy->agente (sem mudar o modelo).
+        model = self.resolve_model(context, model)
 
         # V15 FASE 0/1/2: consome ctx['system_hint'] (antes IGNORADO -> canal
         # morto), injeta honestidade/seguranca e o eixo de estilo. Tudo via
