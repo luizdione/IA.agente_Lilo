@@ -28,6 +28,13 @@ o relatório compacto e devolve o plano.
   (12.4.0 → 12.6.0) e `LILO_CLOUD_GATE` fora do `.env.example`.
 - `tests/test_diagnostico.py` (smoke offline). Estado: 139/139,
   `scripts/check.py` == TUDO OK ==.
+- **Primeiro plano executado (dogfooding):** P2 de envs 20 → 1 — 17 vars
+  documentadas no `.env.example` em blocos temáticos (serviços/paths,
+  Scholar RAG, Villa retries/worker/fallback), `LILO_VERSION` morta removida,
+  `LILO_PAPER_MODEL` anotada (acoplada ao B-REG-AUSENTE do paper, que exige
+  commit na máquina de origem) e filtro de envs dinâmicas aplicado aos dois
+  lados do check C. Restam: P1=1 (paper) + P2=1 (var do paper), ambos
+  destraváveis só na máquina de origem.
 
 ## v12.6 — 2026-08-04 (V18.1: H2 parcial — E1 catálogo, E4 memória, E5 gate cloud)
 

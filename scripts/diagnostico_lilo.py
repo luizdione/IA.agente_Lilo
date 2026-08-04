@@ -188,7 +188,11 @@ def check_envs() -> None:
     nunca_lidas = sorted(
         v for v in documentadas - lidas
         if not v.startswith(DYNAMIC_ENV_PREFIXES))
-    nao_documentadas = sorted(lidas - documentadas)
+    # filtro dinamico tambem aqui: o literal "VILLA_TIER_" capturado do
+    # codigo ("VILLA_TIER_%s" % stage) nao e uma env de verdade.
+    nao_documentadas = sorted(
+        v for v in lidas - documentadas
+        if not v.startswith(DYNAMIC_ENV_PREFIXES))
     for v in nunca_lidas:
         add("P2", "envs", "C-DOC-MORTA",
             f"{v} esta no .env.example mas NENHUM codigo a le")
