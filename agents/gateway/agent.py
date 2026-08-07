@@ -42,7 +42,7 @@ class GatewayAgent(BaseAgent):
 
     Responsável por:
     - Servir como fallback quando nenhum subagente especializado é acionado
-    - Roteamento entre modelos (llama3, codellama, claude, etc.)
+    - Roteamento entre modelos (gemma3, qwen2.5-coder, claude, etc.)
     - Health check de todos os backends
     - Exposição do LiteLLM Proxy em localhost:4000
     """

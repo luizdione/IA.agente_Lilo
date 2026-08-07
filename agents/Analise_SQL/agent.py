@@ -1,8 +1,9 @@
 """
-Analise_SQL/agent.py — Adaptador LILO para o subagente de análise SQL.
+Analise_SQL/agent.py — Subagente de análise SQL (BaseAgent).
 
-Envolve sql_statistical_analyzer.py existente com a interface BaseAgent,
-expondo run() e get_tools() para o orquestrador lilo.py.
+GERA/explica SQL via LLM e sugere análises estatísticas; expõe run()/get_tools()
+para o orquestrador lilo.py. Não executa SQL do usuário contra um banco (sem risco
+de injeção — as strings são prompts, não queries executadas).
 """
 
 import sys

@@ -2,7 +2,35 @@
 
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
-> commits (atual: V21).
+> commits (atual: V22).
+
+## v13.1 — 2026-08-07 (V22: roteamento por custo + 2 auditorias) — commit `9c94834` (local)
+
+### Roteamento por custo (opt-in `LILO_COST_ROUTING`, default OFF)
+- Religa `shared/policy.py` (que estava órfã) ao funil único `shared/llm_client.py:_dispatch_chat`:
+  sem `tier` explícito, a Policy Engine escolhe o modelo pela **complexidade** da query
+  (trivial→`ollama_fast` … crítica→`claude_opus`). Barato tria, caro só no fino.
+- **Portão B**: respeita `server_profile.allow_cloud` — perfis `bio`/`cowork` (local-only) não
+  vazam para Claude via cost-routing mesmo com chave configurada. Ver `docs/PLANO_toolbox_...`.
+
+### Correções (auditoria, `docs/versoes/AUDITORIA_2026-08-06.md` + `_2`)
+- **Bug crítico:** `villa_lobos` não envenena mais o backend do singleton para `"mock"` num
+  `ModuleNotFoundError` local (degradava TODOS os agentes até restart).
+- **Bug de custo:** `villa_lobos` usa `effective_tier` na chamada real — antes o `tier` cru
+  (`None`) fazia todo stage do Villa usar Claude pago quando o Ollama caía, sem passar pelo gate.
+- `lilo_api`: `get_chat_memory`→`get_memory` (3 endpoints `/v1/sessions` caíam no except).
+- `cost_tracker`: `PRAGMA journal_mode=WAL`/`busy_timeout` (não perde telemetria sob concorrência).
+- Testes robustos ao clone público (`test_paper_agent` skipif, `test_routing_golden` threshold
+  relativo); `skillsmith` bloqueia nomes reservados de artigo antes do `exists()`.
+- Removidos: `villa_route` (redundante), `config.yaml.example` (órfão), 3 `requirements.txt`
+  órfãos, env vars vestigiais, e órfãos de código (`_safe_dict`, `PDFAgent.MODES`,
+  `scholaragent/chat/retriever.py` + `intro_draft_prompt` + `CROSSREF_EMAIL`).
+- Docs corrigidas: `lilo_models/SKILL.md` (fonte única em `shared/models.py`; parque Ollama
+  atualizado gemma3/qwen3/qwen2.5-coder) e `CLAUDE.md` (`run_shell` não usa allow-list de caminho).
+
+### Higiene de IP
+- Wrappers/schemas de artigo que a purga de julho deixou trackeados saíram do git
+  (`git rm --cached` + `.gitignore`); `registry.json` reduzido às 4 skills permitidas.
 
 ## v13.0 — 2026-07-25 (V18–V21: cérebro plan-and-execute, economia de tokens, release público)
 

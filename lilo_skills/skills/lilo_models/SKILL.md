@@ -24,15 +24,16 @@ from shared.llm_client import get_client, MODELS
 print(MODELS)
 ```
 
-## Modelos por subagente LILO
+## Modelos por subagente LILO (fonte: `shared/models.py` / `.env` — 2026-08)
 
-| Subagente | Modelo padrão | Alternativa |
-|-----------|--------------|-------------|
-| LILO Chat / Orchestrator | llama3.1:8b-instruct-q8_0 | llama3.2:3b |
-| Planner (Villa) | phi3:14b-medium-128k | mistral:7b |
-| Worker / Code | qwen2.5-coder:14b | codellama:13b |
-| SQL / Code | codellama | qwen2.5-coder:7b |
-| Scholar / Bio | llama3.1:8b | biomistral |
+| Papel | Modelo atual | Chave (`.env` / `_DEFAULTS`) |
+|-------|--------------|------------------------------|
+| Chat / Orchestrator / Reporter | gemma3:12b | `OLLAMA_MODEL` / `chat` |
+| Planner (Villa) | qwen3:14b | `OLLAMA_MODEL_PLAN` / `plan` |
+| Worker / Reader / Code | qwen2.5-coder:14b | `OLLAMA_MODEL_CODE` / `code` |
+| Triagem rápida (autocomplete) | qwen2.5-coder:7b-instruct | `OLLAMA_MODEL_FAST` / `autocomplete` |
+| Worker de conhecimento (nuvem) | gpt-oss:120b-cloud | `LILO_CLOUD_MODEL` |
+| Embed (RAG / router) | mxbai-embed-large (bge-m3 opcional) | `OLLAMA_MODEL_EMBED` / `embed` |
 
 ## Gerenciar modelos
 
@@ -50,15 +51,16 @@ ollama show <nome_modelo>
 ollama run <nome_modelo> "teste rápido"
 ```
 
-## Requisitos de VRAM (estimativa)
+## Requisitos de VRAM (estimativa, RTX 3060 12 GB)
 
-| Modelo | VRAM mín. | Uso típico |
-|--------|-----------|------------|
-| llama3.2:3b (q4) | 2 GB | Chat rápido |
-| llama3.1:8b (q8) | 8 GB | Chat geral |
-| qwen2.5-coder:14b | 12 GB | Código |
-| phi3:14b (q4) | 8 GB | Planejamento |
-| mistral:7b | 5 GB | Fallback geral |
+| Modelo | VRAM aprox. | Uso |
+|--------|-------------|-----|
+| qwen2.5-coder:7b-instruct | ~6 GB | Triagem rápida |
+| gemma3:12b | ~9 GB | Chat geral |
+| qwen3:14b | ~10 GB | Planejamento |
+| qwen2.5-coder:14b | ~10 GB | Código |
+| mxbai-embed-large | ~1 GB | Embeddings |
+| gpt-oss:120b-cloud | — (Ollama Cloud) | Worker de conhecimento |
 
 ## Trocar modelo de um subagente
 
