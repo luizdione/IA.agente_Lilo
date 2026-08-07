@@ -245,7 +245,9 @@ class StatsAgent:
     def _independent_ttest(self, arrays, alpha, base) -> StatsResult:
         a, b = arrays[0], arrays[1] if len(arrays) > 1 else arrays[0]
         stat, p = stats.ttest_ind(a, b)
-        d_cohen = (a.mean() - b.mean()) / np.sqrt((a.std()**2 + b.std()**2) / 2)
+        # guarda divisao por zero: grupos constantes (variancia 0) -> d=0 em vez de inf/nan
+        _pooled_sd = np.sqrt((a.std()**2 + b.std()**2) / 2)
+        d_cohen = (a.mean() - b.mean()) / _pooled_sd if _pooled_sd > 0 else 0.0
         diff = a.mean() - b.mean()
         se = np.sqrt(a.std()**2/len(a) + b.std()**2/len(b))
         df_val = len(a) + len(b) - 2
@@ -276,7 +278,8 @@ class StatsAgent:
     def _mann_whitney(self, arrays, alpha, base) -> StatsResult:
         a, b = arrays[0], arrays[1] if len(arrays) > 1 else arrays[0]
         stat, p = stats.mannwhitneyu(a, b, alternative="two-sided")
-        r = 1 - (2 * stat) / (len(a) * len(b))
+        _nn = len(a) * len(b)
+        r = 1 - (2 * stat) / _nn if _nn > 0 else 0.0
         return StatsResult(
             test_full_name="Mann-Whitney U test",
             statistic=float(stat), p_value=float(p),
@@ -323,7 +326,9 @@ class StatsAgent:
     def _kruskal_wallis(self, arrays, alpha, base) -> StatsResult:
         stat, p = stats.kruskal(*arrays)
         n_total = sum(len(a) for a in arrays)
-        epsilon_sq = (stat - len(arrays) + 1) / (n_total - len(arrays))
+        # guarda divisao por zero: n_total == nº de grupos (cada grupo com n=1)
+        _denom = n_total - len(arrays)
+        epsilon_sq = (stat - len(arrays) + 1) / _denom if _denom > 0 else 0.0
         return StatsResult(
             test_full_name="Kruskal-Wallis H test",
             statistic=float(stat), p_value=float(p),

@@ -2,9 +2,18 @@
 
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
-> commits (atual: V22).
+> commits (atual: V23).
 
-## v13.1 — 2026-08-07 (V22: roteamento por custo + 2 auditorias) — commit `9c94834` (local)
+## v13.2 — 2026-08-07 (V23: conclui as 3 pendências da 2ª auditoria)
+
+- **`route()` com erro explícito** quando um subagente é pedido por `tab` explícito mas não
+  está carregado (antes caía no `gateway` em silêncio; preserva o fallback do modo auto).
+- **Removidas** as features do `scholaragent` implementadas mas nunca conectadas
+  (`gap_detector`, `watcher`, `table_builder` + `gap_detection_prompt` e testes órfãos).
+- **Guardas de divisão por zero** em `prism_ai/stats_agent.py` (Cohen's d, Mann-Whitney,
+  Kruskal-Wallis): effect size 0 em vez de inf/nan quando os grupos são constantes/degenerados.
+
+## v13.1 — 2026-08-07 (V22: roteamento por custo + 2 auditorias) — commit `9c94834`
 
 ### Roteamento por custo (opt-in `LILO_COST_ROUTING`, default OFF)
 - Religa `shared/policy.py` (que estava órfã) ao funil único `shared/llm_client.py:_dispatch_chat`:

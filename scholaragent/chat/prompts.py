@@ -23,14 +23,3 @@ TRECHOS DA BIBLIOTECA:
 PERGUNTA: {question}
 
 RESPOSTA:"""
-
-
-def gap_detection_prompt(theme: str, papers_summary: str) -> str:
-    return f"""Analise os papers abaixo sobre o tema "{theme}".
-Identifique lacunas na literatura: o que ainda não foi estudado, contradições entre estudos,
-populações não cobertas, métodos ausentes ou perguntas em aberto. Cite os papers relevantes.
-
-PAPERS:
-{papers_summary}
-
-LACUNAS IDENTIFICADAS:"""

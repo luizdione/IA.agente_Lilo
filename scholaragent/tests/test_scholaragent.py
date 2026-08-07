@@ -12,7 +12,6 @@ from scholaragent.extractor.pdf_parser import extract_doi, ExtractedPaper
 from scholaragent.extractor.metadata_resolver import apply_heuristics
 from scholaragent.extractor.section_splitter import split_into_chunks
 from scholaragent.brain.classifier import cosine, ThemeClassifier
-from scholaragent.brain.gap_detector import GapDetector
 from scholaragent.chat.prompts import build_prompt
 from scholaragent.chat.rag_chain import ScholarRAG
 from scholaragent.verify.bridge import evidence_from_rag
@@ -90,29 +89,6 @@ def test_section_splitter_excludes_references():
 def test_cosine():
     assert cosine([1, 0, 0], [1, 0, 0]) == 1.0
     assert cosine([1, 0], [0, 1]) == 0.0
-
-
-def test_gap_detector():
-    class FakeEmb:
-        def embed_query(self, q):
-            return [0.1, 0.2]
-
-    class FakeStore:
-        def query(self, q, n_results=12, where=None):
-            return {"documents": [["estudo A sobre X", "estudo B sobre Y"]],
-                    "metadatas": [[{"authors": "Silva, J", "year": "2020", "title": "A", "paper_md5": "m1"},
-                                   {"authors": "Souza, M", "year": "2021", "title": "B", "paper_md5": "m2"}]]}
-
-    class EmptyStore:
-        def query(self, q, n_results=12, where=None):
-            return {"documents": [[]], "metadatas": [[]]}
-
-    gd = GapDetector(FakeStore(), FakeEmb(), llm_fn=lambda p: "GAP: falta X na populacao Y.")
-    out = gd.detect("tema teste")
-    assert "GAP" in out["gaps"] and len(out["refs"]) == 2
-
-    gd_empty = GapDetector(EmptyStore(), FakeEmb(), llm_fn=lambda p: "x")
-    assert gd_empty.detect("nada")["refs"] == []
 
 
 def test_classifier_picks_theme():

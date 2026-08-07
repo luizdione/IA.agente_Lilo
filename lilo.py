@@ -145,6 +145,16 @@ def route(query, tab=None, context=None):
     decision = policy.decide(query, context=ctx, subagent=detected or "gateway")
     log.info(f"Policy -> tier={decision.tier.value} | model={decision.model} | reason={decision.reason}")
 
+    # Subagente pedido EXPLICITAMENTE (tab) mas nao carregado (ex.: 'paper' e IP
+    # privado ausente num clone publico) -> erro claro, NAO cair no gateway em
+    # silencio (que devolveria chat generico sem o mecanismo do agente pedido).
+    # So vale p/ tab explicito; em modo auto o fallback p/ gateway e desejado.
+    # (auditoria 2026-08-06)
+    if route_method == "explicit" and detected and detected not in agents:
+        return ("[LILO] Subagente '%s' foi solicitado mas nao esta disponivel neste "
+                "ambiente (pode ser um pacote privado nao instalado). Use o modo auto "
+                "ou instale o pacote correspondente." % detected)
+
     # No-LLM: executar direto sem modelo
     if decision.tier == ExecutionTier.NO_LLM:
         ctx["_direct_query"] = True
