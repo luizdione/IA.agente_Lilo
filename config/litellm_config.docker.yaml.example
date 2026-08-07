@@ -4,14 +4,14 @@
 ## arquivo APENAS dentro de containers; para rodar local fora do Docker use
 ## config/litellm_config.yaml.
 model_list:
-  # === MODELOS LOCAIS (Ollama via rede do compose) ===
-  - model_name: llama3
+  # === MODELOS LOCAIS (Ollama via rede do compose) — parque atual (shared/models.py) ===
+  - model_name: chat
     litellm_params:
-      model: ollama/llama3.1:8b-instruct-q8_0
+      model: ollama/gemma3:12b
       api_base: http://ollama:11434
       stream: true
 
-  - model_name: codellama
+  - model_name: code
     litellm_params:
       model: ollama/qwen2.5-coder:14b
       api_base: http://ollama:11434
@@ -44,7 +44,7 @@ litellm_settings:
   request_timeout: 120
   num_retries: 2
   fallbacks:
-    - codellama: [llama3]
+    - code: [chat]
   cache: true
   cache_params:
     type: local

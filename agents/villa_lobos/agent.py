@@ -1395,7 +1395,7 @@ class VillaLobosAgent(BaseAgent):
                     log.info("    Retry em %.1fs...", RETRY_DELAY)
                     time.sleep(RETRY_DELAY)
         if result_text is None:
-            fallback_model = MODELS.get("chat", "llama3.1:8b-instruct-q8_0")
+            fallback_model = MODELS.get("chat", "gemma3:12b")
             if fallback_model != model and not _circuit_open and not _payload_error:
                 try:
                     log.info("    Fallback: %s -> %s", role, fallback_model)

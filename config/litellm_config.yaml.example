@@ -1,14 +1,14 @@
 model_list:
-  # === MODELOS LOCAIS GRATUITOS (Ollama) ===
-  - model_name: llama3
+  # === MODELOS LOCAIS GRATUITOS (Ollama) — parque atual (ver shared/models.py) ===
+  - model_name: chat
     litellm_params:
-      model: ollama/llama3
+      model: ollama/gemma3:12b
       api_base: http://localhost:11434
       stream: true
 
-  - model_name: codellama
+  - model_name: code
     litellm_params:
-      model: ollama/codellama
+      model: ollama/qwen2.5-coder:14b
       api_base: http://localhost:11434
       stream: true
 
@@ -44,9 +44,9 @@ litellm_settings:
   request_timeout: 120
   num_retries: 2
 
-  # Fallback: se codellama falhar, tenta llama3
+  # Fallback: se 'code' falhar, tenta 'chat'
   fallbacks:
-    - codellama: [llama3]
+    - code: [chat]
 
   # Cache para respostas (melhora performance)
   cache: true

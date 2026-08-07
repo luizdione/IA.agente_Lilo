@@ -16,10 +16,10 @@ python lilo.py "{{query}}"
 ```
 
 Modos disponíveis via gateway:
-- `chat` — conversa geral (llama3)
-- `code` — programação (codellama / qwen2.5-coder)
-- `bioinfo` — bioinformática e biologia molecular (llama3)
-- `sql` — queries e banco de dados (codellama)
+- `chat` — conversa geral (gemma3:12b)
+- `code` — programação (qwen2.5-coder:14b)
+- `bioinfo` — bioinformática e biologia molecular (gemma3:12b)
+- `sql` — queries e banco de dados (qwen2.5-coder:14b)
 
 ## Passos
 1. Identifique o modo adequado pela natureza da pergunta.

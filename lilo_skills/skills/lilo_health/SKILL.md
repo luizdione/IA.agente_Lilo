@@ -40,9 +40,9 @@ curl http://localhost:4000/health
 
 ```json
 {
-  "ollama": {"status": "ok", "models": ["llama3.1:8b", "qwen2.5-coder:14b"]},
+  "ollama": {"status": "ok", "models": ["gemma3:12b", "qwen2.5-coder:14b"]},
   "litellm": {"status": "ok"},
-  "litellm_models": {"status": "ok", "models": ["llama3", "codellama"]}
+  "litellm_models": {"status": "ok", "models": ["chat", "code"]}
 }
 ```
 
@@ -52,7 +52,7 @@ curl http://localhost:4000/health
 |----------|------------|---------|
 | Ollama offline | `ollama: {status: offline}` | Execute: `ollama serve` |
 | LiteLLM offline | `litellm: {status: offline}` | Execute: `.\lilo.ps1` ou `start.bat` |
-| Sem modelos | `models: []` | Execute: `ollama pull llama3.1:8b` |
+| Sem modelos | `models: []` | Execute: `ollama pull gemma3:12b` |
 | Timeout | Erros de conexão | Verifique firewall/VPN |
 
 ## Passos
@@ -64,8 +64,9 @@ curl http://localhost:4000/health
 
 ## Modelos recomendados
 ```bash
-ollama pull llama3.1:8b-instruct-q8_0   # chat + orchestrator
-ollama pull qwen2.5-coder:14b            # code + worker
-ollama pull phi3:14b-medium-128k-instruct-q4_K_M  # planner
-ollama pull codellama                    # SQL + código legado
+ollama pull gemma3:12b                    # chat + orchestrator + reporter
+ollama pull qwen2.5-coder:14b             # code + worker + reader
+ollama pull qwen3:14b                     # planner
+ollama pull qwen2.5-coder:7b-instruct     # triagem rápida (autocomplete)
+ollama pull mxbai-embed-large             # embeddings (RAG/router)
 ```
