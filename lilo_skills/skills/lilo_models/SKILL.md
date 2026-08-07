@@ -62,13 +62,21 @@ ollama run <nome_modelo> "teste rápido"
 
 ## Trocar modelo de um subagente
 
-Editar `shared/llm_client.py`:
+Fonte única: **`shared/models.py`** (`_DEFAULTS`) ou o `.env` (`OLLAMA_MODEL*`).
+Editar `MODELS` em `shared/llm_client.py` é **no-op** — hoje ele só re-exporta de
+`shared/models.py`, e os demais consumidores importam de lá.
+
+Pelo `.env` (não precisa editar código):
+```
+OLLAMA_MODEL=gemma3:12b            # chat
+OLLAMA_MODEL_CODE=qwen2.5-coder:14b
+OLLAMA_MODEL_PLAN=qwen3:14b
+OLLAMA_MODEL_FAST=qwen2.5-coder:7b-instruct
+```
+Ou em `shared/models.py`:
 ```python
-MODELS = {
-    "chat": "llama3.1:8b-instruct-q8_0",   # ← alterar aqui
-    "code": "qwen2.5-coder:14b",
-    "plan": "phi3:14b-medium-128k-instruct-q4_K_M",
-}
+_DEFAULTS = {"chat": "gemma3:12b", "code": "qwen2.5-coder:14b",
+             "plan": "qwen3:14b", "autocomplete": "qwen2.5-coder:7b-instruct"}
 ```
 
 ## Passos

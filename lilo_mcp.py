@@ -1220,32 +1220,9 @@ def _stderr_log(msg: str) -> None:
 
 
 # =============================================================================
-# V10 (2026-05-30) -- villa_route: roteamento puro (sem executar pipeline)
-# =============================================================================
-
-@_profile_tool
-def villa_route(task: str, allow_delegate: bool = True) -> str:
-    """Retorna APENAS a decisao de roteamento do Villa_Lobos.
-
-    Util quando o cliente quer saber se a tarefa seria delegada a um
-    especialista (PRISM/SQL/PDF/Scholar) ou rodaria o pipeline completo,
-    SEM gastar chamadas LLM dos stages de Worker/Reporter.
-
-    Args:
-        task: Tarefa em linguagem natural.
-        allow_delegate: Se True, considera delegacao a especialista.
-    """
-    _ensure_lilo()
-    try:
-        from agents.villa_lobos.agent import VillaLobosAgent
-        v = VillaLobosAgent()
-        info = v.explain_routing(task, allow_delegate=allow_delegate)
-        import json as _json
-        return _json.dumps(info, indent=2, ensure_ascii=False, default=str)
-    except Exception as e:
-        return "[LILO] Erro villa_route: %s" % e
-
-
+# villa_route REMOVIDA (auditoria 2026-08-06): era redundante com
+# villa_explain_routing (ambas so chamavam VillaLobosAgent.explain_routing).
+# Use villa_explain_routing. Removida tambem de config/profiles.yaml.
 # =============================================================================
 # Entry point
 # =============================================================================

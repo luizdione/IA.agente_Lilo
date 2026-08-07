@@ -46,5 +46,8 @@ docs/              uso/, tecnico/, versoes/CHANGELOG.md
 - **Idioma:** PT-BR.
 - **Não duplicar subagentes** — vivem só em `agents/`.
 - **Após editar profiles/tools:** reinicie o cliente MCP (a lista de tools é cacheada por sessão).
-- **Segurança fs/shell:** `fs_*`/`run_shell` respeitam a allow-list `LILO_DESKTOP_ALLOW`.
+- **Segurança fs/shell:** `fs_*` respeitam a allow-list de caminhos `LILO_DESKTOP_ALLOW`.
+  `run_shell` NÃO valida a allow-list contra o comando — só o `cwd`; é protegido por
+  blocklist de padrões perigosos (`_is_cmd_dangerous`) + gate de `exec_mode`
+  (`ask`/`plan`/`auto`). Em `auto` (default) não há confirmação — ver README/segurança.
 - Mudanças de modelo/budget vêm do `.env` (ver tabela no `README.md`).

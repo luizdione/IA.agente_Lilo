@@ -26,6 +26,3 @@ RERANKER_MODEL = os.environ.get("SCHOLAR_RERANKER_MODEL", "cross-encoder/mmarco-
 # do Lilo (este pacote vive em <lilo>/scholaragent/), independente do CWD. ---
 _LILO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BRAIN_DIR = os.environ.get("SCHOLAR_BRAIN_DIR", os.path.join(_LILO_ROOT, "data", "scholar_brain"))
-
-# --- CrossRef polite pool ---
-CROSSREF_EMAIL = os.environ.get("CROSSREF_EMAIL", "")

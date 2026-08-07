@@ -41,9 +41,18 @@ def test_scaffold_rejects_invalid_name(smith):
 
 
 def test_scaffold_refuses_existing_agent(smith):
-    # 'paper' ja existe -> nao sobrescreve, nao escreve nada.
-    out = smith._scaffold("paper", "x", [], [])
+    # 'gateway' e um agente publico que existe em disco -> nao sobrescreve.
+    # (Antes usava 'paper', mas 'paper' agora e bloqueado por nome reservado
+    # ANTES do check de exists() -> nao exercitava este guard. auditoria 2026-08-06)
+    out = smith._scaffold("gateway", "x", [], [])
     assert "ja existe" in out.lower()
+
+
+def test_scaffold_refuses_reserved_name(smith):
+    # Nomes de artigo sao IP privado fora do git -> bloqueados por lista, mesmo
+    # num clone publico onde a pasta nao existe em disco. (auditoria 2026-08-06)
+    out = smith._scaffold("paper", "x", [], [])
+    assert "reservado" in out.lower()
 
 
 def test_tools_exposed(smith):

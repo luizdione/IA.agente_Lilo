@@ -93,6 +93,15 @@ class CostTracker:
     def _init_db(self):
         try:
             with sqlite3.connect(str(self.db_path)) as conn:
+                # WAL persiste no arquivo do banco (setado 1x, vale p/ todas as
+                # conexoes seguintes): reduz "database is locked" quando varias
+                # stages/requests gravam telemetria em paralelo. (auditoria 2026-08-06)
+                try:
+                    conn.execute("PRAGMA journal_mode=WAL")
+                    conn.execute("PRAGMA synchronous=NORMAL")
+                    conn.execute("PRAGMA busy_timeout=5000")
+                except Exception:
+                    pass
                 conn.execute("""
                     CREATE TABLE IF NOT EXISTS requests (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,

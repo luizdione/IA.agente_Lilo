@@ -1,6 +1,6 @@
 {
   "generated_at": "2026-04-27 23:25:37",
-  "total_skills": 9,
+  "total_skills": 4,
   "by_complexity": {},
   "by_package": {},
   "skills": [
@@ -53,71 +53,6 @@
       "tags": [
         "ported",
         "graphpad_prism"
-      ],
-      "n_params": 3
-    },
-    {
-      "name": "bibref",
-      "module": "",
-      "schema": "bibref.json",
-      "source_package": "claude_skill:biblioteca_ref",
-      "qualified_name": "bibref",
-      "complexity": "med",
-      "tags": [
-        "ported",
-        "biblioteca_ref"
-      ],
-      "n_params": 3
-    },
-    {
-      "name": "git_check_clean",
-      "module": "",
-      "schema": "git_check_clean.json",
-      "source_package": "claude_skill:git_dione",
-      "qualified_name": "git_check_clean",
-      "complexity": "med",
-      "tags": [
-        "ported",
-        "git_dione"
-      ],
-      "n_params": 3
-    },
-    {
-      "name": "git_sync",
-      "module": "",
-      "schema": "git_sync.json",
-      "source_package": "claude_skill:git_dione",
-      "qualified_name": "git_sync",
-      "complexity": "med",
-      "tags": [
-        "ported",
-        "git_dione"
-      ],
-      "n_params": 3
-    },
-    {
-      "name": "montar_raw_data",
-      "module": "",
-      "schema": "montar_raw_data.json",
-      "source_package": "claude_skill:montagem_resultados",
-      "qualified_name": "montar_raw_data",
-      "complexity": "med",
-      "tags": [
-        "ported",
-        "montagem_resultados"
-      ],
-      "n_params": 3
-    },
-    {
-      "name": "check_integrity",
-      "module": "",
-      "schema": "check_integrity.json",
-      "source_package": "claude_skill:derobotizar_artigo",
-      "qualified_name": "check_integrity",
-      "complexity": "med",
-      "tags": [
-        "ported",
-        "derobotizar_artigo"
       ],
       "n_params": 3
     }

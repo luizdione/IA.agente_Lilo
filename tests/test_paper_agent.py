@@ -17,6 +17,10 @@ sys.path.insert(0, str(ROOT))
 
 @pytest.fixture()
 def paper():
+    # O agente 'paper' e IP privado, fora do git (ver .gitignore). Num clone
+    # publico agents/paper/ nao existe -> pula em vez de ERRAR o setup. (auditoria 2026-08-06)
+    if not (ROOT / "agents" / "paper" / "agent.py").exists():
+        pytest.skip("agente 'paper' ausente (IP privado, nao versionado)")
     from agents.paper.agent import PaperAgent
     return PaperAgent()
 

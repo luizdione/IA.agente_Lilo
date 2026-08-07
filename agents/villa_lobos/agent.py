@@ -1346,11 +1346,16 @@ class VillaLobosAgent(BaseAgent):
         for attempt in range(1, effective_retries + 1):
             try:
                 log.info("    %s (%s, tier=%s, temp=%.2f) tentativa %d/%d",
-                         role, model, tier or "auto", _temp, attempt, effective_retries)
+                         role, model, effective_tier, _temp, attempt, effective_retries)
+                # CORRECAO (auditoria 2026-08-06): passar effective_tier (nao o `tier`
+                # cru, quase sempre None). Com None, o dispatch caia em self.backend e,
+                # se Ollama estava fora + havia ANTHROPIC_API_KEY, TODO stage do Villa
+                # usava Claude pago SEM passar pelo gate de custo. Com effective_tier
+                # (ollama_*), forca o local; a nuvem so via o fallback gated (abaixo).
                 result = self.client.chat(
                     prompt=prompt, system=system, model=model,
                     temperature=_temp,
-                    max_tokens=4096, tier=tier,
+                    max_tokens=4096, tier=effective_tier,
                 )
                 if result and not result.startswith("[MOCK]"):
                     result_text = result
@@ -1363,10 +1368,10 @@ class VillaLobosAgent(BaseAgent):
                 log.warning("    %s ModuleNotFoundError: %s -- abrindo circuito",
                             role, e)
                 _circuit_open = True
-                try:
-                    self.client._backend = "mock"
-                except Exception:
-                    pass
+                # NAO mutar self.client._backend (singleton do processo inteiro):
+                # isso envenenava TODOS os agentes para "mock" ate o restart. O
+                # circuito LOCAL (_circuit_open) ja impede reintento neste stage.
+                # (auditoria 2026-08-06)
                 break
             except Exception as e:
                 last_error = str(e)

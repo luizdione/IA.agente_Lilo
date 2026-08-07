@@ -55,13 +55,6 @@ class PDFAgent(BaseAgent):
     local_only = True
     latency_class = "medium"
 
-    # Modos de sumarização herdados do scholaragent/app.py
-    MODES = {
-        "simple":       "resumo geral objetivo-métodos-resultados-conclusão",
-        "introduction": "texto analítico para suportar redação de Introdução científica",
-        "methods":      "extração estruturada de Métodos e protocolos",
-    }
-
     # ── Interface BaseAgent ──────────────────────────────────────────────────
 
     def run(self, query: str, context: dict[str, Any] = {}) -> str:

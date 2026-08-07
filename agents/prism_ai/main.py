@@ -9,7 +9,6 @@ Integra-se ao orquestrador LILO como 5º subagente.
 
 from pathlib import Path
 from typing import Any, Optional
-from dataclasses import asdict, is_dataclass
 
 import sys
 _ROOT = Path(__file__).resolve().parents[2]
@@ -19,18 +18,6 @@ from shared.base_agent import BaseAgent
 from shared.logger import get_logger
 
 log = get_logger("PrismAgent")
-
-
-def _safe_dict(obj):
-    """Converte dataclass para dict, removendo campos não-serializáveis."""
-    if is_dataclass(obj) and not isinstance(obj, type):
-        d = {}
-        for k, v in asdict(obj).items():
-            if k == "df":
-                continue  # pular DataFrames
-            d[k] = v
-        return d
-    return obj
 
 
 class PrismAgent(BaseAgent):

@@ -125,10 +125,20 @@ class SkillSmithAgent(BaseAgent):
             log.warning("propose falhou: %s", e)
             return {}
 
+    # Nomes reservados: agentes/skills de redacao-auditoria de ARTIGO sao IP
+    # privado FORA do git. Num clone publico a pasta nao existe em disco, entao o
+    # check exists() abaixo nao basta -> pedir "paper" escreveria o stub no slot do
+    # pacote privado. Bloqueio por lista de nomes. (auditoria 2026-08-06)
+    _RESERVADOS = {"paper", "build_paper", "auditoria_paper", "biblioteca_ref",
+                   "git_dione", "montagem_resultados", "check_integrity", "derobotizar"}
+
     def _scaffold(self, name, description, keywords, tools) -> str:
         if not self._valid_name(name):
             return ("[skillsmith] nome invalido: '%s'. Use snake_case "
                     "(a-z, 0-9, _), iniciando por letra." % name)
+        if name in self._RESERVADOS:
+            return ("[skillsmith] nome reservado: '%s' pertence a um pacote privado "
+                    "(IP fora do git) — escolha outro nome." % name)
         agent_dir = _ROOT / "agents" / name
         if agent_dir.exists():
             return "[skillsmith] ja existe agents/%s/ — escolha outro nome." % name

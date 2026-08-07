@@ -43,25 +43,33 @@ def _caps():
     return {n: a.capabilities() for n, a in agents.items()}
 
 
-def _accuracy(mode: str) -> int:
+def _eval(mode: str):
+    """(acertos, total) sobre o golden, contando SÓ queries cujo agente-alvo está
+    carregado. Num clone público o agente 'paper' é IP privado ausente -> as 2
+    queries de paper saem da conta em vez de derrubar o teste. (auditoria 2026-08-06)"""
     os.environ["LILO_ROUTER"] = mode
     from shared import router
     router._EMBED_CACHE.clear()
     caps = _caps()
     avail = set(caps)
-    return sum(
+    golden = [(q, exp) for q, exp in GOLDEN if exp in avail]
+    acertos = sum(
         router.route_query(q, caps, available=avail).target == exp
-        for q, exp in GOLDEN
+        for q, exp in golden
     )
+    return acertos, len(golden)
 
 
 def test_keyword_routing_nao_regride():
-    # Baseline 15/18; exigimos >=14 (margem de 1) para pegar regressão de assinatura.
-    assert _accuracy("keyword") >= 14
+    # Baseline 15/18: tolera até 4 erros. Threshold RELATIVO ao nº de agentes
+    # presentes -> robusto tanto no ambiente completo quanto no clone público.
+    acertos, total = _eval("keyword")
+    assert acertos >= total - 4, f"keyword {acertos}/{total} (regressão de assinatura?)"
 
 
 @pytest.mark.skipif(not os.getenv("LILO_TEST_EMBED"),
                     reason="modo embed precisa do modelo; ligue com LILO_TEST_EMBED=1")
 def test_embed_routing_nao_regride():
     os.environ.setdefault("LILO_ROUTER_THRESHOLD", "0.35")
-    assert _accuracy("embed") >= 13
+    acertos, total = _eval("embed")
+    assert acertos >= total - 5, f"embed {acertos}/{total}"

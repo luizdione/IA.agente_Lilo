@@ -128,3 +128,17 @@ lilo_skills/skills/check_integrity/
 lilo_skills/skills/biblioteca_ref/
 lilo_skills/skills/git_dione/
 lilo_skills/skills/montagem_resultados/
+lilo_skills/skills/auditoria_paper/
+# Wrappers flat + schemas das skills de artigo. A purga anterior tirou as PASTAS
+# de codigo-fonte (acima), mas estes residuos ficaram trackeados; limpos em 2026-08-06
+# (git rm --cached; ficam no disco, fora do git).
+lilo_skills/skills/bibref.py
+lilo_skills/skills/check_integrity.py
+lilo_skills/skills/git_check_clean.py
+lilo_skills/skills/git_sync.py
+lilo_skills/skills/montar_raw_data.py
+lilo_skills/schemas/bibref.json
+lilo_skills/schemas/check_integrity.json
+lilo_skills/schemas/git_check_clean.json
+lilo_skills/schemas/git_sync.json
+lilo_skills/schemas/montar_raw_data.json

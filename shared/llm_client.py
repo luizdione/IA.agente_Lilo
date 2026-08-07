@@ -153,9 +153,48 @@ class LLMClient:
                 raise
         raise last_exc  # pragma: no cover (loop sempre retorna ou levanta)
 
+    def _route_by_cost(self, prompt, model):
+        """Religa a Policy Engine (shared/policy.py) ao funil: decide o tier pela
+        COMPLEXIDADE da query (barato tria, caro so no fino). Devolve (tier_str, model).
+        Falha-segura: qualquer erro -> (None, model) = comportamento padrao.
+        So e chamado quando LILO_COST_ROUTING esta ligado e nenhum tier veio explicito."""
+        try:
+            from .policy import get_policy_engine
+            d = get_policy_engine().decide(prompt)
+            t = d.tier.value
+            if t == "no_llm":
+                t = "ollama_fast"  # dentro de chat() o minimo real e o modelo local mais barato
+            if t.startswith("ollama"):
+                log.info("cost-routing: %s -> %s (%s)", d.reason, t, d.model)
+                return "ollama", (d.model or model)
+            if t.startswith("claude_"):
+                # Portao B (auditoria 2026-08-06): o perfil de ambiente pode VETAR
+                # nuvem (bio/cowork = local-only) mesmo com chave configurada. A
+                # policy propoe; o profile veta -> rebaixa p/ o local mais pesado.
+                try:
+                    from .server_profile import get_profile_policy
+                    if not get_profile_policy().get("allow_cloud", True):
+                        from .models import MODELS
+                        log.info("cost-routing: %s -> %s VETADO pelo perfil (local-only) -> ollama_heavy",
+                                 d.reason, t)
+                        return "ollama", MODELS.get("code", model)
+                except Exception:
+                    pass
+            log.info("cost-routing: %s -> %s", d.reason, t)
+            return t, model  # claude_sonnet / claude_opus
+        except Exception as e:  # noqa: BLE001
+            log.debug("cost-routing falhou (%s); mantem comportamento padrao", e)
+            return None, model
+
     def _dispatch_chat(self, prompt, system, model, temperature,
                        max_tokens, tier, cot):
         """Despacho para o backend (sem retry). Veja chat()."""
+        # V18: roteamento por custo OPT-IN. Sem tier explicito e com
+        # LILO_COST_ROUTING ligado, a Policy Engine escolhe o tier pela
+        # complexidade da query. Default OFF -> fluxo antigo 100% intacto.
+        if tier is None and get_env("LILO_COST_ROUTING", "").strip().lower() in ("1", "true", "yes", "on"):
+            tier, model = self._route_by_cost(prompt, model)
+
         # Roteamento por tier (Policy Engine)
         # Atualizado 2026-05-07 -- Claude 4.5/4.6 (configuravel via .env).
         if tier and tier.startswith("claude_"):

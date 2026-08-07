@@ -34,22 +34,3 @@ PAPERS:
 {papers_summary}
 
 LACUNAS IDENTIFICADAS:"""
-
-
-def intro_draft_prompt(topic: str, chunks: list[str], metas: list[dict]) -> str:
-    context = "\n\n".join(f"[{i+1}] {c}" for i, c in enumerate(chunks))
-    refs = "\n".join(
-        f"[{i+1}] {m.get('authors','').split(';')[0]} et al., {m.get('year','')}. {m.get('title','')}"
-        for i, m in enumerate(metas)
-    )
-    return f"""Escreva um parágrafo de introdução científica sobre: "{topic}".
-Use APENAS as referências fornecidas. Cite pelo número [1], [2], etc.
-Estilo: científico formal, terceira pessoa.
-
-CONTEXTO:
-{context}
-
-REFERÊNCIAS DISPONÍVEIS:
-{refs}
-
-INTRODUÇÃO:"""

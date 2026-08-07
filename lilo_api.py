@@ -1052,8 +1052,8 @@ def list_sessions(limit: int = 20, project_id: Optional[str] = None,
     """Lista sessoes de chat multi-turno (titulo, subagente, timestamps)."""
     _check_auth(authorization, token)
     try:
-        from shared.chat_memory import get_chat_memory
-        cm = get_chat_memory()
+        from shared.chat_memory import get_memory
+        cm = get_memory()
     except Exception:
         from shared.chat_memory import ChatMemory
         cm = ChatMemory()
@@ -1071,8 +1071,8 @@ def get_session(session_id: str,
     """Retorna historico (turnos user/assistant) de uma sessao."""
     _check_auth(authorization, token)
     try:
-        from shared.chat_memory import get_chat_memory
-        cm = get_chat_memory()
+        from shared.chat_memory import get_memory
+        cm = get_memory()
     except Exception:
         from shared.chat_memory import ChatMemory
         cm = ChatMemory()
@@ -1090,8 +1090,8 @@ def delete_session(session_id: str,
     """Apaga uma sessao e suas mensagens (reset de memoria multi-turno)."""
     _check_auth(authorization, token)
     try:
-        from shared.chat_memory import get_chat_memory
-        cm = get_chat_memory()
+        from shared.chat_memory import get_memory
+        cm = get_memory()
     except Exception:
         from shared.chat_memory import ChatMemory
         cm = ChatMemory()

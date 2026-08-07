@@ -34,8 +34,15 @@ SKILLS_DIR = LILO_SKILLS / "skills"
 SCHEMAS_DIR = LILO_SKILLS / "schemas"
 REGISTRY = LILO_SKILLS / "registry.json"
 
-# Spec das 6 skills de ALTA portabilidade (script relativo à skill -> nome da
-# tool no LILO). dest = pasta destino em skills/ (default: a própria chave).
+# Spec das skills de ALTA portabilidade que PODEM ir ao git (script relativo à
+# skill -> nome da tool no LILO). dest = pasta destino em skills/ (default: a chave).
+#
+# REGRA DE IP (2026-08-06): skills de redacao/AUDITORIA de ARTIGO (build_paper,
+# auditoria_paper, biblioteca_ref, git_dione, montagem_resultados, check_integrity)
+# NAO entram aqui — sao IP privado, fora do git (ver .gitignore). Para importa-las
+# LOCALMENTE (sem versionar), use a flag --script:
+#   python import_claude_skill.py biblioteca_ref --script scripts/bibref.py:bibref
+# So skills NAO-artigo ficam no PORT_SPEC versionado.
 PORT_SPEC: dict[str, dict] = {
     "perfil_dados": {"src": "perfil_dados",
                      "scripts": {"scripts/perfil.py": "perfil_dados"}},
@@ -43,16 +50,6 @@ PORT_SPEC: dict[str, dict] = {
         "scripts/prism_extract.py": "gpp_extract",
         "scripts/prism_reanalyze.py": "gpp_reanalyze",
         "scripts/emf_convert.py": "gpp_emf"}},
-    "biblioteca_ref": {"src": "biblioteca_ref",
-                       "scripts": {"scripts/bibref.py": "bibref"}},
-    "git_dione": {"src": "git_dione", "scripts": {
-        "check_clean.py": "git_check_clean",
-        "git_dione_sync.py": "git_sync"}},
-    "montagem_resultados": {"src": "montagem_resultados",
-                            "scripts": {"scripts/montar_raw_data.py": "montar_raw_data"}},
-    # asset isolado dentro de derobotizar_artigo (gate de integridade P2)
-    "check_integrity": {"src": "derobotizar_artigo",
-                        "scripts": {"assets/check_integrity.py": "check_integrity"}},
 }
 
 _WRAPPER_TMPL = '''"""Skill portada de ~/.claude/skills/{src} (NAO modifica a origem).
@@ -163,7 +160,7 @@ def import_skill(key: str, spec: dict, dry_run: bool = False) -> list[str]:
 def main():
     ap = argparse.ArgumentParser(description="Importa skill do Claude para o LILO (sem tocar na origem).")
     ap.add_argument("slug", nargs="?", help="slug da skill (ou omita com --all)")
-    ap.add_argument("--all", action="store_true", help="importa as 6 skills ALTA conhecidas")
+    ap.add_argument("--all", action="store_true", help="importa as skills NAO-artigo do PORT_SPEC")
     ap.add_argument("--script", action="append", default=[],
                     help="relpath.py:tool (para skills fora do PORT_SPEC)")
     ap.add_argument("--dry-run", action="store_true")
