@@ -73,7 +73,7 @@ _PROFILE_TOOLS = {
         "lilo_memory_set", "lilo_memory_get", "lilo_memory_list",
         "lilo_memory_delete", "lilo_cost_today", "lilo_cost_recent",
         # v10.3 -- memoria avancada
-        "lilo_memory_search", "lilo_memory_semantic_search",
+        "lilo_memory_search", "lilo_memory_semantic_search", "lilo_recall",
         "lilo_memory_stats", "lilo_memory_export",
         "lilo_memory_cleanup",
         # Ollama model manager (util ao trocar de maquina)
@@ -96,7 +96,7 @@ _PROFILE_TOOLS = {
         "fs_read", "fs_list", "fs_stat", "fs_search",
         # memoria persistente para acumular notas de pesquisa
         "lilo_memory_set", "lilo_memory_get", "lilo_memory_list",
-        "lilo_memory_search", "lilo_memory_semantic_search",
+        "lilo_memory_search", "lilo_memory_semantic_search", "lilo_recall",
         "lilo_memory_stats", "lilo_memory_export",
         # ollama
         "lilo_pull_model", "lilo_list_local_models",
@@ -123,7 +123,7 @@ _PROFILE_TOOLS = {
         "run_python", "run_shell",
         # Memoria persistente entre sessoes
         "lilo_memory_set", "lilo_memory_get", "lilo_memory_list",
-        "lilo_memory_search", "lilo_memory_semantic_search",
+        "lilo_memory_search", "lilo_memory_semantic_search", "lilo_recall",
         # Pesquisa biomedica estruturada (vs web_search bruto)
         "lilo_scholar",
         # RAG na biblioteca local de PDFs ja ingerida (+ gate factual)
@@ -158,7 +158,7 @@ _PROFILE_TOOLS = {
         "lilo_pdf",
         # Memoria persistente entre sessoes (KV SQLite)
         "lilo_memory_set", "lilo_memory_get", "lilo_memory_list",
-        "lilo_memory_search", "lilo_memory_semantic_search",
+        "lilo_memory_search", "lilo_memory_semantic_search", "lilo_recall",
         "lilo_memory_stats", "lilo_memory_export",
         "lilo_memory_delete", "lilo_memory_cleanup",
         # Cost tracking (visivel para o usuario)
@@ -942,6 +942,25 @@ def lilo_memory_search(query: str, namespace: str = "", limit: int = 50) -> str:
     from lilo import handle_tool_call
     return handle_tool_call("lilo_memory_search", {
         "query": query, "namespace": namespace, "limit": limit,
+    })
+
+
+@_profile_tool
+def lilo_recall(query: str, project_id: str = "", limit: int = 5) -> str:
+    """Recall UNIFICADO da memoria (V18.4 E3): combina KV semantico
+    (user/default/projeto, com score), notas do projeto (notes.md) e chats
+    anteriores que batem com a query. Use como primeiro passo de "o que o
+    LILO ja sabe sobre X?" antes de pesquisar do zero.
+
+    Args:
+        query: Pergunta/termo em linguagem natural.
+        project_id: Opcional — inclui ns project_<id> e o notes.md.
+        limit: 1-20 por fonte (default 5).
+    """
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("lilo_recall", {
+        "query": query, "project_id": project_id, "limit": limit,
     })
 
 

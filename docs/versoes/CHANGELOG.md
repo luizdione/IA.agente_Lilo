@@ -4,6 +4,30 @@
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
 > commits (atual: V18).
 
+## v12.9 — 2026-08-04 (V18.4: E3 — memory_facade + lilo_recall + smart context)
+
+ROADMAP itens A + C entregues sobre o E2 (a fachada nasce semântica).
+Aditivo e default-safe; 149/149 testes.
+
+- **`shared/memory_facade.py`** (item A): ponto único de consulta de memória.
+  `get_relevant_context(query, project_id, k, owner_verified)` monta bloco
+  compacto combinando KV semântico (user gated por voz + project_<id>) e
+  notes.md, marcado como DADO (anti prompt-injection, política V15 intacta);
+  `recall()` gera o relatório unificado (KV com score + notes.md + chats que
+  batem via `search_chats`).
+- **Inject de `lilo.route` migrado p/ a fachada**: o bloco manual de memória
+  do dono (LIKE) vira chamada única — agora SEMÂNTICO com fallback textual,
+  mesma política de gate por voz.
+- **Tool MCP `lilo_recall`** (query, project_id, limit) nos 6 perfis com
+  memória + handler em `lilo.py` — "o que o LILO já sabe sobre X?" em uma
+  chamada.
+- **Smart context do Reader do Villa** (item C): antes de varrer arquivos, o
+  Reader recebe "MEMORIA JA CONHECIDA (não redescubra)" via fachada (k=3,
+  600 chars, dados-não-instruções). Kill-switch `LILO_SMART_CONTEXT=0`.
+- Testes: `tests/shared/test_memory_facade.py` (4, offline: gate de voz,
+  notes por projeto, recall combinado, handler MCP).
+- H2 restante: E6 (cliente MCP), E7 (workflow dev), E8 (split dashboard).
+
 ## v12.8 — 2026-08-04 (V18.3: E2 — busca semântica na memória KV)
 
 ROADMAP item D entregue (validado pela análise Open Agent Studio como o
