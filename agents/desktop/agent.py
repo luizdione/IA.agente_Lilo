@@ -387,6 +387,36 @@ class DesktopAgent(BaseAgent):
                              ctx.get("regex", False))
         return f"[DesktopAgent] op desconhecida: {op}"
 
+    # V18.5 (bugfix): metodos-delegadores para as funcoes de modulo. O
+    # Explorer do Villa no dashboard chama _desktop.fs_list/fs_read/fs_write
+    # como METODOS (AttributeError: 'DesktopAgent' object has no attribute
+    # 'fs_list'); expor delegadores conserta sem duplicar logica e mantem a
+    # allow-list/gates (as funcoes de modulo ja os aplicam). Assinaturas
+    # identicas as funcoes -> chamadas por posicao ou keyword funcionam.
+    def fs_read(self, path, max_bytes=200_000):
+        return fs_read(path, max_bytes)
+
+    def fs_write(self, path, content, append=False):
+        return fs_write(path, content, append)
+
+    def fs_list(self, path, glob="*", recursive=False, limit=200):
+        return fs_list(path, glob, recursive, limit)
+
+    def fs_stat(self, path):
+        return fs_stat(path)
+
+    def fs_search(self, root, pattern, regex=False, limit=50):
+        return fs_search(root, pattern, regex, limit)
+
+    def fs_move(self, src, dst):
+        return fs_move(src, dst)
+
+    def run_shell(self, cmd, cwd=None, timeout=60):
+        return run_shell(cmd, cwd, timeout)
+
+    def run_python(self, code, timeout=60):
+        return run_python(code, timeout)
+
     def get_tools(self) -> list[dict]:
         return [
             {

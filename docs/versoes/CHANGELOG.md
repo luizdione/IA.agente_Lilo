@@ -4,6 +4,18 @@
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
 > commits (atual: V18).
 
+## v12.10 — 2026-08-04 (V18.5: bugfix — crash do Explorer de projeto do Villa)
+
+- **`DesktopAgent` sem métodos `fs_*`** (P0 de runtime, reportado pela UI):
+  `dashboard._render_villa_project_explorer` chama `_desktop.fs_list(...)`,
+  `.fs_read(...)`, `.fs_write(...)` como MÉTODOS, mas eram só funções de
+  módulo → `AttributeError: 'DesktopAgent' object has no attribute 'fs_list'`
+  a cada abertura da página Desktop/Explorer. Adicionados delegadores finos
+  (`fs_read/fs_write/fs_list/fs_stat/fs_search/fs_move/run_shell/run_python`)
+  com assinaturas idênticas — a allow-list e os gates continuam nas funções
+  de módulo, zero lógica duplicada. `tests/test_desktop_methods.py` cobre a
+  regressão (a chamada exata do Explorer). 150/150.
+
 ## v12.9 — 2026-08-04 (V18.4: E3 — memory_facade + lilo_recall + smart context)
 
 ROADMAP itens A + C entregues sobre o E2 (a fachada nasce semântica).
