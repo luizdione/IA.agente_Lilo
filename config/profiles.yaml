@@ -67,6 +67,15 @@ profiles:
       - lilo_memory_cleanup
       - lilo_pull_model
       - lilo_list_local_models
+      # V18.6 E6: cliente MCP (consumir servidores externos)
+      - mcp_list_servers
+      - mcp_list_tools
+      - mcp_call
+      # V18.7 E7: tools git dedicadas + workflow dev opt-in
+      - git_status
+      - git_diff
+      - git_commit
+      - dev_workflow
       - fs_batch_read
       - fs_codemod
       - grep_and_read
@@ -271,6 +280,15 @@ profiles:
       - lilo_cost_recent
       - lilo_pull_model
       - lilo_list_local_models
+      # V18.6 E6: cliente MCP (consumir servidores externos)
+      - mcp_list_servers
+      - mcp_list_tools
+      - mcp_call
+      # V18.7 E7: tools git dedicadas + workflow dev opt-in
+      - git_status
+      - git_diff
+      - git_commit
+      - dev_workflow
       - lilo_health
       - lilo_models
       - villa_route  # V10: novo endpoint de roteamento puro

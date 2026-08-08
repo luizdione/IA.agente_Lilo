@@ -104,9 +104,17 @@ def check_codigo(fast: bool) -> None:
 
 def check_fiacao() -> None:
     lilo_src = _read(ROOT / "lilo.py")
-    # Registro de agentes: tuplas ("nome", "modulo", "Classe")
+    # Registro de agentes: tuplas ("nome", "modulo.path", "Classe") DENTRO do
+    # bloco _AGENT_REGISTRY = [ ... ]. Escopar ao bloco evita casar tuplas de
+    # 3 strings que aparecem em outros lugares (ex.: `if tool in ("a","b","c")`
+    # nos handlers) -- falso-positivo pego pelo proprio diagnostico na V18.7.
+    m_reg = re.search(r"_AGENT_REGISTRY\s*=\s*\[(.*?)\]", lilo_src, re.DOTALL)
+    reg_src = m_reg.group(1) if m_reg else ""
+    # o modulo tem ponto (agents.x.y); a classe termina em 'Agent' -> ancoras
+    # que distinguem um registro de agente de uma tupla qualquer.
     reg = re.findall(
-        r'\(\s*"(\w+)"\s*,\s*"([\w.]+)"\s*,\s*"(\w+)"\s*\)', lilo_src)
+        r'\(\s*"(\w+)"\s*,\s*"([\w.]+\.[\w.]+)"\s*,\s*"(\w+Agent)"\s*\)',
+        reg_src)
     nomes_registrados = set()
     for nome, modulo, classe in reg:
         nomes_registrados.add(nome)

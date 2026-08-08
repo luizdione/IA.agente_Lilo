@@ -4,6 +4,44 @@
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
 > commits (atual: V18).
 
+## v12.11 — 2026-08-04 (V18.6/18.7: E6 cliente MCP + E7 workflow dev + git tools)
+
+Fecha os itens H2 restantes do roadmap (menos E8, refactor visual). Aditivo
+e default-safe; 171/171 testes.
+
+**E6 — cliente MCP (LILO deixa de ser só servidor):**
+- `shared/mcp_client.py`: consome servidores MCP EXTERNOS via stdio.
+  Allow-list DUPLA em `config/mcp/clients.yaml` (só servidores habilitados +
+  tools permitidas por servidor). Import de `mcp` LAZY e offline-safe (pacote
+  ausente/servidor offline → mensagem de erro, nunca crash); `_run_async` em
+  thread dedicada (sync-callable até de dentro do FastAPI); timeout por
+  chamada. **Sem injeção dinâmica** das tools externas no servidor do LILO —
+  acesso só pela ponte `mcp_call(server, tool, args)`.
+- Tools MCP `mcp_list_servers`/`mcp_list_tools`/`mcp_call` nos perfis
+  `pycharm`, `claude_code` e `desktop`. `config/mcp/clients.yaml` com
+  exemplos (filesystem/fetch/github) desligados.
+
+**E7 — tools git dedicadas + workflow dev opt-in:**
+- `shared/git_tools.py`: `git_status`/`git_diff` (somente leitura) e
+  `git_commit` (gate `git_write`; a chamada explícita da tool autoriza —
+  padrão git_dione — exceto no modo `plan`, onde defere).
+- `shared/dev_workflow.py`: `run_dev_workflow()` encadeia
+  testa→commita→documenta→memoriza, OPT-IN por `LILO_DEV_WORKFLOW=1`; aborta
+  se os testes falham (não commita vermelho), atualiza `notes.md` e registra
+  no KV (`ns=lilo_dev_workflow`). Runner de teste injetável.
+- Tools MCP `git_status`/`git_diff`/`git_commit`/`dev_workflow` nos perfis
+  `pycharm` e `claude_code`.
+
+**Bugfix incluído (v12.10):** métodos `fs_*` do `DesktopAgent` (crash do
+Explorer). **Dogfooding:** o `/diagnostico_lilo` acusou 2 falsos-positivos de
+`B-REG` (handlers `if tool in ("a","b","c")` casavam o padrão de registro de
+agente) — o check foi escopado ao bloco `_AGENT_REGISTRY` com âncoras
+(módulo com ponto + classe `*Agent`).
+- Testes: `test_mcp_client.py` (7), `test_git_dev_workflow.py` (7). Estado:
+  171/171, `scripts/check.py` == TUDO OK ==, diagnóstico P0=0 | P1=1 (paper).
+- H2 restante: só **E8** (split do dashboard — refactor visual, melhor com o
+  usuário acompanhando).
+
 ## v12.10 — 2026-08-04 (V18.5: bugfix — crash do Explorer de projeto do Villa)
 
 - **`DesktopAgent` sem métodos `fs_*`** (P0 de runtime, reportado pela UI):

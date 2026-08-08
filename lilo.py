@@ -486,6 +486,71 @@ def list_all_tools():
             },
         },
         {
+            "name": "git_status",
+            "description": "Estado da arvore git (branch + arquivos modificados). Somente leitura. (V18.7 E7)",
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "git_diff",
+            "description": "Diff da arvore git (ou staged com staged=true). Somente leitura, truncado. (V18.7 E7)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"staged": {"type": "boolean", "default": False}},
+            },
+        },
+        {
+            "name": "git_commit",
+            "description": "Cria um commit (gate git_write; a chamada explicita autoriza, salvo modo plan). add_all=true por padrao. (V18.7 E7)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string"},
+                    "add_all": {"type": "boolean", "default": True},
+                },
+                "required": ["message"],
+            },
+        },
+        {
+            "name": "dev_workflow",
+            "description": "Fluxo dev opt-in (LILO_DEV_WORKFLOW=1): testa -> commita -> documenta -> memoriza. Aborta se testes vermelhos. (V18.7 E7)",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string"},
+                    "test_target": {"type": "string", "default": ""},
+                    "project_id": {"type": "string", "default": ""},
+                },
+                "required": ["message"],
+            },
+        },
+        {
+            "name": "mcp_list_servers",
+            "description": "Lista servidores MCP externos declarados em config/mcp/clients.yaml e seu estado (V18.6 E6). Nao conecta em nada.",
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "mcp_list_tools",
+            "description": "Lista as tools reais de um servidor MCP externo (conecta uma vez). Sujeito a allow-list.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"server": {"type": "string"}},
+                "required": ["server"],
+            },
+        },
+        {
+            "name": "mcp_call",
+            "description": "Ponte p/ chamar uma tool de um servidor MCP EXTERNO (V18.6 E6). Allow-list dupla (servidor+tool) em config/mcp/clients.yaml.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "server": {"type": "string"},
+                    "tool": {"type": "string"},
+                    "args": {"type": "object"},
+                },
+                "required": ["server", "tool"],
+            },
+        },
+        {
             "name": "lilo_recall",
             "description": "Recall unificado da memoria (V18.4 E3): KV semantico (user/default/projeto) + notes.md + chats que batem com a query.",
             "inputSchema": {
@@ -728,6 +793,62 @@ def handle_tool_call(tool_name, arguments):
             return "OK -- removido" if ok else f"[nao encontrado] {ns}/{key}"
         except Exception as e:
             return f"[LILO] Erro lilo_memory_delete: {e}"
+
+    if tool_name in ("git_status", "git_diff", "git_commit"):
+        try:
+            from shared import git_tools
+            if tool_name == "git_status":
+                return git_tools.git_status()
+            if tool_name == "git_diff":
+                return git_tools.git_diff(staged=bool(arguments.get("staged")))
+            msg = arguments.get("message", "")
+            if not msg:
+                return "[LILO] git_commit: 'message' obrigatorio"
+            return git_tools.git_commit(
+                msg, add_all=bool(arguments.get("add_all", True)))
+        except Exception as e:
+            return f"[LILO] Erro {tool_name}: {e}"
+
+    if tool_name == "dev_workflow":
+        try:
+            from shared.dev_workflow import run_dev_workflow
+            msg = arguments.get("message", "")
+            if not msg:
+                return "[LILO] dev_workflow: 'message' obrigatorio"
+            return run_dev_workflow(
+                msg, test_target=arguments.get("test_target", ""),
+                project_id=arguments.get("project_id", ""))
+        except Exception as e:
+            return f"[LILO] Erro dev_workflow: {e}"
+
+    if tool_name in ("mcp_list_servers", "mcp_list_tools", "mcp_call"):
+        try:
+            from shared import mcp_client
+            if tool_name == "mcp_list_servers":
+                import json as _j
+                servers = mcp_client.list_servers()
+                if not servers:
+                    return ("[mcp] nenhum servidor externo declarado "
+                            "(config/mcp/clients.yaml). Ver E6.")
+                return _j.dumps(servers, ensure_ascii=False, indent=1)
+            server = arguments.get("server", "")
+            if not server:
+                return "[LILO] %s: 'server' obrigatorio" % tool_name
+            if tool_name == "mcp_list_tools":
+                return mcp_client.list_tools(server)
+            tool = arguments.get("tool", "")
+            if not tool:
+                return "[LILO] mcp_call: 'tool' obrigatorio"
+            args = arguments.get("args", {}) or {}
+            if isinstance(args, str):
+                import json as _j
+                try:
+                    args = _j.loads(args)
+                except Exception:
+                    args = {}
+            return mcp_client.call_tool(server, tool, args)
+        except Exception as e:
+            return f"[LILO] Erro {tool_name}: {e}"
 
     if tool_name == "lilo_recall":
         try:
