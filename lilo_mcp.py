@@ -73,7 +73,8 @@ _PROFILE_TOOLS = {
         "lilo_memory_set", "lilo_memory_get", "lilo_memory_list",
         "lilo_memory_delete", "lilo_cost_today", "lilo_cost_recent",
         # v10.3 -- memoria avancada
-        "lilo_memory_search", "lilo_memory_stats", "lilo_memory_export",
+        "lilo_memory_search", "lilo_memory_semantic_search",
+        "lilo_memory_stats", "lilo_memory_export",
         "lilo_memory_cleanup",
         # Ollama model manager (util ao trocar de maquina)
         "lilo_pull_model", "lilo_list_local_models",
@@ -95,7 +96,8 @@ _PROFILE_TOOLS = {
         "fs_read", "fs_list", "fs_stat", "fs_search",
         # memoria persistente para acumular notas de pesquisa
         "lilo_memory_set", "lilo_memory_get", "lilo_memory_list",
-        "lilo_memory_search", "lilo_memory_stats", "lilo_memory_export",
+        "lilo_memory_search", "lilo_memory_semantic_search",
+        "lilo_memory_stats", "lilo_memory_export",
         # ollama
         "lilo_pull_model", "lilo_list_local_models",
         "lilo_cost_today", "lilo_cost_recent",
@@ -121,7 +123,7 @@ _PROFILE_TOOLS = {
         "run_python", "run_shell",
         # Memoria persistente entre sessoes
         "lilo_memory_set", "lilo_memory_get", "lilo_memory_list",
-        "lilo_memory_search",
+        "lilo_memory_search", "lilo_memory_semantic_search",
         # Pesquisa biomedica estruturada (vs web_search bruto)
         "lilo_scholar",
         # RAG na biblioteca local de PDFs ja ingerida (+ gate factual)
@@ -156,7 +158,8 @@ _PROFILE_TOOLS = {
         "lilo_pdf",
         # Memoria persistente entre sessoes (KV SQLite)
         "lilo_memory_set", "lilo_memory_get", "lilo_memory_list",
-        "lilo_memory_search", "lilo_memory_stats", "lilo_memory_export",
+        "lilo_memory_search", "lilo_memory_semantic_search",
+        "lilo_memory_stats", "lilo_memory_export",
         "lilo_memory_delete", "lilo_memory_cleanup",
         # Cost tracking (visivel para o usuario)
         "lilo_cost_today", "lilo_cost_recent",
@@ -938,6 +941,25 @@ def lilo_memory_search(query: str, namespace: str = "", limit: int = 50) -> str:
     _ensure_lilo()
     from lilo import handle_tool_call
     return handle_tool_call("lilo_memory_search", {
+        "query": query, "namespace": namespace, "limit": limit,
+    })
+
+
+@_profile_tool
+def lilo_memory_semantic_search(query: str, namespace: str = "",
+                                limit: int = 5) -> str:
+    """Busca SEMANTICA na memoria (embeddings locais via Ollama; V18.3 E2).
+    Encontra por SIGNIFICADO, nao por substring — use para "o que eu sei
+    sobre X". Sem Ollama/embeddings degrada sozinha para busca textual.
+
+    Args:
+        query: Pergunta/termo em linguagem natural.
+        namespace: Filtrar (vazio = todos).
+        limit: 1-50 (default 5).
+    """
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("lilo_memory_semantic_search", {
         "query": query, "namespace": namespace, "limit": limit,
     })
 

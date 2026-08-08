@@ -60,6 +60,7 @@ profiles:
       - lilo_cost_today
       - lilo_cost_recent
       - lilo_memory_search
+      - lilo_memory_semantic_search
       - lilo_memory_stats
       - lilo_memory_export
       - lilo_memory_cleanup
@@ -99,6 +100,7 @@ profiles:
       - lilo_memory_get
       - lilo_memory_list
       - lilo_memory_search
+      - lilo_memory_semantic_search
       - lilo_scholar
       - prism_analyze
       - prism_classify
@@ -151,6 +153,7 @@ profiles:
       - lilo_memory_get
       - lilo_memory_list
       - lilo_memory_search
+      - lilo_memory_semantic_search
       - lilo_memory_stats
       - lilo_memory_export
       - lilo_pull_model
@@ -203,6 +206,7 @@ profiles:
       - lilo_memory_get
       - lilo_memory_list
       - lilo_memory_search
+      - lilo_memory_semantic_search
       - lilo_memory_stats
       - lilo_memory_export
       - lilo_pull_model
@@ -253,6 +257,7 @@ profiles:
       - lilo_memory_get
       - lilo_memory_list
       - lilo_memory_search
+      - lilo_memory_semantic_search
       - lilo_memory_stats
       - lilo_memory_export
       - lilo_memory_delete

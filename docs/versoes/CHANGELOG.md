@@ -4,6 +4,32 @@
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
 > commits (atual: V18).
 
+## v12.8 — 2026-08-04 (V18.3: E2 — busca semântica na memória KV)
+
+ROADMAP item D entregue (validado pela análise Open Agent Studio como o
+degrau de memória de maior impacto). Aditivo e default-safe; 145/145 testes.
+
+- **Schema v3**: coluna `kv.embedding BLOB` via migração incremental
+  (`_ensure_column`, retrocompatível com bancos v2 existentes).
+- **Embedding na escrita**: `set()` embeda `key: value` via Ollama
+  `/api/embed` com `OLLAMA_MODEL_EMBED` (mxbai, já default). Offline/falha
+  NUNCA quebra a escrita (linha fica sem vetor). `LILO_KV_EMBED=0` desliga;
+  timeout `LILO_KV_EMBED_TIMEOUT` (4s). Embedder injetável p/ testes.
+- **`search_semantic(query, ns, limit, min_score)`**: cosseno em numpy sobre
+  SQLite (sem ChromaDB aqui, de propósito — Chroma fica no scholaragent);
+  fallback TRANSPARENTE p/ busca textual quando não há embeddings (itens
+  marcados `match: semantic|like_fallback`); dimensões divergentes (troca de
+  modelo de embed) são puladas com segurança.
+- **`backfill_embeddings(ns, limit)`**: embeda entradas antigas em lote,
+  abortando no primeiro sinal de offline (não paga N timeouts).
+- **Tool MCP `lilo_memory_semantic_search`** exposta nos 6 perfis que têm
+  memória (pycharm, bio, cowork, claude_desktop, claude_code, desktop);
+  handler em `lilo.py` com score por item. `stats()` ganha `with_embedding`.
+- Testes: `tests/shared/test_kv_semantic.py` (6, offline com embedder fake:
+  ranking, fallback, backfill, migração v2→v3, stats, handler MCP).
+- Próximo degrau: E3 (`memory_facade` + `lilo_recall` + smart context do
+  Reader), que nasce já semântico sobre este E2.
+
 ## v12.7 — 2026-08-04 (V18.2: skill /diagnostico_lilo — auditoria com 0 tokens)
 
 Skill de diagnóstico para desenvolvimento/correções gastando o mínimo de tokens:

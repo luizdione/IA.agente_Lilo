@@ -491,6 +491,19 @@ def list_all_tools():
             },
         },
         {
+            "name": "lilo_memory_semantic_search",
+            "description": "Busca SEMANTICA na memoria (embeddings locais; V18.3 E2). Encontra por significado; sem Ollama degrada p/ busca textual.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "namespace": {"type": "string", "default": ""},
+                    "limit": {"type": "integer", "default": 5, "maximum": 50},
+                },
+                "required": ["query"],
+            },
+        },
+        {
             "name": "lilo_memory_search",
             "description": "Busca textual (substring case-insensitive) em key, value e tags da memoria.",
             "inputSchema": {
@@ -707,6 +720,34 @@ def handle_tool_call(tool_name, arguments):
             return "OK -- removido" if ok else f"[nao encontrado] {ns}/{key}"
         except Exception as e:
             return f"[LILO] Erro lilo_memory_delete: {e}"
+
+    if tool_name == "lilo_memory_semantic_search":
+        try:
+            from shared.kv_memory import get_memory
+            import json as _j
+            query = arguments.get("query", "")
+            if not query:
+                return "[LILO] lilo_memory_semantic_search: 'query' obrigatorio"
+            ns = arguments.get("namespace", "") or None
+            limit = max(1, min(int(arguments.get("limit", 5)), 50))
+            rows = get_memory().search_semantic(query, ns=ns, limit=limit)
+            if not rows:
+                return f"[semantica] sem matches para {query!r}"
+            fallback = rows[0].get("match") == "like_fallback"
+            cab = ("[semantica (fallback textual: embeddings indisponiveis)]"
+                   if fallback else "[semantica]")
+            lines = ["%s %d match(es) para %r:" % (cab, len(rows), query)]
+            for r in rows:
+                v = r["value"]
+                if not isinstance(v, str):
+                    v = _j.dumps(v, ensure_ascii=False, default=str)
+                if len(v) > 80:
+                    v = v[:77] + "..."
+                score = ("score %.2f" % r["score"]) if "score" in r else "-"
+                lines.append("- [%s/%s] (%s) %s" % (r["ns"], r["key"], score, v))
+            return "\n".join(lines)
+        except Exception as e:
+            return f"[LILO] Erro lilo_memory_semantic_search: {e}"
 
     if tool_name == "lilo_memory_search":
         try:

@@ -76,11 +76,13 @@ Conclusão estratégica: **religar canais antes de construir salas novas.** ~60%
 
 ### H2 — Estruturais (semanas)
 
-> **Status (V18.1, 2026-08-04):** E1 (catálogo de modelos + tier
+> **Status (V18.3, 2026-08-04):** E1 (catálogo de modelos + tier
 > `OLLAMA_CLOUD` + telemetria; enforcement e validação de boot pendentes),
-> E4 (leitura de CLAUDE.md/TASKS.md/docs//prompts/; refresh por mtime
-> pendente) e E5 (gate `cloud_send`; scrubber de segredos pendente)
-> aplicados — ver CHANGELOG v12.6. Pendentes: E2, E3, E6, E7, E8.
+> E2 (busca semântica no KV: schema v3, embed no set(), `search_semantic`
+> com fallback, backfill, tool `lilo_memory_semantic_search` — CHANGELOG
+> v12.8), E4 (leitura de CLAUDE.md/TASKS.md/docs//prompts/; refresh por
+> mtime pendente) e E5 (gate `cloud_send`; scrubber pendente) aplicados.
+> Pendentes: E3 (próximo — nasce sobre o E2), E6, E7, E8.
 
 - **E1. Catálogo de modelos + roteamento centralizado de verdade.** Novo `shared/model_catalog.py`: `{provider, context_tokens, capabilities: [code|reasoning|general], latency_class, cost_per_1k}` por modelo, validado no boot contra `list_models()` (`llm_client.py:190-201`, hoje não alimenta nada). Policy ganha tier `OLLAMA_CLOUD` (modela os `gpt-oss:*-cloud`, hoje invisíveis ao budget), estimativa de contexto em tokens e uso do `latency_class` que os agentes já declaram. Completa o QW2 (enforcement) e absorve o item L do ROADMAP (multi-LLM por estágio do Villa).
 - **E2. Embeddings semânticos no KV** (= ROADMAP item D). Coluna `embedding BLOB` em `shared/kv_memory.py`, embed via Ollama `MODELS["embed"]` (mxbai já configurado), `search_semantic()` com cosine em numpy, tool `lilo_memory_semantic_search`. **Não** trazer ChromaDB para o KV — SQLite+numpy basta na escala de memória pessoal; Chroma fica no scholaragent.

@@ -45,7 +45,34 @@ from .utils import PROJECT_ROOT, get_env
 log = get_logger("KVMemory")
 
 # Schema atual. Bump quando adicionar/remover colunas.
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3  # v3 (V18.3 E2): coluna kv.embedding BLOB
+
+# V18.3 (E2, ROADMAP item D): embeddings semanticos opcionais, computados no
+# set() via Ollama /api/embed com o modelo de OLLAMA_MODEL_EMBED (mxbai ja e
+# o default do .env). Falha/offline NUNCA quebra a escrita: a linha fica sem
+# embedding e a busca semantica degrada para LIKE. Sem ChromaDB aqui de
+# proposito -- SQLite+numpy basta na escala de memoria pessoal (Chroma fica
+# no scholaragent). Desligue com LILO_KV_EMBED=0.
+EMBED_ENABLED = str(get_env("LILO_KV_EMBED", "1")).strip().lower() not in (
+    "0", "false", "off")
+EMBED_TIMEOUT = float(get_env("LILO_KV_EMBED_TIMEOUT", "4.0"))
+
+
+def _ollama_embed(text: str) -> Optional[list]:
+    """Vetor de embedding via Ollama /api/embed; None quando indisponivel."""
+    try:
+        import requests
+        from .llm_client import MODELS, OLLAMA_URL
+        r = requests.post(
+            OLLAMA_URL + "/api/embed",
+            json={"model": MODELS["embed"], "input": str(text)[:2000]},
+            timeout=EMBED_TIMEOUT)
+        r.raise_for_status()
+        embs = r.json().get("embeddings") or []
+        return embs[0] if embs else None
+    except Exception as e:
+        log.debug("embed indisponivel: %s", e)
+        return None
 
 
 def _default_db_path() -> Path:
@@ -75,6 +102,9 @@ class KVMemory:
     def __init__(self, db_path: Optional[Path] = None):
         self.db_path = Path(db_path) if db_path else DB_PATH
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        # V18.3 E2: embedder injetavel (testes/offline). None = _ollama_embed
+        # quando LILO_KV_EMBED=1; callable text -> list[float] | None.
+        self.embedder = None
         self._maybe_migrate_legacy()
         self._init_db()
 
@@ -153,6 +183,7 @@ class KVMemory:
         # ANTES de criar indices que dependem delas (fix v10.4).
         self._ensure_column("expires_at", "TEXT")
         self._ensure_column("tags", "TEXT")
+        self._ensure_column("embedding", "BLOB")  # V18.3 E2 (schema v3)
         # Etapa 3: agora e seguro criar indices das colunas migraveis.
         with self._connect() as conn:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_kv_expires ON kv(expires_at)")
@@ -193,16 +224,22 @@ class KVMemory:
             (now + timedelta(seconds=int(ttl_seconds))).isoformat()
             if ttl_seconds and ttl_seconds > 0 else None
         )
+        # V18.3 E2: embedding computado na escrita (chave da signal ao vetor).
+        # None (offline/desligado) sobrescreve embedding antigo de proposito:
+        # o valor mudou, manter o vetor velho retornaria matches errados.
+        emb = self._embed_blob(f"{key}: {value}")
         with self._connect() as conn:
             conn.execute(
-                """INSERT INTO kv (ns, key, value, tags, created_at, updated_at, expires_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                """INSERT INTO kv (ns, key, value, tags, created_at, updated_at, expires_at, embedding)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(ns, key) DO UPDATE SET
                      value=excluded.value,
                      tags=excluded.tags,
                      updated_at=excluded.updated_at,
-                     expires_at=excluded.expires_at""",
-                (ns, key, value, tags, now.isoformat(), now.isoformat(), expires),
+                     expires_at=excluded.expires_at,
+                     embedding=excluded.embedding""",
+                (ns, key, value, tags, now.isoformat(), now.isoformat(),
+                 expires, emb),
             )
             conn.commit()
         log.info("KV set %s/%s (%d chars%s)",
@@ -309,6 +346,108 @@ class KVMemory:
             })
         return out
 
+    # ---- busca semantica (V18.3 E2, ROADMAP item D) ------------------------
+
+    def _embed_blob(self, text: str) -> Optional[bytes]:
+        """bytes float32 do embedding do texto, ou None (offline/desligado)."""
+        fn = self.embedder or (_ollama_embed if EMBED_ENABLED else None)
+        if fn is None:
+            return None
+        try:
+            vec = fn(text)
+            if not vec:
+                return None
+            import numpy as np
+            return np.asarray(vec, dtype=np.float32).tobytes()
+        except Exception as e:
+            log.debug("embed falhou: %s", e)
+            return None
+
+    def search_semantic(
+        self,
+        query: str,
+        ns: Optional[str] = None,
+        limit: int = 5,
+        min_score: float = 0.25,
+    ) -> list[dict]:
+        """Busca por SIGNIFICADO (cosseno sobre embeddings locais).
+
+        Fallback transparente: sem embedder/Ollama, ou sem nenhuma linha
+        com embedding acima de min_score, degrada para search() textual —
+        cada item sai com "match": "semantic" (+ "score") ou "like_fallback".
+        """
+        qb = self._embed_blob(query)
+        if qb is None:
+            out = self.search(query, ns=ns, limit=limit)
+            for o in out:
+                o["match"] = "like_fallback"
+            return out
+        import numpy as np
+        qv = np.frombuffer(qb, dtype=np.float32)
+        qn = qv / (np.linalg.norm(qv) or 1.0)
+        sql = ("SELECT ns, key, value, tags, updated_at, embedding FROM kv "
+               "WHERE embedding IS NOT NULL")
+        params: list[Any] = []
+        if ns:
+            sql += " AND ns=?"
+            params.append(ns)
+        sql += " AND (expires_at IS NULL OR expires_at > ?)"
+        params.append(datetime.now().isoformat())
+        with self._connect() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        scored: list[dict] = []
+        for ns_, k, v, t, u, blob in rows:
+            try:
+                ev = np.frombuffer(blob, dtype=np.float32)
+                if ev.shape != qv.shape:
+                    continue  # dimensao diferente (troca de modelo de embed)
+                score = float(np.dot(qn, ev / (np.linalg.norm(ev) or 1.0)))
+            except Exception:
+                continue
+            if score < min_score:
+                continue
+            try:
+                v_parsed = json.loads(v)
+            except Exception:
+                v_parsed = v
+            scored.append({
+                "ns": ns_, "key": k, "value": v_parsed, "tags": t,
+                "updated_at": u, "score": round(score, 4),
+                "match": "semantic",
+            })
+        if not scored:
+            out = self.search(query, ns=ns, limit=limit)
+            for o in out:
+                o["match"] = "like_fallback"
+            return out
+        scored.sort(key=lambda x: -x["score"])
+        return scored[:limit]
+
+    def backfill_embeddings(self, ns: Optional[str] = None,
+                            limit: int = 200) -> dict:
+        """Embeda em lote entradas antigas sem embedding. Aborta no primeiro
+        None (embedder offline) para nao pagar N timeouts em vao."""
+        sql = "SELECT ns, key, value FROM kv WHERE embedding IS NULL"
+        params: list[Any] = []
+        if ns:
+            sql += " AND ns=?"
+            params.append(ns)
+        sql += " LIMIT ?"
+        params.append(int(limit))
+        with self._connect() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        ok = 0
+        for ns_, k, v in rows:
+            blob = self._embed_blob(f"{k}: {v}")
+            if blob is None:
+                break
+            with self._connect() as conn:
+                conn.execute("UPDATE kv SET embedding=? WHERE ns=? AND key=?",
+                             (blob, ns_, k))
+                conn.commit()
+            ok += 1
+        return {"embedded": ok, "pendentes": len(rows) - ok}
+
     # ---- manutencao ---------------------------------------------------------
 
     def cleanup_expired(self) -> int:
@@ -343,10 +482,14 @@ class KVMemory:
                 "SELECT COUNT(*) FROM kv WHERE expires_at IS NOT NULL AND expires_at <= ?",
                 (now,),
             ).fetchone()[0]
+            with_emb = conn.execute(
+                "SELECT COUNT(*) FROM kv WHERE embedding IS NOT NULL"
+            ).fetchone()[0]
         return {
             "total": total,
             "by_namespace": by_ns,
             "expired": expired,
+            "with_embedding": with_emb,
             "db_path": str(self.db_path),
             "db_size_bytes": (
                 self.db_path.stat().st_size if self.db_path.exists() else 0
