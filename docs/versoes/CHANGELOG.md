@@ -4,6 +4,40 @@
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
 > commits (atual: V18).
 
+## v12.12 — 2026-08-09 (V18.8: E8 — redesign visual do dashboard, estilo Claude)
+
+Fecha o ÚLTIMO item H2 do roadmap da análise Open Agent Studio (E1–E8
+completos). Só camada visual/UX — nenhuma função removida; fluxo de chat
+(slash skills, `_resend_text`, confirmações, PARAR) idêntico.
+
+**Tema claro/escuro com botão no topo:**
+- A paleta clara já vivia em variáveis CSS (`:root`, `--lilo-*`) no
+  `dashboard_styles.py`; o novo `THEME_DARK_CSS` só REDEFINE as mesmas
+  variáveis (fundos #1F1E1D/#262624/#30302E, texto claro quente, coral
+  mantido) e é injetado DEPOIS do `GLOBAL_CSS` quando
+  `st.session_state.theme == "dark"` — vence por cascata, tema inteiro troca
+  de uma vez. Botão lua/sol na barra superior alterna e faz `st.rerun()`.
+- `WELCOME_CSS`/`HISTORICO_CSS` tinham cores fixas da paleta clara; foram
+  convertidas para `var(--lilo-*, fallback)` — o escuro vale também na tela
+  de boas-vindas e no histórico. Blocos de código (`.main pre`) escurecidos
+  no override.
+
+**Sidebar recolhível com botão «/»:**
+- `initial_sidebar_state` deixou de ser fixo: vem de
+  `st.session_state.sidebar_state`, alternado pelo botão «/» da barra
+  superior (+ `st.rerun()`). O chevron nativo do Streamlit segue funcionando;
+  o botão é um atalho sempre visível.
+
+**Caixa de mensagem ACIMA das demais caixas (estilo Claude):**
+- O `st.chat_input` nativo é sempre ancorado no rodapé pelo Streamlit e não
+  pode subir. Substituído por composer no TOPO da página Chat: `st.form`
+  (`clear_on_submit`) + `st.text_area` estilizado como cartão + botão
+  Enviar (Ctrl+Enter também envia). Modo de execução, anexos (+) e microfone
+  ficam ABAIXO do composer.
+- Barra superior com botões ghost (só ícone) via seletores `.st-key-*`.
+- Sem testes novos (dashboard não tem suíte própria; Streamlit fora do CI) —
+  validação por sintaxe/pyflakes + smoke visual na máquina do dono.
+
 ## v12.11 — 2026-08-04 (V18.6/18.7: E6 cliente MCP + E7 workflow dev + git tools)
 
 Fecha os itens H2 restantes do roadmap (menos E8, refactor visual). Aditivo

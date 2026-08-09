@@ -28,7 +28,7 @@ sys.path.insert(0, str(_ROOT))
 from shared.utils import load_env, get_env
 from shared.logger import get_logger
 from shared.chat_memory import get_memory
-from dashboard_styles import GLOBAL_CSS, HISTORICO_CSS, WELCOME_CSS
+from dashboard_styles import GLOBAL_CSS, THEME_DARK_CSS, HISTORICO_CSS, WELCOME_CSS
 
 # V10.5 (2026-05-31): recursos estilo Claude Cowork (tarefas, memoria KV,
 # conectores/capabilities, streaming). Import tolerante a falha p/ nao
@@ -42,6 +42,14 @@ load_env()
 log = get_logger("Dashboard")
 memory = get_memory()
 
+# V18.8 E8: sidebar RECOLHIVEL. O estado vive em session_state e alimenta o
+# initial_sidebar_state do set_page_config (antes era fixo "expanded"). O botao
+# «/» na barra superior alterna e chama st.rerun(), reemitindo o page_config com
+# o novo estado. setdefault ANTES do set_page_config e permitido: acesso a
+# session_state nao conta como "primeiro comando de render" do Streamlit. O
+# chevron nativo do Streamlit continua funcionando; o botao « e um atalho extra.
+st.session_state.setdefault("sidebar_state", "expanded")
+
 # Icone LILO no titulo da aba do navegador (favicon).
 # Streamlit aceita path para .png/.ico/.jpg ou emoji.
 _ICON_PATH = _ROOT / "lilo_icon.ico"
@@ -49,7 +57,7 @@ st.set_page_config(
     page_title="LILO -- Dashboard",
     page_icon=str(_ICON_PATH) if _ICON_PATH.exists() else "🧬",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state=st.session_state.sidebar_state,
 )
 
 # -- Estado da sessao --------------------------------------------------------
@@ -208,6 +216,33 @@ def run_with_stop(func, *args):
 # ghost, acento coral (#D97757), headings serifados, chat em bolhas suaves e
 # composer arredondado com sombra.
 st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+
+# V18.8 E8: tema CLARO/ESCURO. A paleta clara vem do :root do GLOBAL_CSS; o
+# tema escuro (THEME_DARK_CSS) REDEFINE as mesmas variaveis var(--lilo-*) e so
+# e injetado quando o usuario escolhe "dark" (botao lua/sol na barra superior).
+# Como todo o CSS usa as variaveis, trocar o :root troca o tema inteiro.
+st.session_state.setdefault("theme", "light")
+if st.session_state.theme == "dark":
+    st.markdown(THEME_DARK_CSS, unsafe_allow_html=True)
+
+# V18.8 E8: barra superior (estilo Claude) — botao «/» a esquerda recolhe ou
+# expande a sidebar; lua/sol a direita alterna o tema claro/escuro. Botoes
+# ghost (CSS por st-key em dashboard_styles). Cada clique altera o estado e
+# faz st.rerun(): o page_config e reemitido com o novo sidebar_state e o CSS
+# do tema e (ou nao) injetado no topo do run seguinte.
+_tb_left, _tb_mid, _tb_right = st.columns([1, 22, 1])
+with _tb_left:
+    _sb_exp = st.session_state.sidebar_state == "expanded"
+    if st.button("«" if _sb_exp else "»", key="toggle_sidebar_btn",
+                 help="Recolher/expandir a barra lateral"):
+        st.session_state.sidebar_state = "collapsed" if _sb_exp else "expanded"
+        st.rerun()
+with _tb_right:
+    _dark = st.session_state.theme == "dark"
+    if st.button("☀" if _dark else "🌙", key="toggle_theme_btn",
+                 help="Alternar tema claro/escuro"):
+        st.session_state.theme = "light" if _dark else "dark"
+        st.rerun()
 
 
 def nav_button(label, key, category="agent"):
@@ -847,6 +882,30 @@ with main_col:
         else:
             st.markdown(WELCOME_CSS, unsafe_allow_html=True)
 
+        # V18.8 E8: COMPOSER NO TOPO (estilo Claude) — a caixa de mensagem vem
+        # ANTES das demais caixas (modo de execucao, anexos, microfone). O
+        # st.chat_input nativo e SEMPRE ancorado no rodape pelo Streamlit e
+        # nao pode subir; o composer usa st.form + st.text_area (Ctrl+Enter
+        # envia; clear_on_submit limpa o campo apos enviar). O fluxo
+        # downstream (slash skills, _resend_text, plano/confirmacoes, PARAR)
+        # e exatamente o mesmo de antes.
+        _placeholder = (
+            "Digite uma instrucao para o LILO executar... (/ para skills)"
+            if st.session_state.get("lilo_mode", "act") == "act"
+            else "Digite uma pergunta -- LILO nao tomara acoes (/ para skills)"
+        )
+        with st.form("composer_top_form", clear_on_submit=True, border=False):
+            _composer_txt = st.text_area(
+                "Mensagem para o LILO", key="composer_top_text",
+                placeholder=_placeholder, height=88,
+                label_visibility="collapsed")
+            _fc_hint, _fc_send = st.columns([5, 1])
+            with _fc_hint:
+                st.caption("Ctrl+Enter envia — / para skills")
+            with _fc_send:
+                _composer_sent = st.form_submit_button(
+                    "Enviar", type="primary", use_container_width=True)
+
         # ---- Modo de EXECUCAO (V14, estilo Claude) --------------------------
         # 4 modos que controlam quanta confirmacao o LILO pede antes de AGIR.
         # Ligados ao shared.exec_mode (gating no subagente desktop).
@@ -925,16 +984,13 @@ with main_col:
         except Exception as _mic_e:
             log.debug("Microfone indisponivel: %s", _mic_e)
 
-        # Input com slash commands
-        _placeholder = (
-            "Digite uma instrucao para o LILO executar... (/ para skills)"
-            if st.session_state.lilo_mode == "act"
-            else "Digite uma pergunta -- LILO nao tomara acoes (/ para skills)"
-        )
         # V14: reenvio automatico apos o usuario CONFIRMAR uma acao de risco
         # (o grant one-shot ja foi concedido pelo botao "Confirmar e executar").
+        # V18.8 E8: _typed agora vem do composer do topo (form acima), nao
+        # mais do st.chat_input do rodape.
         _resend = st.session_state.pop("_resend_text", None)
-        _typed = st.chat_input(_placeholder)
+        _typed = (_composer_txt or "").strip() if _composer_sent else None
+        _typed = _typed or None
         prompt = _typed or _resend
         # V15: prompt NOVO (digitado) zera o plano acumulado; reenvio (pos
         # confirm/aprovacao) preserva o estado de aprovacao do plano.

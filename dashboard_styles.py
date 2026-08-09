@@ -493,6 +493,65 @@ div[class*="st-key-lilo_mode_"] button {
     font-family: 'Inter', sans-serif !important;
     font-size: 0.95rem !important;
 }
+
+/* ========================================================================
+   V18.8 E8 — refinamentos (aproximar do layout do Claude). Tudo via
+   var(--lilo-*), entao vale nos dois temas (claro/escuro).
+   ======================================================================== */
+/* Botoes da barra superior (toggle tema / recolher sidebar): estilo ghost,
+   so o icone, sem borda — discretos como no Claude. */
+.main div[class*="st-key-toggle_theme_btn"] button,
+.main div[class*="st-key-toggle_sidebar_btn"] button {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 1.05rem !important;
+    padding: 0.15rem 0.4rem !important;
+    min-height: 32px !important;
+    color: var(--lilo-text-dim) !important;
+}
+.main div[class*="st-key-toggle_theme_btn"] button:hover,
+.main div[class*="st-key-toggle_sidebar_btn"] button:hover {
+    background: rgba(120,120,110,0.14) !important;
+    color: var(--lilo-text) !important;
+}
+/* Compositor de chat no topo — text_area com cara de cartao (estilo Claude). */
+.main div[class*="st-key-composer_top_text"] textarea {
+    background: var(--lilo-bg-card) !important;
+    border: 1px solid var(--lilo-border) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 2px 12px rgba(61,57,41,0.07) !important;
+    color: var(--lilo-text) !important;
+    font-family: var(--lilo-sans) !important;
+    padding: 0.65rem 0.9rem !important;
+}
+</style>
+"""
+
+# V18.8 E8: TEMA ESCURO. A paleta CLARA vive no :root do GLOBAL_CSS; como TODO
+# o CSS usa var(--lilo-*), o tema escuro "so" precisa REDEFINIR as mesmas
+# variaveis. Este bloco e injetado (st.markdown) DEPOIS do GLOBAL_CSS e SOMENTE
+# quando st.session_state.theme == "dark" (botao lua/sol na barra superior),
+# entao vence por ordem de cascata. Coral (--lilo-accent) mantido. Hierarquia
+# de fundos: #1F1E1D (mais fundo) < #262624 (sidebar) < #30302E (cartoes).
+THEME_DARK_CSS = """
+<style>
+:root {
+    --lilo-bg:          #1F1E1D;   /* marrom-carvao — fundo principal */
+    --lilo-bg-soft:     #262624;   /* sidebar e bolha do usuario */
+    --lilo-bg-card:     #30302E;   /* cartoes e composer */
+    --lilo-border:      #45443F;
+    --lilo-text:        #E8E6DC;   /* texto claro quente */
+    --lilo-text-dim:    #C2C0B6;
+    --lilo-accent:      #D97757;   /* coral Claude (mantido) */
+    --lilo-accent-dark: #E8977B;   /* coral clareado p/ ler sobre fundo escuro */
+    --lilo-accent-soft: #3A2E28;   /* coral-escuro p/ item ativo */
+    --lilo-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --lilo-sans:  'Inter', -apple-system, 'Segoe UI', sans-serif;
+}
+/* O bloco de codigo tinha fundo claro fixo (#FCFBF8 no GLOBAL_CSS) — no tema
+   escuro isso destoaria, entao escurecemos aqui (injetado depois -> vence). */
+.main pre { background: #262624 !important; }
 </style>
 """
 
@@ -533,26 +592,26 @@ WELCOME_CSS = """
 .lilo-welcome .lw-logo { font-size:2.6rem; }
 .lilo-welcome h1 {
     font-family: var(--lilo-serif, Georgia, serif) !important;
-    font-size:2rem !important; font-weight:600; color:var(--lilo-text,#3D3929) !important;
+    font-size:2rem !important; font-weight:600; color:var(--lilo-text,var(--lilo-text, #3D3929)) !important;
     border:none !important; margin:.4rem 0 .2rem 0 !important;
 }
 .lilo-welcome .lw-sub {
-    color:var(--lilo-text-dim,#73705F); font-size:1rem; line-height:1.6;
+    color:var(--lilo-text-dim,var(--lilo-text-dim, #73705F)); font-size:1rem; line-height:1.6;
     margin:0 auto 1.6rem auto; max-width:620px;
 }
-.lilo-welcome .lw-sub b { color:var(--lilo-accent-dark,#C96442); }
+.lilo-welcome .lw-sub b { color:var(--lilo-accent-dark,var(--lilo-accent-dark, #C96442)); }
 .lw-cards {
     display:grid; grid-template-columns:repeat(2,1fr); gap:12px;
     text-align:left; margin:0 auto;
 }
 .lwc {
-    background:var(--lilo-bg-card,#fff); border:1px solid var(--lilo-border,#E3E1D7);
+    background:var(--lilo-bg-card,#fff); border:1px solid var(--lilo-border,var(--lilo-border, #E3E1D7));
     border-radius:12px; padding:12px 14px; transition:border-color .15s ease;
 }
-.lwc:hover { border-color:var(--lilo-accent,#D97757); }
-.lwc b { display:block; color:var(--lilo-text,#3D3929); font-size:.92rem; margin-bottom:3px; }
-.lwc span { color:var(--lilo-text-dim,#73705F); font-size:.82rem; line-height:1.45; }
-.lw-hint { color:var(--lilo-text-dim,#73705F); font-size:.85rem; margin-top:1.4rem; }
+.lwc:hover { border-color:var(--lilo-accent,var(--lilo-accent, #D97757)); }
+.lwc b { display:block; color:var(--lilo-text,var(--lilo-text, #3D3929)); font-size:.92rem; margin-bottom:3px; }
+.lwc span { color:var(--lilo-text-dim,var(--lilo-text-dim, #73705F)); font-size:.82rem; line-height:1.45; }
+.lw-hint { color:var(--lilo-text-dim,var(--lilo-text-dim, #73705F)); font-size:.85rem; margin-top:1.4rem; }
 </style>
 <div class="lilo-welcome">
   <div class="lw-logo">🧬</div>
