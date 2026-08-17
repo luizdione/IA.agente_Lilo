@@ -1042,5 +1042,9 @@ def main():
 
 
 if __name__ == "__main__":
+    # V13.3: CLI usa o mesmo roteador por embeddings do dashboard (bge-m3,
+    # ~ms por query depois do primeiro load). Sem isto o CLI caia no default
+    # 'keyword' e, antes do gate LILO_LLM_ROUTER, no classificador-LLM.
+    os.environ.setdefault("LILO_ROUTER", "embed")
     main()
 # end of lilo.py

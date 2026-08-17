@@ -82,7 +82,13 @@ class LLMClient:
           1. LiteLLM Proxy (unifica modelos + observabilidade)
           2. Ollama direto (fallback local)
           3. Anthropic Claude
+        V13.3: LILO_BACKEND=ollama|litellm|anthropic|mock pula os probes --
+        cada processo pagava ~1s procurando um proxy LiteLLM que nao roda
+        (e ha 2 instancias de cliente por processo = 2x o custo).
         """
+        forced = (get_env("LILO_BACKEND", "") or "").strip().lower()
+        if forced in ("ollama", "litellm", "anthropic", "mock"):
+            return forced
         try:
             r = requests.get(LITELLM_URL + "/health", timeout=1.0)
             if r.status_code == 200:
@@ -321,6 +327,16 @@ class LLMClient:
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,
+                # V13.3: SEM num_ctx o servidor usa o default da app (32768),
+                # que na RTX 3060 12GB (i) estoura a VRAM -> 13% do modelo vai
+                # p/ CPU e (ii) impede gemma3+bge-m3 de coexistirem -> cada
+                # roteamento por embedding despejava o gerador (load de ~17s
+                # por pergunta, medido 2026-08-17). 8192 cabe 100% na GPU.
+                # OLLAMA_NUM_CTX ja existia no ambiente da maquina, mas o
+                # servidor a IGNORA -- so vale por requisicao; honramos aqui.
+                # IMPORTANTE: warm_up_gpu (dashboard) usa o MESMO valor; se
+                # divergirem o Ollama recarrega o modelo a cada troca.
+                "num_ctx": int(get_env("OLLAMA_NUM_CTX", "8192") or 8192),
                 "num_gpu": 99,
                 "num_thread": 8,
             },

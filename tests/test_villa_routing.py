@@ -190,11 +190,22 @@ def test_route_target_specialist(villa, query, expected):
     assert method in ("llm", "heuristic", "capabilities")
 
 
-def test_route_target_ambiguous_goes_to_pipeline(villa):
-    # Sem keyword de domínio e sem LLM (mock) -> pipeline multi-agente, nunca
-    # gateway raso. (zzz... não casa nenhuma heurística nem capabilities.)
+def test_route_target_ambiguous_short_goes_to_gateway(villa):
+    # V13.3: sem domínio e RASA (curta, sem marcador de profundidade) ->
+    # gateway (chat de turno único). Antes caía no pipeline de 5 estágios,
+    # que fazia "quanto é 2+2?" custar minutos.
     target, method = villa.route_target("zzz qqq xyz", {"villa", "gateway"})
+    assert target == "gateway"
+    assert method == "trivial"
+
+
+def test_route_target_ambiguous_deep_goes_to_pipeline(villa):
+    # Sem domínio mas PROFUNDA (>=60 chars) -> pipeline multi-agente.
+    q = ("investigue a fundo zzz qqq xyz considerando todos os aspectos "
+         "relevantes do problema em questao")
+    target, method = villa.route_target(q, {"villa", "gateway"})
     assert target == "villa"
+    assert method == "ambiguous"
 
 
 def test_route_target_unavailable_domain_falls_to_villa(villa):

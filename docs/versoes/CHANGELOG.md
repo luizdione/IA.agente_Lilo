@@ -2,7 +2,43 @@
 
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
-> commits (atual: V23).
+> commits (atual: V24).
+
+## v13.3 — 2026-08-17 (V24: pergunta simples de 194s → ~3s)
+
+Auditoria de latência disparada pelo dono ("o dashboard não funciona para perguntas
+simples"): "quanto é 2+2?" levava **194 s** e/ou recebia resposta-lixo (help do prism).
+8 causas encontradas, todas corrigidas e validadas (suíte 170 ok + golden embed ok):
+
+### Roteamento
+- **LLM-router fora do caminho quente** (opt-in `LILO_LLM_ROUTER=1`): `_route_via_llm`
+  carregava um 2º modelo na GPU de 12 GB só para classificar a query (~90 s de swap).
+- **Ambíguo raso → gateway**: pergunta sem domínio e não-profunda (`_is_deep_query`)
+  vai ao chat de turno único, não mais ao pipeline villa de 5 estágios.
+- **Threshold do router embed 0.30 → 0.45**: o 0.30 era do MiniLM; no bge-m3 ruído
+  pontua 0.30–0.37 ("2+2" dava prism=0.35 → help do prism) e domínio real ≥0.47.
+  Medição em 10 queries (calibra_router). Golden atualizado.
+- **CLI usa `LILO_ROUTER=embed`** como o dashboard (antes caía no default keyword).
+
+### GPU / Ollama
+- **`num_ctx` explícito por requisição** (env `OLLAMA_NUM_CTX`, default 8192) em
+  `_chat_ollama` e `warm_up_gpu`: sem ele o servidor usava 32768 → gemma3 13% em CPU
+  e sem espaço para coexistir com o bge-m3 (recarga de ~17 s por pergunta). Com 8192,
+  gemma3+bge-m3 ficam 100% GPU, juntos e residentes.
+- **`OLLAMA_KEEP_ALIVE` do Windows corrigida 5m → 2h** (vencia o `.env`; o modelo
+  descarregava entre perguntas).
+
+### Boot (27 s → 3 s no CLI)
+- **Cache em disco dos embeddings de assinatura** do roteador
+  (`%LOCALAPPDATA%\LILO\router_sig_cache.json`, chave = modelo+sha1): embedar as
+  assinaturas custava ~12 s em cada processo.
+- **Embedder via `requests`** em vez do pacote `ollama` (~2 s de import) e
+  `keep_alive` explícito no embed.
+- **`LILO_BACKEND=ollama` no `.env`** pula o probe do LiteLLM (~1 s × 2 instâncias).
+
+### Consistência
+- Policy `OLLAMA_FAST` usa `MODELS["chat"]` (o modelo "fast" diferente forçava swap
+  e o cost_tracker logava modelo que não era o executado).
 
 ## v13.2 — 2026-08-07 (V23: conclui as 3 pendências da 2ª auditoria)
 

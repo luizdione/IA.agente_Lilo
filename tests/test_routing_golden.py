@@ -70,6 +70,6 @@ def test_keyword_routing_nao_regride():
 @pytest.mark.skipif(not os.getenv("LILO_TEST_EMBED"),
                     reason="modo embed precisa do modelo; ligue com LILO_TEST_EMBED=1")
 def test_embed_routing_nao_regride():
-    os.environ.setdefault("LILO_ROUTER_THRESHOLD", "0.35")
+    os.environ.setdefault("LILO_ROUTER_THRESHOLD", "0.45")  # V13.3: corte do bge-m3
     acertos, total = _eval("embed")
     assert acertos >= total - 5, f"embed {acertos}/{total}"

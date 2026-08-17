@@ -40,7 +40,12 @@ log = get_logger("Router")
 # São excluídos da matriz de embeddings para não "sequestrar" o argmax.
 _NON_SPECIALIST = frozenset({"villa", "gateway"})
 
-DEFAULT_THRESHOLD = 0.30
+# V13.3 (2026-08-17): recalibrado para o bge-m3 (embedder atual via Ollama).
+# O 0.30 era do MiniLM; no bge-m3 textos NAO relacionados ficam em ~0.30-0.37
+# ("quanto e 2+2?" dava prism=0.35 -> pergunta trivial recebia o help do prism),
+# enquanto queries de dominio real pontuam >=0.47. O corte 0.45 separa os dois
+# regimes (medido em scratchpad/calibra_router.py, 10 queries, 2026-08-17).
+DEFAULT_THRESHOLD = 0.45
 
 
 @dataclass(frozen=True)
@@ -113,13 +118,63 @@ def _cosine(a, b) -> float:
     return dot / (na * nb) if na and nb else 0.0
 
 
+# V13.3: cache em DISCO dos vetores de assinatura. Embedar as ~8 assinaturas
+# custava ~12s de boot em CADA processo (CLI e 1º load do dashboard), refazendo
+# um trabalho que só muda quando uma assinatura/modelo muda. Chave = modelo de
+# embedding + sha1 da assinatura -> invalida sozinho no que mudar.
+_SIG_CACHE_PATH = os.path.join(
+    os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"),
+    "LILO", "router_sig_cache.json")
+
+
+def _sig_cache_load() -> dict:
+    try:
+        import json
+        with open(_SIG_CACHE_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _sig_cache_save(cache: dict) -> None:
+    try:
+        import json
+        os.makedirs(os.path.dirname(_SIG_CACHE_PATH), exist_ok=True)
+        tmp = _SIG_CACHE_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(cache, f)
+        os.replace(tmp, _SIG_CACHE_PATH)
+    except Exception as e:  # cache é só aceleração; nunca derruba o roteador
+        log.debug("router: falha ao salvar cache de assinaturas (%s)", e)
+
+
+def _sig_key(model_id: str, signature: str) -> str:
+    import hashlib
+    return model_id + ":" + hashlib.sha1(signature.encode("utf-8")).hexdigest()
+
+
 class _EmbedRouter:
     """Embeda a assinatura de cada especialista uma vez; roteia por cosine."""
 
     def __init__(self, agents: dict[str, dict]):
         emb = get_embedder()
+        model_id = str(getattr(emb, "_ollama_model", None) or
+                       getattr(emb, "model_name", "") or "st")
         self.names = [n for n in agents if n not in _NON_SPECIALIST]
-        self.vecs = {n: emb.embed_query(agent_signature(agents[n])) for n in self.names}
+        cache = _sig_cache_load()
+        dirty = False
+        self.vecs = {}
+        for n in self.names:
+            sig = agent_signature(agents[n])
+            key = _sig_key(model_id, sig)
+            vec = cache.get(key)
+            if vec is None:
+                vec = list(emb.embed_query(sig))
+                cache[key] = vec
+                dirty = True
+            self.vecs[n] = vec
+        if dirty:
+            _sig_cache_save(cache)
 
     def route(self, query: str, threshold: float) -> tuple[str | None, dict]:
         if not self.names:

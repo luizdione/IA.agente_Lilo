@@ -191,7 +191,10 @@ def warm_up_gpu(model_name=None):
             "messages": [{"role": "user", "content": "ok"}],
             "stream": False,
             "keep_alive": "2h",  # mantem 2h em VRAM
-            "options": {"num_predict": 1, "num_gpu": 99},
+            # num_ctx IGUAL ao de shared/llm_client._chat_ollama: se o warmup
+            # carregar com outro contexto, a 1a pergunta recarrega o modelo.
+            "options": {"num_predict": 1, "num_gpu": 99,
+                        "num_ctx": int(get_env("OLLAMA_NUM_CTX", "8192") or 8192)},
         }
         r = requests.post(
             get_env("OLLAMA_HOST", "http://localhost:11434") + "/api/chat",

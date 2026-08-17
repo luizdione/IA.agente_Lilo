@@ -38,26 +38,36 @@ class Embedder:
             self._load_st(_ST_FALLBACK if want_ollama else name)
 
     # -- backend Ollama --------------------------------------------------------
+    # V13.3: HTTP direto via requests em vez do pacote `ollama` -- o import do
+    # pacote (httpx etc.) custava ~2s de boot por processo para o que e um POST
+    # trivial. keep_alive explicito mantem o bge-m3 residente na GPU (senao o
+    # default do servidor pode descarrega-lo entre roteamentos).
     @staticmethod
-    def _client():
-        import ollama
-        host = os.environ.get("OLLAMA_HOST")
-        return ollama.Client(host=host) if host else ollama
+    def _embed_http(model: str, prompt: str) -> dict:
+        import requests
+        host = (os.environ.get("OLLAMA_HOST")
+                or "http://localhost:11434").rstrip("/")
+        r = requests.post(host + "/api/embeddings",
+                          json={"model": model, "prompt": prompt,
+                                "keep_alive": os.environ.get(
+                                    "OLLAMA_KEEP_ALIVE", "2h")},
+                          timeout=60)
+        r.raise_for_status()
+        return r.json()
 
     @classmethod
     def _ollama_ok(cls, model: str) -> bool:
         """Probe único no init: o Ollama responde embeddings p/ este modelo?"""
         try:
-            r = cls._client().embeddings(model=model, prompt="ok")
+            r = cls._embed_http(model, "ok")
             return bool(r and r.get("embedding"))
         except Exception:
             return False
 
     def _ollama_embed(self, texts: list[str]) -> list[list[float]]:
-        client = self._client()
         out = []
         for t in texts:
-            r = client.embeddings(model=self._ollama_model, prompt=(t or " "))
+            r = self._embed_http(self._ollama_model, t or " ")
             out.append([float(x) for x in r["embedding"]])
         return out
 

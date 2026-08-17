@@ -154,6 +154,12 @@ def _strip_accents(s):
                    if unicodedata.category(c) != "Mn")
 
 
+def _LLM_ROUTER_ON():
+    """V13.3: o classificador-LLM de dominio e opt-in (LILO_LLM_ROUTER=1).
+    Em GPU unica ele obriga um swap de modelo por query so para rotear."""
+    return (_os.getenv("LILO_LLM_ROUTER", "0") or "0").strip() == "1"
+
+
 def _is_deep_query(query):
     """V10.5: True se a query e NAO trivial (longa >=60 chars OU contem
     marcador de profundidade). Queries profundas JAMAIS devem ir ao chat
@@ -1191,7 +1197,8 @@ class VillaLobosAgent(BaseAgent):
 
     def _delegate_to_specialist(self, query, context):
         try:
-            domain = self._route_via_llm(query)
+            # V13.3: mesmo gate do route_target -- sem LLM no roteamento.
+            domain = self._route_via_llm(query) if _LLM_ROUTER_ON() else None
             route_method = "llm"
             if domain in (None, "none"):
                 domain = _detect_domain(query)
@@ -1491,7 +1498,12 @@ class VillaLobosAgent(BaseAgent):
                 # ambiguo / fallback keyword -> deixa a cascata legada decidir
             except Exception as _e:
                 log.debug("route_target embed indisponivel (%s); cascata", _e)
-        domain = self._route_via_llm(query)
+        # V13.3 (2026-08-17): o LLM-router SAI do caminho quente por padrao
+        # (religavel via LILO_LLM_ROUTER=1). Na RTX 3060 de 12 GB ele carregava
+        # um SEGUNDO modelo so para classificar a query (swap de ~90s medido em
+        # "quanto e 2+2?" -> 194s no total). Heuristica + capabilities cobrem o
+        # mesmo contrato sem nenhuma chamada de LLM.
+        domain = self._route_via_llm(query) if _LLM_ROUTER_ON() else None
         method = "llm"
         if domain in (None, "none"):
             domain = _detect_domain(query)
@@ -1502,8 +1514,15 @@ class VillaLobosAgent(BaseAgent):
         # Gateway é chat raso: nunca atende query profunda -> pipeline completo.
         if domain == "gateway" and _is_deep_query(query):
             return "villa", "deep"
-        # Sem domínio claro -> pipeline multi-agente (não o gateway raso).
+        # Sem domínio claro: V13.3 -- pergunta CURTA e rasa vai ao gateway
+        # (chat de turno unico), nao ao pipeline de 5 estagios. Antes,
+        # "quanto e 2+2?" caia em villa/ambiguous e pagava orquestrador+
+        # planner+reader+worker+reporter. So o ambiguo PROFUNDO (>=60 chars
+        # ou marcador de profundidade) segue para o pipeline.
         if not domain or domain == "none":
+            if (not _is_deep_query(query)
+                    and (not available or "gateway" in available)):
+                return "gateway", "trivial"
             return "villa", "ambiguous"
         if available and domain not in available:
             return "villa", method

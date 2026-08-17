@@ -53,7 +53,12 @@ COST_PER_1K = {
 from shared.models import MODELS  # noqa: E402
 TIER_MODELS = {
     ExecutionTier.NO_LLM: None,
-    ExecutionTier.OLLAMA_FAST: MODELS["autocomplete"],
+    # V13.3: o tier "fast" usa o MESMO modelo do chat. Apontar para um modelo
+    # diferente (autocomplete) forcava swap na GPU de 12 GB: a "tarefa trivial"
+    # ficava MAIS LENTA que a normal e o cost_tracker logava um modelo que nao
+    # era o executado. Um unico modelo residente e mais rapido que o
+    # "certo-dimensionado" que precisa ser carregado.
+    ExecutionTier.OLLAMA_FAST: MODELS["chat"],
     ExecutionTier.OLLAMA: MODELS["chat"],
     ExecutionTier.OLLAMA_HEAVY: MODELS["code"],
     # Atualizado 2026-05-07 para Claude 4.5/4.6 (familia atual).
