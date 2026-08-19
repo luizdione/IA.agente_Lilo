@@ -4,6 +4,22 @@
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
 > commits (atual: V18).
 
+## v12.14 — 2026-08-19 (V18.10: gerente de memória do projeto)
+
+- **`CONTEXT.md` (raiz)** vira a memória viva do projeto — o LILO já o lê
+  automaticamente (dir_synthesis, E4) e o Claude Code o vê em toda sessão.
+  Seções AUTO (estado, entregas) + MANUAL (pendências, decisões, retomada).
+- **`scripts/memoria_projeto.py`**: regenera as seções AUTO com 0 tokens —
+  versão (badge do README), branch/commit (git), contagem de funções de
+  teste, resumo do `/diagnostico_lilo` (`--no-diag` pula) e últimas 3
+  entradas do CHANGELOG. Seções MANUAL preservadas byte a byte
+  (marcadores `<!-- AUTO:x -->`); cria do template se ausente.
+- **Skill `/gerente_memoria`** (`.claude/skills/`): protocolo de 1 comando +
+  curadoria das seções MANUAL com limites rígidos (≤80 linhas — o arquivo
+  entra em contexto de sessão).
+- `CLAUDE.md` aponta o `CONTEXT.md` como primeira leitura de retomada.
+- Testes: `tests/scripts/test_memoria_projeto.py` (4, offline/herméticos).
+
 ## v12.13 — 2026-08-19 (V18.9: dashboard minimalista — layout Claude completo)
 
 A pedido do dono: "quero minimalista já abrindo no chat, com adição de
