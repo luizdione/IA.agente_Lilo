@@ -4,6 +4,38 @@
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
 > commits (atual: V18).
 
+## v12.13 — 2026-08-19 (V18.9: dashboard minimalista — layout Claude completo)
+
+A pedido do dono: "quero minimalista já abrindo no chat, com adição de
+arquivos, pastas e módulo de LLM na tela, igual ao Claude". Só camada
+visual/UX + 1 fio novo (seletor de modelo); nenhuma página ou função
+removida. Auditoria (`/diagnostico_lilo`): P0=0; P1/P2 restantes têm a
+mesma causa (`agents/paper/` só existe na máquina do dono).
+
+**Composer-cartão estilo Claude (página Chat):**
+- Um único cartão (`st.container(border=True)`) com o `text_area` "nu" em
+  cima e a linha de controles embaixo, NA MESMA caixa: `+` anexos
+  (arquivos E pastas c/ síntese de diretório — popover já existente),
+  microfone (agora popover 🎤), **seletor de MODELO** e modo de execução.
+- **Seletor de modelo na tela** (novo): Auto (Policy decide) | Local
+  padrão/rápido/pesado | Claude Sonnet | Claude Opus. Vira override
+  `\lilo <tier>` na chamada do `route()` — mesmo mecanismo do comando
+  digitado; nuvem continua sujeita a budget diário e `LILO_ALLOW_CLOUD`.
+  O texto exibido/salvo no histórico permanece limpo (sem o prefixo).
+- Coluna central estreita e centralizada (~52rem) só na página Chat.
+
+**Sidebar minimalista (estilo Claude):**
+- Expostos apenas: logo, status, `+ Novo chat`, botão Chat e a lista de
+  **Chats** (busca + lista flat, movida do painel direito). Agentes,
+  Cowork, Ferramentas/docs, Preferências (Modo IA + Estilo) e Progresso
+  do projeto viraram expanders recolhidos.
+- **Painel direito removido** — Histórico e Progresso agora moram na
+  sidebar; todas as páginas usam a largura inteira.
+
+**Higiene da auditoria:** 3 imports mortos removidos (`lilo_api.Request`,
+`chat_memory.Path`, `mcp_client.Path`); avisos restantes do pyflakes são
+probes de disponibilidade intencionais (try/import).
+
 ## v12.12 — 2026-08-09 (V18.8: E8 — redesign visual do dashboard, estilo Claude)
 
 Fecha o ÚLTIMO item H2 do roadmap da análise Open Agent Studio (E1–E8

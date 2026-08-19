@@ -515,15 +515,25 @@ div[class*="st-key-lilo_mode_"] button {
     background: rgba(120,120,110,0.14) !important;
     color: var(--lilo-text) !important;
 }
-/* Compositor de chat no topo — text_area com cara de cartao (estilo Claude). */
+/* V18.9: o composer virou CARTAO (st.container border=True). O text_area
+   dentro dele fica "nu" (sem borda/fundo proprios); quem tem borda, raio e
+   sombra e o cartao (regra :has() abaixo — o wrapper de container com borda
+   que CONTEM o composer). */
 .main div[class*="st-key-composer_top_text"] textarea {
-    background: var(--lilo-bg-card) !important;
-    border: 1px solid var(--lilo-border) !important;
-    border-radius: 14px !important;
-    box-shadow: 0 2px 12px rgba(61,57,41,0.07) !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
     color: var(--lilo-text) !important;
     font-family: var(--lilo-sans) !important;
-    padding: 0.65rem 0.9rem !important;
+    font-size: 1rem !important;
+    padding: 0.5rem 0.6rem !important;
+}
+div[data-testid="stVerticalBlockBorderWrapper"]:has(div[class*="st-key-composer_top_text"]) {
+    background: var(--lilo-bg-card);
+    border: 1px solid var(--lilo-border) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 2px 12px rgba(61,57,41,0.07);
+    padding: 0.3rem 0.45rem;
 }
 </style>
 """

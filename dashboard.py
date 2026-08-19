@@ -70,7 +70,6 @@ defaults = {
     "attached_files": [],
     "current_project": None,
     "skill_filter": "",
-    "show_right_panel": True,
     # Task 2 — sintese de diretorio
     "attached_dir": "",
     "last_synthesis_md": "",
@@ -294,62 +293,156 @@ with st.sidebar:
     st.caption(status_icon + " Ollama | " + str(n_agents) + "/6 agentes")
 
     st.markdown("---")
-    st.markdown("**SUB-AGENTES**")
+    # V18.9: sidebar MINIMALISTA (estilo Claude) — expostos so "+ Novo chat",
+    # Chat e a lista de conversas; agentes/cowork/ferramentas/docs vivem em
+    # expanders recolhidos. NENHUMA pagina foi removida.
+    if st.button("+ Novo chat", key="new_chat_btn", use_container_width=True):
+        chat_id = memory.new_chat(subagent="chat")
+        st.session_state.current_chat_id = chat_id
+        st.session_state.messages = []
+        st.session_state.page = "Chat"
+        st.rerun()
     nav_button("Chat", "nav_chat", "agent")
-    nav_button("SQL", "nav_sql", "agent")
-    nav_button("PDFs", "nav_pdf", "agent")
-    nav_button("Scholar", "nav_scholar", "agent")
-    nav_button("Biblioteca", "nav_biblioteca", "agent")
-    nav_button("Prism AI", "nav_prism", "agent")
-    nav_button("Villa Lobos", "nav_villa", "agent")
-    nav_button("Desktop", "nav_desktop", "agent")
+
+    # Chats recentes na sidebar (como no Claude). Movido do antigo painel
+    # direito na V18.9: busca + lista flat via query param ?lilo_chat=<id>.
+    with st.expander("Chats", expanded=True):
+        st.markdown(HISTORICO_CSS, unsafe_allow_html=True)
+        search_q = st.text_input("Buscar chats", key="chat_search",
+                                 placeholder="Filtrar por conteudo...",
+                                 label_visibility="collapsed")
+        if search_q:
+            chats = memory.search_chats(search_q, limit=30)
+        else:
+            chats = memory.list_chats(
+                project_id=st.session_state.current_project, limit=30)
+        qp = st.query_params if hasattr(st, "query_params") else {}
+        requested = qp.get("lilo_chat", None)
+        if isinstance(requested, list):
+            requested = requested[0] if requested else None
+        if requested and requested != st.session_state.current_chat_id:
+            st.session_state.current_chat_id = requested
+            msgs = memory.get_messages(requested)
+            st.session_state.messages = [
+                {"role": m["role"], "content": m["content"]} for m in msgs]
+            # limpa query param para nao rerender em loop
+            try:
+                del st.query_params["lilo_chat"]
+            except Exception:
+                pass
+            st.rerun()
+        if chats:
+            items_html = ['<div class="lilo-history-list">']
+            for ch in chats:
+                is_active = ch["id"] == st.session_state.current_chat_id
+                cls = ("lilo-history-item active" if is_active
+                       else "lilo-history-item")
+                title_safe = (ch["title"] or "(sem titulo)").replace(
+                    "<", "&lt;").replace(">", "&gt;")[:48]
+                items_html.append(
+                    f'<a class="{cls}" href="?lilo_chat={ch["id"]}" '
+                    f'target="_self"><span class="dot">·</span>{title_safe}</a>')
+            items_html.append("</div>")
+            st.markdown("".join(items_html), unsafe_allow_html=True)
+        else:
+            st.caption("(sem conversas)")
+
+    with st.expander("Agentes"):
+        nav_button("SQL", "nav_sql", "agent")
+        nav_button("PDFs", "nav_pdf", "agent")
+        nav_button("Scholar", "nav_scholar", "agent")
+        nav_button("Biblioteca", "nav_biblioteca", "agent")
+        nav_button("Prism AI", "nav_prism", "agent")
+        nav_button("Villa Lobos", "nav_villa", "agent")
+        nav_button("Desktop", "nav_desktop", "agent")
+        nav_button("SciStudio", "nav_scistudio", "agent")
+
+    with st.expander("Cowork"):
+        nav_button("Tarefas", "nav_tarefas", "tool")
+        nav_button("Memoria", "nav_memoria", "tool")
+        nav_button("Conectores", "nav_conectores", "tool")
+
+    with st.expander("Ferramentas e docs"):
+        nav_button("Skills", "nav_skills", "tool")
+        nav_button("Custos", "nav_custos", "tool")
+        nav_button("Saude", "nav_health", "tool")
+        nav_button("Glossario", "nav_glossario", "help")
+        nav_button("Ajuda", "nav_help", "help")
+
+    # Progresso do projeto ativo (tasks) — tambem movido do painel direito.
+    if st.session_state.current_project:
+        with st.expander("Progresso do projeto"):
+            try:
+                _proj_obj = next(
+                    (p for p in memory.list_projects()
+                     if p["id"] == st.session_state.current_project),
+                    None,
+                )
+                _proj_label = _proj_obj["name"][:28] if _proj_obj else (
+                    st.session_state.current_project[:8]
+                )
+            except Exception:
+                _proj_label = st.session_state.current_project[:8]
+            st.caption("Projeto: " + _proj_label)
+            prog = memory.task_progress(st.session_state.current_project)
+            if prog["total"]:
+                st.markdown(
+                    f'<div class="lilo-progress-bar"><div style="width:{prog["pct"]}%"></div></div>'
+                    f'<div style="font-size:0.78rem;opacity:0.7;margin:-4px 0 6px 0">'
+                    f'{prog["done"]}/{prog["total"]} concluidas ({prog["pct"]}%)</div>',
+                    unsafe_allow_html=True,
+                )
+            tasks = memory.list_tasks(st.session_state.current_project)
+            for t in tasks:
+                tk_id = t["id"]
+                checked = bool(t["done"])
+                new_val = st.checkbox(
+                    t["title"][:60],
+                    value=checked,
+                    key=f"task_chk_{tk_id}",
+                )
+                if new_val != checked:
+                    memory.set_task_done(tk_id, new_val)
+                    st.rerun()
+            new_task = st.text_input(
+                "Nova task",
+                key="new_task_input",
+                placeholder="+ adicionar task...",
+                label_visibility="collapsed",
+            )
+            if new_task and st.session_state.get("new_task_last", "") != new_task:
+                memory.add_task(st.session_state.current_project, new_task)
+                st.session_state.new_task_last = new_task
+                st.rerun()
 
     st.markdown("---")
-    st.markdown("**PLATAFORMAS**")
-    nav_button("SciStudio", "nav_scistudio", "agent")
+    # V18.9: Modo IA + Estilo agrupados num expander (sidebar minimalista).
+    with st.expander("Preferências"):
+        # V12 (2026-06-11): "Auto" e o default -- o roteador semantico do
+        # Villa escolhe o subagente pela semantica da pergunta. Os demais sao
+        # OVERRIDE manual (forcam um modo/agente especifico).
+        mode = st.selectbox(
+            "Modo IA",
+            ["Auto", "chat", "code", "bioinfo", "sql"],
+            index=0,
+            help="Auto: o LILO decide o melhor subagente pela semantica da "
+                 "pergunta. chat/code/bioinfo forcam o modo do gateway; sql "
+                 "forca o agente SQL.")
 
-    st.markdown("---")
-    st.markdown("**COWORK**")
-    nav_button("Tarefas", "nav_tarefas", "tool")
-    nav_button("Memoria", "nav_memoria", "tool")
-    nav_button("Conectores", "nav_conectores", "tool")
-
-    st.markdown("---")
-    st.markdown("**FERRAMENTAS**")
-    nav_button("Skills", "nav_skills", "tool")
-    nav_button("Custos", "nav_custos", "tool")
-    nav_button("Saude", "nav_health", "tool")
-
-    st.markdown("---")
-    st.markdown("**DOCUMENTOS**")
-    nav_button("Glossario", "nav_glossario", "help")
-    nav_button("Ajuda", "nav_help", "help")
-
-    st.markdown("---")
-    # V12 (2026-06-11): "Auto" e o default -- o roteador semantico do Villa
-    # escolhe o subagente pela semantica da pergunta. Os demais sao OVERRIDE
-    # manual (forcam um modo/agente especifico).
-    mode = st.selectbox(
-        "Modo IA",
-        ["Auto", "chat", "code", "bioinfo", "sql"],
-        index=0,
-        help="Auto: o LILO decide o melhor subagente pela semantica da "
-             "pergunta. chat/code/bioinfo forcam o modo do gateway; sql forca "
-             "o agente SQL.")
-
-    # V15 FASE 2: ESTILO de resposta -- eixo ORTOGONAL ao "Modo IA" (roteamento)
-    # e ao "Modo de execucao" (gating). So muda a APRESENTACAO; nao degrada
-    # codigo/tabelas/artefatos. Persiste em st.session_state.
-    _STYLE_LABELS = {"Padrao": "default", "Conciso": "concise",
-                     "Didatico": "explanatory", "Formal": "formal"}
-    _style_label = st.selectbox(
-        "Estilo de resposta",
-        list(_STYLE_LABELS.keys()), index=0,
-        help="Apresentacao da resposta (NAO muda o subagente nem o gating): "
-             "Conciso = minimo de tokens; Didatico = passo-a-passo; Formal = "
-             "polido. Nao afeta qualidade de codigo/tabelas/artefatos. No modo "
-             "Conciso, pedir 'detalhe/aprofunde' suspende a concisao no turno.")
-    st.session_state["response_style"] = _STYLE_LABELS[_style_label]
+        # V15 FASE 2: ESTILO de resposta -- eixo ORTOGONAL ao "Modo IA"
+        # (roteamento) e ao "Modo de execucao" (gating). So muda a
+        # APRESENTACAO; nao degrada codigo/tabelas/artefatos.
+        _STYLE_LABELS = {"Padrao": "default", "Conciso": "concise",
+                         "Didatico": "explanatory", "Formal": "formal"}
+        _style_label = st.selectbox(
+            "Estilo de resposta",
+            list(_STYLE_LABELS.keys()), index=0,
+            help="Apresentacao da resposta (NAO muda o subagente nem o "
+                 "gating): Conciso = minimo de tokens; Didatico = "
+                 "passo-a-passo; Formal = polido. Nao afeta qualidade de "
+                 "codigo/tabelas/artefatos. No modo Conciso, pedir "
+                 "'detalhe/aprofunde' suspende a concisao no turno.")
+        st.session_state["response_style"] = _STYLE_LABELS[_style_label]
 
     # V14.2: biometria de voz -- cadastrar a voz do dono (enrollment).
     try:
@@ -402,128 +495,11 @@ agent_labels = {
     "desktop": "Desktop"}
 
 
-# -- Layout principal: conteudo + sidebar direita ----------------------------
-# Abas Ajuda e Glossario usam toda a largura (sem painel direito)
-if page in ("Ajuda", "Glossario"):
-    main_col = st.container()
-    right_col = None
-else:
-    main_col, right_col = st.columns([4, 1], gap="medium")
-
-if right_col is not None:
-  with right_col:
-    # 2026-05-08: sidebar direita simplificada (estilo Claude Desktop).
-    # - "Projetos" foi movida para a aba Villa Lobos (area central).
-    # - "Anexos" foi convertida em popover (+) na caixa de mensagem central.
-    # Aqui ficam: Historico (lista flat) + Progresso (tasks com checkbox).
-
-    # CSS minimalista para o historico em lista (sem botoes encaixotados)
-    st.markdown(HISTORICO_CSS, unsafe_allow_html=True)
-
-    st.markdown("### Historico")
-
-    # Busca em chats
-    search_q = st.text_input("Buscar chats", key="chat_search",
-                              placeholder="Filtrar por conteudo...",
-                              label_visibility="collapsed")
-
-    # Atalho '+ Novo chat' (link discreto, no topo da lista)
-    if st.button("+ Novo chat", key="new_chat_btn",
-                 use_container_width=True):
-        chat_id = memory.new_chat(subagent=page.lower())
-        st.session_state.current_chat_id = chat_id
-        st.session_state.messages = []
-        st.rerun()
-
-    # Lista de chats (filtrada pelo projeto ativo, se houver)
-    if search_q:
-        chats = memory.search_chats(search_q, limit=30)
-    else:
-        proj = st.session_state.current_project
-        chats = memory.list_chats(project_id=proj, limit=30)
-
-    # Render lista flat estilo Claude Desktop. Cada item e um link
-    # `?lilo_chat=<id>` capturado pelo dashboard via query params.
-    qp = st.query_params if hasattr(st, "query_params") else {}
-    requested = qp.get("lilo_chat", None)
-    if isinstance(requested, list):
-        requested = requested[0] if requested else None
-    if requested and requested != st.session_state.current_chat_id:
-        st.session_state.current_chat_id = requested
-        msgs = memory.get_messages(requested)
-        st.session_state.messages = [
-            {"role": m["role"], "content": m["content"]} for m in msgs]
-        # limpa query param para nao rerender em loop
-        try:
-            del st.query_params["lilo_chat"]
-        except Exception:
-            pass
-        st.rerun()
-
-    if chats:
-        items_html = ['<div class="lilo-history-list">']
-        for ch in chats:
-            is_active = ch["id"] == st.session_state.current_chat_id
-            cls = "lilo-history-item active" if is_active else "lilo-history-item"
-            title_safe = (ch["title"] or "(sem titulo)").replace("<", "&lt;").replace(">", "&gt;")[:48]
-            items_html.append(
-                f'<a class="{cls}" href="?lilo_chat={ch["id"]}" target="_self">'
-                f'<span class="dot">·</span>{title_safe}</a>'
-            )
-        items_html.append("</div>")
-        st.markdown("".join(items_html), unsafe_allow_html=True)
-    else:
-        st.caption("(sem conversas)")
-
-    # Indicador discreto do projeto ativo + atalho para a aba Villa
-    if st.session_state.current_project:
-        st.markdown("---")
-        try:
-            _proj_obj = next(
-                (p for p in memory.list_projects()
-                 if p["id"] == st.session_state.current_project),
-                None,
-            )
-            _proj_label = _proj_obj["name"][:28] if _proj_obj else (
-                st.session_state.current_project[:8]
-            )
-        except Exception:
-            _proj_label = st.session_state.current_project[:8]
-        st.caption("Projeto: " + _proj_label)
-
-        # ---- Progresso (tasks do projeto) ---------------------------------
-        st.markdown("### Progresso")
-        prog = memory.task_progress(st.session_state.current_project)
-        if prog["total"]:
-            st.markdown(
-                f'<div class="lilo-progress-bar"><div style="width:{prog["pct"]}%"></div></div>'
-                f'<div style="font-size:0.78rem;opacity:0.7;margin:-4px 0 6px 0">'
-                f'{prog["done"]}/{prog["total"]} concluidas ({prog["pct"]}%)</div>',
-                unsafe_allow_html=True,
-            )
-        tasks = memory.list_tasks(st.session_state.current_project)
-        for t in tasks:
-            tk_id = t["id"]
-            checked = bool(t["done"])
-            new_val = st.checkbox(
-                t["title"][:60],
-                value=checked,
-                key=f"task_chk_{tk_id}",
-            )
-            if new_val != checked:
-                memory.set_task_done(tk_id, new_val)
-                st.rerun()
-        # Adicionar nova task
-        new_task = st.text_input(
-            "Nova task",
-            key="new_task_input",
-            placeholder="+ adicionar task...",
-            label_visibility="collapsed",
-        )
-        if new_task and st.session_state.get("new_task_last", "") != new_task:
-            memory.add_task(st.session_state.current_project, new_task)
-            st.session_state.new_task_last = new_task
-            st.rerun()
+# -- Layout principal ---------------------------------------------------------
+# V18.9: painel direito REMOVIDO — Historico e Progresso moraram para a
+# sidebar esquerda (estilo Claude: uma unica coluna central). Todas as
+# paginas usam a largura inteira; a pagina Chat estreita a coluna via CSS.
+main_col = st.container()
 
 
 # ============================================================================
@@ -882,107 +858,135 @@ with main_col:
         else:
             st.markdown(WELCOME_CSS, unsafe_allow_html=True)
 
-        # V18.8 E8: COMPOSER NO TOPO (estilo Claude) — a caixa de mensagem vem
-        # ANTES das demais caixas (modo de execucao, anexos, microfone). O
-        # st.chat_input nativo e SEMPRE ancorado no rodape pelo Streamlit e
-        # nao pode subir; o composer usa st.form + st.text_area (Ctrl+Enter
-        # envia; clear_on_submit limpa o campo apos enviar). O fluxo
-        # downstream (slash skills, _resend_text, plano/confirmacoes, PARAR)
-        # e exatamente o mesmo de antes.
+        # V18.9: coluna central ESTREITA e centralizada (~52rem) na pagina
+        # Chat — como a coluna de conversa do Claude. Só nesta pagina; as
+        # paginas de dados continuam usando a largura toda.
+        st.markdown(
+            "<style>.main .block-container{max-width:52rem;"
+            "margin-left:auto;margin-right:auto;}</style>",
+            unsafe_allow_html=True)
+
+        # V18.9: COMPOSER-CARTAO estilo Claude — text_area em cima e, na
+        # MESMA caixa, a linha de controles: + anexos (arquivos E pastas),
+        # microfone, seletor de MODELO (vira override \lilo p/ o Policy) e
+        # modo de execucao. O st.chat_input nativo e preso ao rodape, por
+        # isso form + text_area (Ctrl+Enter envia; clear_on_submit limpa).
+        # Fluxo downstream (slash skills, _resend_text, confirmacoes, PARAR)
+        # inalterado.
         _placeholder = (
             "Digite uma instrucao para o LILO executar... (/ para skills)"
             if st.session_state.get("lilo_mode", "act") == "act"
             else "Digite uma pergunta -- LILO nao tomara acoes (/ para skills)"
         )
-        with st.form("composer_top_form", clear_on_submit=True, border=False):
-            _composer_txt = st.text_area(
-                "Mensagem para o LILO", key="composer_top_text",
-                placeholder=_placeholder, height=88,
-                label_visibility="collapsed")
-            _fc_hint, _fc_send = st.columns([5, 1])
-            with _fc_hint:
-                st.caption("Ctrl+Enter envia — / para skills")
-            with _fc_send:
-                _composer_sent = st.form_submit_button(
-                    "Enviar", type="primary", use_container_width=True)
+        with st.container(border=True):
+            with st.form("composer_top_form", clear_on_submit=True,
+                         border=False):
+                _composer_txt = st.text_area(
+                    "Mensagem para o LILO", key="composer_top_text",
+                    placeholder=_placeholder, height=80,
+                    label_visibility="collapsed")
+                _fc_hint, _fc_send = st.columns([5, 1])
+                with _fc_hint:
+                    st.caption("Ctrl+Enter envia — / para skills")
+                with _fc_send:
+                    _composer_sent = st.form_submit_button(
+                        "Enviar", type="primary", use_container_width=True)
 
-        # ---- Modo de EXECUCAO (V14, estilo Claude) --------------------------
-        # 4 modos que controlam quanta confirmacao o LILO pede antes de AGIR.
-        # Ligados ao shared.exec_mode (gating no subagente desktop).
-        from shared import exec_mode as _xm
-        _MODE_LABELS = {
-            "🧭 Planejamento (só planeja)": "plan",
-            "🔐 Solicitar permissão": "ask",
-            "✏️ Aceitar edições": "accept_edits",
-            "⚡ Automático": "auto",
-        }
-        _labels = list(_MODE_LABELS)
-        _cur = _xm.get_mode()
-        _cur_label = next((l for l, m in _MODE_LABELS.items() if m == _cur),
-                          _labels[3])
-        _ec1, _ec2 = st.columns([2, 5])
-        with _ec1:
-            _sel_label = st.selectbox(
-                "Modo de execução", _labels, index=_labels.index(_cur_label),
-                label_visibility="collapsed",
-                help="Planejamento: só planeja, não executa. Solicitar "
-                     "permissão: confirma antes de rodar shell/python e de "
-                     "escrever fora da allow-list. Aceitar edições: edita "
-                     "arquivos sem pedir, confirma shell. Automático: executa tudo.")
-        _exec_mode = _MODE_LABELS[_sel_label]
-        _xm.set_mode(_exec_mode)
-        # lilo_mode (compat): plan = nao age; demais = age.
-        st.session_state.lilo_mode = "ask" if _exec_mode == "plan" else "act"
-        with _ec2:
-            st.caption({"plan": "Só planeja — nada é escrito/executado",
-                        "ask": "Confirma cada ação de risco",
-                        "accept_edits": "Edita arquivos direto; confirma shell",
-                        "auto": "Executa tudo sem pedir"}[_exec_mode])
-
-        # Anexos via popover (+) -- substitui sidebar 'Anexos'
-        _render_attachments_popover("chat")
-
-        # V14.1: microfone -- fala -> texto (faster-whisper local). O audio e
-        # captado pelo navegador (st.audio_input), transcrito localmente e
-        # injetado como prompt do chat (reusa o mecanismo _resend_text).
-        try:
-            from shared import transcribe as _tx
-            if _tx.is_available():
-                _mc1, _mc2 = st.columns([3, 5])
-                with _mc1:
-                    _audio = st.audio_input("🎤 Falar com o LILO",
-                                            key="mic_input",
-                                            label_visibility="collapsed")
-                if _audio is not None:
-                    _ab = _audio.getvalue()
-                    _sig = "%d:%s" % (len(_ab), hash(_ab[:2048]))
-                    if st.session_state.get("_last_audio_sig") != _sig:
-                        st.session_state["_last_audio_sig"] = _sig
-                        # V14.2: verifica o locutor (se ha voiceprint do dono).
-                        try:
-                            from shared import speaker_id as _sid
-                            if _sid.is_available() and _sid.is_enrolled():
-                                _v = _sid.verify(_ab)
-                                st.session_state["voice_owner"] = _v["is_owner"]
-                                with _mc2:
-                                    st.caption(
-                                        ("🔓 Voz reconhecida (dono) — score %.2f"
-                                         % _v["score"]) if _v["is_owner"]
-                                        else ("🔒 Voz não reconhecida (score %.2f "
-                                              "< limiar %.2f)"
-                                              % (_v["score"], _v.get("threshold", 0))))
-                        except Exception as _se:
-                            log.debug("speaker_id: %s", _se)
-                        with st.spinner("Transcrevendo (local)..."):
-                            _txt = _tx.transcribe(_ab)
-                        if _txt:
-                            st.session_state["_resend_text"] = _txt
-                            st.rerun()
-                        else:
-                            with _mc2:
-                                st.caption("Não entendi o áudio — tente de novo.")
-        except Exception as _mic_e:
-            log.debug("Microfone indisponivel: %s", _mic_e)
+            # Linha de controles do cartao (fora do form: popover/audio nao
+            # processam dentro de form ate o submit).
+            _cc_att, _cc_mic, _cc_model, _cc_mode = st.columns(
+                [3, 1, 3, 3], gap="small")
+            with _cc_att:
+                # Anexos (+): arquivos E pastas (sintese de diretorio)
+                _render_attachments_popover("chat")
+            with _cc_mic:
+                # V14.1: microfone — fala -> texto (faster-whisper local),
+                # com verificacao de locutor (voiceprint) quando ha cadastro.
+                try:
+                    from shared import transcribe as _tx
+                    if _tx.is_available():
+                        with st.popover("🎤"):
+                            _audio = st.audio_input(
+                                "Falar com o LILO", key="mic_input")
+                        if _audio is not None:
+                            _ab = _audio.getvalue()
+                            _sig = "%d:%s" % (len(_ab), hash(_ab[:2048]))
+                            if st.session_state.get("_last_audio_sig") != _sig:
+                                st.session_state["_last_audio_sig"] = _sig
+                                # V14.2: verifica o locutor (voiceprint dono)
+                                try:
+                                    from shared import speaker_id as _sid
+                                    if (_sid.is_available()
+                                            and _sid.is_enrolled()):
+                                        _v = _sid.verify(_ab)
+                                        st.session_state["voice_owner"] = (
+                                            _v["is_owner"])
+                                        st.caption(
+                                            ("🔓 Voz do dono — %.2f"
+                                             % _v["score"])
+                                            if _v["is_owner"]
+                                            else ("🔒 Voz nao reconhecida "
+                                                  "(%.2f)" % _v["score"]))
+                                except Exception as _se:
+                                    log.debug("speaker_id: %s", _se)
+                                with st.spinner("Transcrevendo (local)..."):
+                                    _txt = _tx.transcribe(_ab)
+                                if _txt:
+                                    st.session_state["_resend_text"] = _txt
+                                    st.rerun()
+                                else:
+                                    st.caption("Nao entendi o audio.")
+                except Exception as _mic_e:
+                    log.debug("Microfone indisponivel: %s", _mic_e)
+            with _cc_model:
+                # V18.9: seletor de MODELO na tela (como no Claude). "Auto"
+                # deixa o Policy Engine decidir; os demais viram override
+                # explicito \lilo <tier> (mesmo mecanismo do comando digitado;
+                # claude_* continua sujeito a budget e LILO_ALLOW_CLOUD).
+                _MODEL_OPTS = {
+                    "Modelo: Auto": None,
+                    "Local padrao": "local",
+                    "Local rapido": "fast",
+                    "Local pesado": "heavy",
+                    "Claude Sonnet": "sonnet",
+                    "Claude Opus": "opus",
+                }
+                _model_label = st.selectbox(
+                    "Modelo", list(_MODEL_OPTS), index=0, key="model_choice",
+                    label_visibility="collapsed",
+                    help="Auto: o Policy Engine escolhe o tier por "
+                         "complexidade/custo/budget. Os demais forcam o tier "
+                         "via override \\lilo (nuvem respeita budget diario "
+                         "e LILO_ALLOW_CLOUD).")
+                _model_ov = _MODEL_OPTS[_model_label]
+            with _cc_mode:
+                # ---- Modo de EXECUCAO (V14) — gating de acoes de risco ----
+                from shared import exec_mode as _xm
+                _MODE_LABELS = {
+                    "🧭 Planejamento (só planeja)": "plan",
+                    "🔐 Solicitar permissão": "ask",
+                    "✏️ Aceitar edições": "accept_edits",
+                    "⚡ Automático": "auto",
+                }
+                _labels = list(_MODE_LABELS)
+                _cur = _xm.get_mode()
+                _cur_label = next(
+                    (l for l, m in _MODE_LABELS.items() if m == _cur),
+                    _labels[3])
+                _sel_label = st.selectbox(
+                    "Modo de execução", _labels,
+                    index=_labels.index(_cur_label),
+                    label_visibility="collapsed",
+                    help="Planejamento: só planeja, não executa. Solicitar "
+                         "permissão: confirma antes de rodar shell/python e "
+                         "de escrever fora da allow-list. Aceitar edições: "
+                         "edita arquivos sem pedir, confirma shell. "
+                         "Automático: executa tudo.")
+                _exec_mode = _MODE_LABELS[_sel_label]
+                _xm.set_mode(_exec_mode)
+                # lilo_mode (compat): plan = nao age; demais = age.
+                st.session_state.lilo_mode = ("ask" if _exec_mode == "plan"
+                                              else "act")
 
         # V14: reenvio automatico apos o usuario CONFIRMAR uma acao de risco
         # (o grant one-shot ja foi concedido pelo botao "Confirmar e executar").
@@ -1167,7 +1171,15 @@ with main_col:
                             else:
                                 _force_tab = "gateway"
                                 ctx["mode"] = mode  # modo do gateway
-                            response = route(prompt, context=ctx, tab=_force_tab)
+                            # V18.9: seletor de MODELO do composer -> override
+                            # \lilo (o Policy trata igual ao comando digitado;
+                            # o texto exibido/salvo continua sendo o prompt
+                            # limpo).
+                            _route_q = prompt
+                            if _model_ov:
+                                _route_q = "\\lilo %s %s" % (_model_ov, prompt)
+                            response = route(_route_q, context=ctx,
+                                             tab=_force_tab)
                         except Exception as e:
                             response = "Erro: " + str(e)
                     # V14: trata pedido de confirmacao / bloqueio (modos de exec).
