@@ -54,16 +54,16 @@ _KV = re.compile(
     r"\s*[:=]\s*(\"[^\"]{6,}\"|'[^']{6,}'|[A-Za-z0-9._\-]{12,})")
 
 
-def _flag(name: str, default: str) -> str:
-    return str(os.environ.get(name, default)).strip().lower()
-
-
 def _enabled() -> bool:
-    return _flag("LILO_SCRUB", "1") not in ("0", "false", "off")
+    # Literal inline no environ.get (nao via wrapper): mantem a env visivel ao
+    # detector de "doc morta" do /diagnostico_lilo (scripts/diagnostico_lilo.py).
+    return str(os.environ.get("LILO_SCRUB", "1")).strip().lower() not in (
+        "0", "false", "off")
 
 
 def _emails_on() -> bool:
-    return _flag("LILO_SCRUB_EMAILS", "0") in ("1", "true", "on")
+    return str(os.environ.get("LILO_SCRUB_EMAILS", "0")).strip().lower() in (
+        "1", "true", "on")
 
 
 def _value_is_secretish(v: str) -> bool:
