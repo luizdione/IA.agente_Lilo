@@ -108,6 +108,46 @@ def _maybe_cloud_gate(model, prompt, system):
     return _cloud_gate(info.provider, model,
                        len(str(prompt or "")) + len(str(system or "")))
 
+
+def _scrub_cloud_payload(prompt, system):
+    """V18 E5b: redige segredos do que vai SAIR para a cloud (prompt+system).
+
+    Complementa o gate E5 (_cloud_gate DECIDE se envia; aqui garantimos que o
+    que sai nao carrega credenciais). Loga so os rotulos/contagem, nunca o
+    valor. Erro interno NUNCA derruba a chamada — devolve o texto original."""
+    try:
+        from .scrubber import scrub_secrets, summarize
+        p2, f1 = scrub_secrets(prompt)
+        s2, f2 = scrub_secrets(system)
+        findings = list(f1 or []) + list(f2 or [])
+        if findings:
+            log.warning("cloud_send: segredos redigidos antes do envio (%s)",
+                        summarize(findings))
+        return p2, s2
+    except Exception as e:  # pragma: no cover
+        log.debug("scrubber indisponivel: %s", e)
+        return prompt, system
+
+
+def _maybe_cloud_prepare(model, prompt, system):
+    """V18 E5+E5b: gate + scrub num ponto so, para destino CLOUD.
+
+    Retorna (blocked_or_None, prompt, system). Para destino LOCAL (Ollama) e
+    um no-op: (None, prompt, system). Para cloud: aplica o gate E5 (confirma/
+    bloqueia por modo) e, se liberado, redige segredos (E5b) do prompt+system
+    antes de devolver. A deteccao de "e cloud?" espelha exatamente a do
+    _maybe_cloud_gate (provider != Ollama), mantendo E5 e E5b coerentes."""
+    from .model_catalog import PROVIDER_OLLAMA, get_model_info
+    info = get_model_info(model)
+    if info.provider == PROVIDER_OLLAMA:
+        return (None, prompt, system)
+    blocked = _cloud_gate(info.provider, model,
+                          len(str(prompt or "")) + len(str(system or "")))
+    if blocked:
+        return (blocked, prompt, system)
+    prompt, system = _scrub_cloud_payload(prompt, system)
+    return (None, prompt, system)
+
 # System prompt padrao para nivel PhD
 DEFAULT_SYSTEM = (
     "Voce e o LILO, assistente de IA para um PhD em Biologia Molecular "
@@ -222,7 +262,8 @@ class LLMClient:
             }
             claude_model = claude_models.get(tier, claude_models["claude_sonnet"])
             log.info("Tier %s -> Anthropic API (%s)", tier, claude_model)
-            blocked = _maybe_cloud_gate(claude_model, prompt, system)  # V18 E5
+            blocked, prompt, system = _maybe_cloud_prepare(  # V18 E5+E5b
+                claude_model, prompt, system)
             if blocked:
                 return blocked
             return self._chat_anthropic(prompt, system, temperature, max_tokens, model=claude_model)
@@ -230,7 +271,8 @@ class LLMClient:
         if tier and tier.startswith("ollama"):
             model = model or DEFAULT_MODEL
             log.info("Tier %s -> Ollama (%s)", tier, model)
-            blocked = _maybe_cloud_gate(model, prompt, system)  # V18 E5 (*-cloud)
+            blocked, prompt, system = _maybe_cloud_prepare(  # V18 E5+E5b (*-cloud)
+                model, prompt, system)
             if blocked:
                 return blocked
             return self._chat_ollama(prompt, system, model, temperature, max_tokens, cot=cot)
@@ -241,7 +283,8 @@ class LLMClient:
         # (modelos *-cloud via Ollama/LiteLLM e o backend anthropic).
         _gate_model = (model if self.backend != "anthropic"
                        else get_env("LILO_CLAUDE_SONNET", "claude-sonnet-4-5"))
-        blocked = _maybe_cloud_gate(_gate_model, prompt, system)
+        blocked, prompt, system = _maybe_cloud_prepare(  # V18 E5+E5b
+            _gate_model, prompt, system)
         if blocked:
             return blocked
 

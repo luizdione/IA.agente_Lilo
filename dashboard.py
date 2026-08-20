@@ -42,6 +42,38 @@ load_env()
 log = get_logger("Dashboard")
 memory = get_memory()
 
+# -- Versao do LILO + guarda de versao do Streamlit --------------------------
+# O redesign estilo Claude (composer-cartao, realce de navegacao ativo, botoes
+# da barra superior, botao PARAR) e estilizado por classes st-key-* que SO
+# existem no Streamlit >= 1.39. Em versoes anteriores o layout degrada em
+# SILENCIO: a paleta/fundo aplicam (data-testid antigos), mas a estrutura nova
+# nao. Aqui tornamos isso um aviso explicito e expomos a versao na sidebar para
+# o dono confirmar que esta rodando ESTE build — nao uma copia antiga (ex.: do
+# OneDrive). Fonte de verdade da versao: badge do README (mesma regex do
+# scripts/memoria_projeto.py).
+_ST_MIN = (1, 39)
+
+
+def _lilo_version() -> str:
+    import re as _re
+    try:
+        m = _re.search(r"badge/version-([\d.]+)-",
+                       (_ROOT / "README.md").read_text(encoding="utf-8"))
+        return m.group(1) if m else "?"
+    except Exception:
+        return "?"
+
+
+def _st_version_tuple() -> tuple:
+    try:
+        return tuple(int(x) for x in st.__version__.split(".")[:2])
+    except Exception:
+        return (0, 0)
+
+
+LILO_VERSION = _lilo_version()
+_ST_OK = _st_version_tuple() >= _ST_MIN
+
 # V18.8 E8: sidebar RECOLHIVEL. O estado vive em session_state e alimenta o
 # initial_sidebar_state do set_page_config (antes era fixo "expanded"). O botao
 # «/» na barra superior alterna e chama st.rerun(), reemitindo o page_config com
@@ -59,6 +91,17 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state=st.session_state.sidebar_state,
 )
+
+# Aviso EXPLICITO quando o Streamlit e antigo demais para o layout novo (antes
+# a quebra era silenciosa — "o dashboard nao mudou nada"). st.error/st.__version__
+# existem em todas as versoes, entao o proprio aviso nunca quebra.
+if not _ST_OK:
+    st.error(
+        "Streamlit %s detectado. O layout novo do LILO (v%s) exige "
+        "**Streamlit >= 1.39**. Atualize com `pip install -U \"streamlit>=1.39\"` "
+        "e recarregue (Ctrl+F5). Sem isso, o composer-cartao, o realce de "
+        "navegacao e a barra superior NAO aplicam — o fundo muda, a estrutura "
+        "nao." % (st.__version__, LILO_VERSION))
 
 # -- Estado da sessao --------------------------------------------------------
 defaults = {
@@ -284,6 +327,12 @@ with st.sidebar:
         st.image(str(_ICON_PATH), width=64)
         st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('<div class="lilo-title">LILO</div>', unsafe_allow_html=True)
+    # Selo de versao: confirma na hora que este e o build novo (nao uma copia
+    # antiga) e mostra a versao do Streamlit em uso (o layout exige >= 1.39).
+    st.markdown(
+        '<div class="lilo-subtitle">v%s &middot; Streamlit %s</div>'
+        % (LILO_VERSION, st.__version__),
+        unsafe_allow_html=True)
 
     agents, agent_errors = load_agents()
     ollama_ok, ollama_models = check_ollama()

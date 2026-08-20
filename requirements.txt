@@ -11,7 +11,9 @@ anthropic>=0.40.0
 ollama>=0.1.6
 
 # Dashboard
-streamlit>=1.30.0
+# >=1.39: o layout novo usa classes st-key-* (composer-cartao, nav ativo,
+# barra superior). Em versao anterior o dashboard degrada SILENCIOSAMENTE.
+streamlit>=1.39
 pandas>=2.1.0
 
 # PDF processing

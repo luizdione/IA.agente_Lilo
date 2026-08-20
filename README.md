@@ -1,7 +1,7 @@
 # LILO v12.4 — Agente Pessoal de IA com Subagentes Especializados
 
 ![Status](https://img.shields.io/badge/status-ativo-brightgreen)
-![Version](https://img.shields.io/badge/version-12.14.0-blue)
+![Version](https://img.shields.io/badge/version-12.15.0-blue)
 ![Python](https://img.shields.io/badge/python-3.13-yellow)
 ![Arch](https://img.shields.io/badge/arch-v11-purple)
 ![Tests](https://img.shields.io/badge/tests-120%20passed-brightgreen)

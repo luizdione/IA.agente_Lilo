@@ -4,6 +4,37 @@
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
 > commits (atual: V18).
 
+## v12.15 — 2026-08-20 (V18.11: guarda de versão do dashboard + scrubber pré-cloud)
+
+Rodada de correção a partir de um relato do dono: "o layout do dashboard não
+mudou nada". Diagnóstico (dashboard subido de verdade via `AppTest`, não só
+sintaxe): o redesign estilo Claude é **real e correto no Streamlit ≥ 1.39**,
+mas **degrada em silêncio em versão anterior** — o composer-cartão, o realce
+de navegação, a barra superior e o botão PARAR são estilizados por classes
+`st-key-*`, que só existem a partir do 1.39. O pin `streamlit>=1.30.0`
+permitia justamente uma versão onde metade do "look" não aplica.
+
+- **Guarda de versão no boot** (`dashboard.py`): se o Streamlit for < 1.39, um
+  `st.error` explícito instrui a atualizar (`pip install -U "streamlit>=1.39"`)
+  — a quebra deixa de ser silenciosa. O próprio aviso usa só APIs universais,
+  então nunca quebra.
+- **Selo de versão na sidebar**: `v12.15.0 · Streamlit X.Y` sob o título —
+  confirma na hora que o build em execução é este (não uma cópia antiga, ex.:
+  do OneDrive) e qual Streamlit está em uso.
+- **Pin endurecido**: `requirements.txt` → `streamlit>=1.39`.
+- **E5b — scrubber de segredos pré-cloud** (`shared/scrubber.py`): complementa
+  o gate E5 (que *decide* se envia) redigindo credenciais do `prompt`+`system`
+  **antes** de saírem para a nuvem. Padrões de alta confiança (chaves
+  Anthropic/OpenAI/Google/AWS, tokens GitHub/Slack, JWT, Bearer, blocos PEM,
+  `key=value` com valor secreto) — ancorados por prefixo para **não** mutilar
+  sequências/IDs científicos. E-mails são opt-in (`LILO_SCRUB_EMAILS`); tudo
+  desligável por `LILO_SCRUB=0`. Integrado em `llm_client._maybe_cloud_prepare`
+  (gate + scrub num ponto só, só no destino cloud). Log expõe rótulo+contagem,
+  nunca o valor.
+- Testes: `tests/shared/test_scrubber.py` (offline; padrões, opt-in de e-mail,
+  kill-switch, ausência de falso-positivo em texto científico, integração com
+  `_maybe_cloud_prepare`). `scripts/check.py` verde.
+
 ## v12.14 — 2026-08-19 (V18.10: gerente de memória do projeto)
 
 - **`CONTEXT.md` (raiz)** vira a memória viva do projeto — o LILO já o lê
