@@ -206,6 +206,32 @@ class CostTracker:
             ).fetchall()
         return [dict(r) for r in rows]
 
+    def latency_summary(self, target_date: Optional[str] = None) -> dict:
+        """V18 QW5: p50/p95/media de duration_ms do dia (so requests > 0 ms).
+
+        duration_ms e gravado por request desde a V2, mas nunca era agregado —
+        so aparecia cru na tabela 'Recentes' do dashboard. Percentil por
+        nearest-rank (stdlib, sem numpy)."""
+        d = target_date or date.today().isoformat()
+        empty = {"date": d, "count": 0, "p50_ms": 0, "p95_ms": 0, "avg_ms": 0}
+        if not self.enabled:
+            return {**empty, "disabled": True}
+        with sqlite3.connect(str(self.db_path)) as conn:
+            rows = conn.execute(
+                "SELECT duration_ms FROM requests WHERE date = ? AND duration_ms > 0",
+                (d,),
+            ).fetchall()
+        vals = sorted(r[0] for r in rows)
+        if not vals:
+            return empty
+
+        def _pct(p: float) -> int:
+            idx = min(len(vals) - 1, max(0, round(p * (len(vals) - 1))))
+            return int(vals[idx])
+
+        return {"date": d, "count": len(vals), "p50_ms": _pct(0.50),
+                "p95_ms": _pct(0.95), "avg_ms": int(sum(vals) / len(vals))}
+
 
 # ── Singleton ────────────────────────────────────────────────────────────────
 _tracker: Optional[CostTracker] = None

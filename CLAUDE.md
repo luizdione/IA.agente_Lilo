@@ -14,7 +14,11 @@ python lilo.py "pergunta"           # CLI
 python lilo.py health               # status de backends/subagentes
 python scripts\test_mcp_stdio.py --profile claude_code   # valida o MCP
 python scripts\check.py             # saude do codigo (sintaxe+pyflakes+pytest)
+python scripts\memoria_projeto.py   # memoria do projeto -> CONTEXT.md (skill /gerente_memoria)
 ```
+
+**Retomando o projeto?** Leia `CONTEXT.md` (raiz) antes de explorar — estado,
+pendencias e decisoes vivem la (economia de tokens).
 
 ## MCP: qual profile usar (importante p/ tokens)
 O servidor `lilo_mcp.py` expõe conjuntos de tools por `--profile` (fonte de verdade: `config/profiles.yaml` + `_PROFILE_TOOLS` em `lilo_mcp.py`). O perfil é resolvido por `--profile` (CLI) > `LILO_MCP_PROFILE` > `LILO_SERVER_PROFILE`.

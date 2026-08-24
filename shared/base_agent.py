@@ -83,5 +83,24 @@ class BaseAgent(ABC):
             "description": getattr(self, "description", ""),
         }
 
+    def resolve_model(self, context, chosen):
+        """V18 QW2 (fase 1: so observabilidade) — retorna `chosen` INALTERADO
+        e loga a divergencia vs a decisao do Policy Engine.
+
+        lilo.route grava a decisao em context['_model']/context['_tier'] desde
+        a origem, mas nenhum subagente lia essas chaves — cada um escolhe o
+        proprio modelo (varios com default cloud que a policy nem modela).
+        Antes de FORCAR a decisao (enforcement fica para o catalogo de
+        modelos, item E1 de docs/tecnico/analise_open_agent_studio.md),
+        medimos a divergencia real em log. Nao muda comportamento.
+        """
+        ctx = context or {}
+        policy_model = ctx.get("_model")
+        if policy_model and chosen and policy_model != chosen:
+            self.log.info(
+                "modelo: policy sugeriu %s (tier=%s); agente '%s' usara %s",
+                policy_model, ctx.get("_tier", "?"), self.name, chosen)
+        return chosen
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} name='{self.name}'>"

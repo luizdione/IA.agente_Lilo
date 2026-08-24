@@ -59,7 +59,7 @@ os.environ.setdefault("PYTHONPATH", str(LILO_ROOT))
 
 # Lazy import-fix: o usuario pode rodar lilo_api.py sem fastapi instalado
 try:
-    from fastapi import FastAPI, HTTPException, Request, Header
+    from fastapi import FastAPI, HTTPException, Header
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import JSONResponse, HTMLResponse
     from pydantic import BaseModel

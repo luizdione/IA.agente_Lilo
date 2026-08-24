@@ -108,14 +108,19 @@ def _is_risk(kind: str) -> bool:
     # write dentro da allow-list NÃO é "risco" pela política; o desktop sinaliza
     # escrita fora da allow-list como "write_outside". git_write (commit/push) e
     # sempre risco, tratado a parte em gate() (sensivel ate em 'auto').
-    return kind in ("shell", "python", "write_outside", "git_write")
+    # V18 E5: cloud_send = conteudo SAINDO da maquina (Anthropic/Ollama Cloud);
+    # risco nos modos ask/accept_edits, acumulado no modo plan, passa em auto
+    # (com log no chamador). Desligavel por LILO_CLOUD_GATE=0 no llm_client.
+    return kind in ("shell", "python", "write_outside", "git_write",
+                    "cloud_send")
 
 
 def gate(kind: str, preview: str = "", *, token: str = None) -> str | None:
     """Retorna None se a ação pode executar AGORA; senão uma string de
     bloqueio/confirmação (a ação NÃO deve ser executada).
 
-    kind: "write" | "write_outside" | "shell" | "python" | "git_write".
+    kind: "write" | "write_outside" | "shell" | "python" | "git_write"
+          | "cloud_send" (V18 E5: envio de conteudo a provedor cloud).
     token: para git_write, o scope_token(cmd) -> grant escopado ao comando.
     """
     global _GRANT

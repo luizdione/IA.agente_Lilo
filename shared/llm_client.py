@@ -55,6 +55,99 @@ MODELS = {
 }
 DEFAULT_MODEL = MODELS["chat"]
 
+def _anthropic_cost_usd(model, usage) -> float:
+    """Custo REAL de uma resposta Anthropic a partir do bloco `usage` (QW4).
+
+    V18 E1: precos vem do catalogo central (shared/model_catalog); familia
+    desconhecida superestima com preco Opus (fail-safe p/ budget). Cache
+    ephemeral: escrita (TTL 5min) = 1.25x input; leitura = 0.10x input."""
+    from .model_catalog import anthropic_prices_mtok
+    p_in, p_out = anthropic_prices_mtok(model)
+    tok_in   = getattr(usage, "input_tokens", 0) or 0
+    tok_out  = getattr(usage, "output_tokens", 0) or 0
+    cache_w  = getattr(usage, "cache_creation_input_tokens", 0) or 0
+    cache_r  = getattr(usage, "cache_read_input_tokens", 0) or 0
+    return (tok_in * p_in + cache_w * p_in * 1.25 + cache_r * p_in * 0.10
+            + tok_out * p_out) / 1_000_000.0
+
+
+def _cloud_gate(destination, model, payload_chars):
+    """V18 E5: gate de privacidade PRE-envio a provedor cloud.
+
+    Ate aqui "tem chave / modelo cloud" == "pode enviar": nenhum ponto unico
+    confirmava ou sequer registrava a saida de conteudo da maquina (requisito
+    da spec analisada: "nunca enviar sem autorizacao explicita"). Semantica
+    por modo de execucao (shared/exec_mode): auto -> passa e LOGA destino+
+    tamanho; ask/accept_edits -> pede confirmacao (mesmo fluxo do shell);
+    plan -> acumula no plano e bloqueia. LILO_CLOUD_GATE=0 desliga
+    (comportamento pre-V18). Retorna None (pode enviar) ou a string de
+    bloqueio/confirmacao que o chamador deve devolver SEM enviar nada."""
+    if str(get_env("LILO_CLOUD_GATE", "1")).strip().lower() in (
+            "0", "false", "off"):
+        return None
+    try:
+        from .exec_mode import gate, get_mode
+        preview = "%s <- modelo=%s (~%d chars de prompt+system)" % (
+            destination, model, payload_chars)
+        blocked = gate("cloud_send", preview)
+        if blocked:
+            log.info("cloud_send retido (modo=%s): %s", get_mode(), preview)
+            return blocked
+        log.info("cloud_send: %s", preview)
+    except Exception as e:  # o gate NUNCA derruba a chamada por erro interno
+        log.debug("cloud gate indisponivel: %s", e)
+    return None
+
+
+def _maybe_cloud_gate(model, prompt, system):
+    """Aplica o gate E5 somente quando o destino e cloud (catalogo E1)."""
+    from .model_catalog import PROVIDER_OLLAMA, get_model_info
+    info = get_model_info(model)
+    if info.provider == PROVIDER_OLLAMA:
+        return None
+    return _cloud_gate(info.provider, model,
+                       len(str(prompt or "")) + len(str(system or "")))
+
+
+def _scrub_cloud_payload(prompt, system):
+    """V18 E5b: redige segredos do que vai SAIR para a cloud (prompt+system).
+
+    Complementa o gate E5 (_cloud_gate DECIDE se envia; aqui garantimos que o
+    que sai nao carrega credenciais). Loga so os rotulos/contagem, nunca o
+    valor. Erro interno NUNCA derruba a chamada — devolve o texto original."""
+    try:
+        from .scrubber import scrub_secrets, summarize
+        p2, f1 = scrub_secrets(prompt)
+        s2, f2 = scrub_secrets(system)
+        findings = list(f1 or []) + list(f2 or [])
+        if findings:
+            log.warning("cloud_send: segredos redigidos antes do envio (%s)",
+                        summarize(findings))
+        return p2, s2
+    except Exception as e:  # pragma: no cover
+        log.debug("scrubber indisponivel: %s", e)
+        return prompt, system
+
+
+def _maybe_cloud_prepare(model, prompt, system):
+    """V18 E5+E5b: gate + scrub num ponto so, para destino CLOUD.
+
+    Retorna (blocked_or_None, prompt, system). Para destino LOCAL (Ollama) e
+    um no-op: (None, prompt, system). Para cloud: aplica o gate E5 (confirma/
+    bloqueia por modo) e, se liberado, redige segredos (E5b) do prompt+system
+    antes de devolver. A deteccao de "e cloud?" espelha exatamente a do
+    _maybe_cloud_gate (provider != Ollama), mantendo E5 e E5b coerentes."""
+    from .model_catalog import PROVIDER_OLLAMA, get_model_info
+    info = get_model_info(model)
+    if info.provider == PROVIDER_OLLAMA:
+        return (None, prompt, system)
+    blocked = _cloud_gate(info.provider, model,
+                          len(str(prompt or "")) + len(str(system or "")))
+    if blocked:
+        return (blocked, prompt, system)
+    prompt, system = _scrub_cloud_payload(prompt, system)
+    return (None, prompt, system)
+
 # System prompt padrao para nivel PhD
 DEFAULT_SYSTEM = (
     "Voce e o LILO, assistente de IA para um PhD em Biologia Molecular "
@@ -169,14 +262,31 @@ class LLMClient:
             }
             claude_model = claude_models.get(tier, claude_models["claude_sonnet"])
             log.info("Tier %s -> Anthropic API (%s)", tier, claude_model)
+            blocked, prompt, system = _maybe_cloud_prepare(  # V18 E5+E5b
+                claude_model, prompt, system)
+            if blocked:
+                return blocked
             return self._chat_anthropic(prompt, system, temperature, max_tokens, model=claude_model)
 
         if tier and tier.startswith("ollama"):
             model = model or DEFAULT_MODEL
             log.info("Tier %s -> Ollama (%s)", tier, model)
+            blocked, prompt, system = _maybe_cloud_prepare(  # V18 E5+E5b (*-cloud)
+                model, prompt, system)
+            if blocked:
+                return blocked
             return self._chat_ollama(prompt, system, model, temperature, max_tokens, cot=cot)
 
         model = model or DEFAULT_MODEL
+
+        # V18 E5: gate pre-cloud tambem no caminho por backend detectado
+        # (modelos *-cloud via Ollama/LiteLLM e o backend anthropic).
+        _gate_model = (model if self.backend != "anthropic"
+                       else get_env("LILO_CLAUDE_SONNET", "claude-sonnet-4-5"))
+        blocked, prompt, system = _maybe_cloud_prepare(  # V18 E5+E5b
+            _gate_model, prompt, system)
+        if blocked:
+            return blocked
 
         if self.backend == "litellm":
             return self._chat_litellm(prompt, system, model, temperature, max_tokens)
@@ -322,10 +432,12 @@ class LLMClient:
 
     def _chat_anthropic(self, prompt, system, temperature, max_tokens, model=None):
         import anthropic
+        import time as _time
         client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
         # Default atualizado 2026-05-07 (Claude 4.5/4.6); override via LILO_CLAUDE_SONNET.
         model = model or get_env("LILO_CLAUDE_SONNET", "claude-sonnet-4-5")
         log.info("Anthropic API -> %s", model)
+        _t0 = _time.time()
 
         # Prompt caching (2026-06-13): marca o bloco `system` como cacheavel
         # (cache_control ephemeral). E ADITIVO e seguro -- a API ignora o cache
@@ -352,6 +464,30 @@ class LLMClient:
         except TypeError:
             # SDK antigo sem suporte a `system` em blocos -> string simples.
             msg = client.messages.create(system=system, **common)
+        # V18 QW4: grava o custo REAL a partir do `usage` da resposta -- ate a
+        # V17 o usage era DESCARTADO e o CostTracker so recebia a estimativa
+        # chars/4 de lilo.route (tokens_in/out sempre 0, cache invisivel).
+        # Centralizado aqui, TODOS os callers (gateway, villa, review, judge)
+        # ganham telemetria real de graca. Nao-fatal: telemetria nunca derruba
+        # a resposta. O budget do Policy (_today_cost) le o tracker, entao o
+        # gate diario passa a operar sobre gasto real.
+        try:
+            u = getattr(msg, "usage", None)
+            if u is not None:
+                from .cost_tracker import get_tracker
+                get_tracker().log_request(
+                    backend="anthropic", model=model, subagent="llm_client",
+                    tier="anthropic_real",
+                    tokens_in=(getattr(u, "input_tokens", 0) or 0)
+                    + (getattr(u, "cache_creation_input_tokens", 0) or 0)
+                    + (getattr(u, "cache_read_input_tokens", 0) or 0),
+                    tokens_out=getattr(u, "output_tokens", 0) or 0,
+                    cost_usd=_anthropic_cost_usd(model, u),
+                    query_preview=prompt[:80],
+                    duration_ms=int((_time.time() - _t0) * 1000),
+                )
+        except Exception as _e:
+            log.debug("telemetria de custo anthropic falhou: %s", _e)
         return msg.content[0].text
 
 

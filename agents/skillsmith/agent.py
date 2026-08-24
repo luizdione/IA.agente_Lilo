@@ -135,8 +135,10 @@ class SkillSmithAgent(BaseAgent):
             "\"keywords\":[\"...\"],\"tools\":[{\"name\":\"verbo_objeto\","
             "\"description\":\"...\"}]}.\n\nDESCRICAO: " + description)
         try:
+            # V18 QW2: loga divergencia policy->agente (modelo inalterado).
+            _model = self.resolve_model(getattr(self, "_cur_ctx", None), SMITH_MODEL)
             raw = self.llm.chat(prompt, system="Arquiteto de agentes. JSON valido.",
-                                model=SMITH_MODEL, temperature=0.2, max_tokens=512)
+                                model=_model, temperature=0.2, max_tokens=512)
             m = re.search(r"\{.*\}", raw or "", re.DOTALL)
             return json.loads(m.group(0)) if m else {}
         except Exception as e:
@@ -189,6 +191,7 @@ class SkillSmithAgent(BaseAgent):
     # ── BaseAgent ─────────────────────────────────────────────────────────────
     def run(self, query: str, context: dict[str, Any] = {}) -> str:
         ctx = context or {}
+        self._cur_ctx = ctx  # V18 QW2: p/ resolve_model em _propose
         name = ctx.get("name", "")
         description = ctx.get("description") or sanitize_query(query)
         keywords = ctx.get("keywords")

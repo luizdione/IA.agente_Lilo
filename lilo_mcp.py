@@ -73,10 +73,15 @@ _PROFILE_TOOLS = {
         "lilo_memory_set", "lilo_memory_get", "lilo_memory_list",
         "lilo_memory_delete", "lilo_cost_today", "lilo_cost_recent",
         # v10.3 -- memoria avancada
-        "lilo_memory_search", "lilo_memory_stats", "lilo_memory_export",
+        "lilo_memory_search", "lilo_memory_semantic_search", "lilo_recall",
+        "lilo_memory_stats", "lilo_memory_export",
         "lilo_memory_cleanup",
         # Ollama model manager (util ao trocar de maquina)
         "lilo_pull_model", "lilo_list_local_models",
+        # V18.6 E6: cliente MCP (consumir servidores externos)
+        "mcp_list_servers", "mcp_list_tools", "mcp_call",
+        # V18.7 E7: tools git + workflow dev
+        "git_status", "git_diff", "git_commit", "dev_workflow",
         # Composed tools (reduzem round-trips MCP)
         "fs_batch_read", "fs_codemod", "grep_and_read",
         # V13/V14: dev/ciencia (criar agentes, EDA, redacao, documentos)
@@ -95,7 +100,8 @@ _PROFILE_TOOLS = {
         "fs_read", "fs_list", "fs_stat", "fs_search",
         # memoria persistente para acumular notas de pesquisa
         "lilo_memory_set", "lilo_memory_get", "lilo_memory_list",
-        "lilo_memory_search", "lilo_memory_stats", "lilo_memory_export",
+        "lilo_memory_search", "lilo_memory_semantic_search", "lilo_recall",
+        "lilo_memory_stats", "lilo_memory_export",
         # ollama
         "lilo_pull_model", "lilo_list_local_models",
         "lilo_cost_today", "lilo_cost_recent",
@@ -121,7 +127,7 @@ _PROFILE_TOOLS = {
         "run_python", "run_shell",
         # Memoria persistente entre sessoes
         "lilo_memory_set", "lilo_memory_get", "lilo_memory_list",
-        "lilo_memory_search",
+        "lilo_memory_search", "lilo_memory_semantic_search", "lilo_recall",
         # Pesquisa biomedica estruturada (vs web_search bruto)
         "lilo_scholar",
         # RAG na biblioteca local de PDFs ja ingerida (+ gate factual)
@@ -130,6 +136,7 @@ _PROFILE_TOOLS = {
         "prism_analyze", "prism_classify",
         # Ollama (info)
         "lilo_list_local_models", "lilo_pull_model",
+        "mcp_list_servers", "mcp_list_tools", "mcp_call",  # V18.6 E6
         # Composed tools que reduzem round-trips no Opus
         "fs_batch_read", "grep_and_read", "fs_codemod",
         # V13/V14: agregam ao Opus (redacao, revisao, documentos, EDA, meta)
@@ -156,12 +163,16 @@ _PROFILE_TOOLS = {
         "lilo_pdf",
         # Memoria persistente entre sessoes (KV SQLite)
         "lilo_memory_set", "lilo_memory_get", "lilo_memory_list",
-        "lilo_memory_search", "lilo_memory_stats", "lilo_memory_export",
+        "lilo_memory_search", "lilo_memory_semantic_search", "lilo_recall",
+        "lilo_memory_stats", "lilo_memory_export",
         "lilo_memory_delete", "lilo_memory_cleanup",
         # Cost tracking (visivel para o usuario)
         "lilo_cost_today", "lilo_cost_recent",
         # Ollama model manager (info + pull)
         "lilo_pull_model", "lilo_list_local_models",
+        # V18.6 E6: cliente MCP + V18.7 E7: git dedicado + workflow dev
+        "mcp_list_servers", "mcp_list_tools", "mcp_call",
+        "git_status", "git_diff", "git_commit", "dev_workflow",
         # Health
         "lilo_health", "lilo_models",
         # V13/V14: complementares ao Claude Code (redacao/revisao/docs/EDA/meta)
@@ -938,6 +949,134 @@ def lilo_memory_search(query: str, namespace: str = "", limit: int = 50) -> str:
     _ensure_lilo()
     from lilo import handle_tool_call
     return handle_tool_call("lilo_memory_search", {
+        "query": query, "namespace": namespace, "limit": limit,
+    })
+
+
+@_profile_tool
+def git_status() -> str:
+    """Estado da arvore git (branch + arquivos modificados). Somente
+    leitura, seguro. (V18.7 E7)"""
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("git_status", {})
+
+
+@_profile_tool
+def git_diff(staged: bool = False) -> str:
+    """Diff da arvore git (ou staged=True). Somente leitura, truncado."""
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("git_diff", {"staged": staged})
+
+
+@_profile_tool
+def git_commit(message: str, add_all: bool = True) -> str:
+    """Cria um commit git (V18.7 E7). Passa pelo gate git_write
+    (never-commit-unless-asked): a chamada EXPLICITA desta tool e a
+    autorizacao, exceto no modo 'plan' (onde o commit e deferido ao plano).
+
+    Args:
+        message: mensagem do commit.
+        add_all: git add -A antes (default True).
+    """
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("git_commit", {
+        "message": message, "add_all": add_all})
+
+
+@_profile_tool
+def dev_workflow(message: str, test_target: str = "",
+                 project_id: str = "") -> str:
+    """Fluxo dev opt-in (V18.7 E7): testa -> commita -> documenta ->
+    memoriza. So roda com LILO_DEV_WORKFLOW=1. Aborta se os testes do alvo
+    falharem (nao commita vermelho).
+
+    Args:
+        message: mensagem do commit.
+        test_target: alvo do pytest (vazio = suite inteira).
+        project_id: se dado, anexa linha ao notes.md do projeto.
+    """
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("dev_workflow", {
+        "message": message, "test_target": test_target,
+        "project_id": project_id})
+
+
+@_profile_tool
+def mcp_list_servers() -> str:
+    """Lista servidores MCP EXTERNOS declarados (config/mcp/clients.yaml) e
+    seu estado (V18.6 E6). Nao conecta em nada — so mostra a allow-list."""
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("mcp_list_servers", {})
+
+
+@_profile_tool
+def mcp_list_tools(server: str) -> str:
+    """Lista as tools reais de um servidor MCP externo (conecta uma vez,
+    sujeito a allow-list). Use antes de mcp_call p/ descobrir os nomes."""
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("mcp_list_tools", {"server": server})
+
+
+@_profile_tool
+def mcp_call(server: str, tool: str, args: dict = None) -> str:
+    """Chama uma tool de um servidor MCP EXTERNO (github/filesystem/fetch...)
+    via a ponte do LILO-cliente (V18.6 E6). Allow-list DUPLA em
+    config/mcp/clients.yaml: so servidores habilitados e tools permitidas.
+    Pacote 'mcp' ausente ou servidor offline vira mensagem de erro (nunca
+    crash).
+
+    Args:
+        server: nome do servidor em clients.yaml (ex.: 'github').
+        tool: nome da tool no servidor (ver mcp_list_tools).
+        args: dict de argumentos da tool.
+    """
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("mcp_call", {
+        "server": server, "tool": tool, "args": args or {},
+    })
+
+
+@_profile_tool
+def lilo_recall(query: str, project_id: str = "", limit: int = 5) -> str:
+    """Recall UNIFICADO da memoria (V18.4 E3): combina KV semantico
+    (user/default/projeto, com score), notas do projeto (notes.md) e chats
+    anteriores que batem com a query. Use como primeiro passo de "o que o
+    LILO ja sabe sobre X?" antes de pesquisar do zero.
+
+    Args:
+        query: Pergunta/termo em linguagem natural.
+        project_id: Opcional — inclui ns project_<id> e o notes.md.
+        limit: 1-20 por fonte (default 5).
+    """
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("lilo_recall", {
+        "query": query, "project_id": project_id, "limit": limit,
+    })
+
+
+@_profile_tool
+def lilo_memory_semantic_search(query: str, namespace: str = "",
+                                limit: int = 5) -> str:
+    """Busca SEMANTICA na memoria (embeddings locais via Ollama; V18.3 E2).
+    Encontra por SIGNIFICADO, nao por substring — use para "o que eu sei
+    sobre X". Sem Ollama/embeddings degrada sozinha para busca textual.
+
+    Args:
+        query: Pergunta/termo em linguagem natural.
+        namespace: Filtrar (vazio = todos).
+        limit: 1-50 (default 5).
+    """
+    _ensure_lilo()
+    from lilo import handle_tool_call
+    return handle_tool_call("lilo_memory_semantic_search", {
         "query": query, "namespace": namespace, "limit": limit,
     })
 

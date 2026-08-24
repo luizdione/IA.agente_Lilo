@@ -89,6 +89,7 @@ class ScholarAgent(BaseAgent):
         Scholar — todas APIs públicas (sem chave). source="all" agrega todas.
         """
         query      = sanitize_query(query)
+        self._cur_ctx = context or {}  # V18 QW2: p/ resolve_model em _review
         source     = context.get("source", "auto")
         max_res    = int(context.get("max_results", 5))
         synthesize = context.get("synthesize", True)
@@ -356,7 +357,10 @@ class ScholarAgent(BaseAgent):
         if not results:
             return f"[ScholarAgent] Nenhum artigo para revisar: '{query}'"
         formatted = self._format_results(results)
-        model = _os.getenv("LILO_REVIEW_MODEL", "gpt-oss:120b-cloud")
+        # V18 QW2: loga divergencia policy->agente (modelo inalterado).
+        model = self.resolve_model(
+            getattr(self, "_cur_ctx", None),
+            _os.getenv("LILO_REVIEW_MODEL", "gpt-oss:120b-cloud"))
         system = (
             "Voce e um pesquisador senior redigindo uma REVISAO DE LITERATURA "
             "para a secao de Introducao/Discussao de um artigo. Use SOMENTE os "

@@ -2,7 +2,333 @@
 
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
-> commits (atual: V17).
+> commits (atual: V18).
+
+## v12.15 — 2026-08-20 (V18.11: guarda de versão do dashboard + scrubber pré-cloud)
+
+Rodada de correção a partir de um relato do dono: "o layout do dashboard não
+mudou nada". Diagnóstico (dashboard subido de verdade via `AppTest`, não só
+sintaxe): o redesign estilo Claude é **real e correto no Streamlit ≥ 1.39**,
+mas **degrada em silêncio em versão anterior** — o composer-cartão, o realce
+de navegação, a barra superior e o botão PARAR são estilizados por classes
+`st-key-*`, que só existem a partir do 1.39. O pin `streamlit>=1.30.0`
+permitia justamente uma versão onde metade do "look" não aplica.
+
+- **Guarda de versão no boot** (`dashboard.py`): se o Streamlit for < 1.39, um
+  `st.error` explícito instrui a atualizar (`pip install -U "streamlit>=1.39"`)
+  — a quebra deixa de ser silenciosa. O próprio aviso usa só APIs universais,
+  então nunca quebra.
+- **Selo de versão na sidebar**: `v12.15.0 · Streamlit X.Y` sob o título —
+  confirma na hora que o build em execução é este (não uma cópia antiga, ex.:
+  do OneDrive) e qual Streamlit está em uso.
+- **Pin endurecido**: `requirements.txt` → `streamlit>=1.39`.
+- **E5b — scrubber de segredos pré-cloud** (`shared/scrubber.py`): complementa
+  o gate E5 (que *decide* se envia) redigindo credenciais do `prompt`+`system`
+  **antes** de saírem para a nuvem. Padrões de alta confiança (chaves
+  Anthropic/OpenAI/Google/AWS, tokens GitHub/Slack, JWT, Bearer, blocos PEM,
+  `key=value` com valor secreto) — ancorados por prefixo para **não** mutilar
+  sequências/IDs científicos. E-mails são opt-in (`LILO_SCRUB_EMAILS`); tudo
+  desligável por `LILO_SCRUB=0`. Integrado em `llm_client._maybe_cloud_prepare`
+  (gate + scrub num ponto só, só no destino cloud). Log expõe rótulo+contagem,
+  nunca o valor.
+- Testes: `tests/shared/test_scrubber.py` (offline; padrões, opt-in de e-mail,
+  kill-switch, ausência de falso-positivo em texto científico, integração com
+  `_maybe_cloud_prepare`). `scripts/check.py` verde.
+
+## v12.14 — 2026-08-19 (V18.10: gerente de memória do projeto)
+
+- **`CONTEXT.md` (raiz)** vira a memória viva do projeto — o LILO já o lê
+  automaticamente (dir_synthesis, E4) e o Claude Code o vê em toda sessão.
+  Seções AUTO (estado, entregas) + MANUAL (pendências, decisões, retomada).
+- **`scripts/memoria_projeto.py`**: regenera as seções AUTO com 0 tokens —
+  versão (badge do README), branch/commit (git), contagem de funções de
+  teste, resumo do `/diagnostico_lilo` (`--no-diag` pula) e últimas 3
+  entradas do CHANGELOG. Seções MANUAL preservadas byte a byte
+  (marcadores `<!-- AUTO:x -->`); cria do template se ausente.
+- **Skill `/gerente_memoria`** (`.claude/skills/`): protocolo de 1 comando +
+  curadoria das seções MANUAL com limites rígidos (≤80 linhas — o arquivo
+  entra em contexto de sessão).
+- `CLAUDE.md` aponta o `CONTEXT.md` como primeira leitura de retomada.
+- Testes: `tests/scripts/test_memoria_projeto.py` (4, offline/herméticos).
+
+## v12.13 — 2026-08-19 (V18.9: dashboard minimalista — layout Claude completo)
+
+A pedido do dono: "quero minimalista já abrindo no chat, com adição de
+arquivos, pastas e módulo de LLM na tela, igual ao Claude". Só camada
+visual/UX + 1 fio novo (seletor de modelo); nenhuma página ou função
+removida. Auditoria (`/diagnostico_lilo`): P0=0; P1/P2 restantes têm a
+mesma causa (`agents/paper/` só existe na máquina do dono).
+
+**Composer-cartão estilo Claude (página Chat):**
+- Um único cartão (`st.container(border=True)`) com o `text_area` "nu" em
+  cima e a linha de controles embaixo, NA MESMA caixa: `+` anexos
+  (arquivos E pastas c/ síntese de diretório — popover já existente),
+  microfone (agora popover 🎤), **seletor de MODELO** e modo de execução.
+- **Seletor de modelo na tela** (novo): Auto (Policy decide) | Local
+  padrão/rápido/pesado | Claude Sonnet | Claude Opus. Vira override
+  `\lilo <tier>` na chamada do `route()` — mesmo mecanismo do comando
+  digitado; nuvem continua sujeita a budget diário e `LILO_ALLOW_CLOUD`.
+  O texto exibido/salvo no histórico permanece limpo (sem o prefixo).
+- Coluna central estreita e centralizada (~52rem) só na página Chat.
+
+**Sidebar minimalista (estilo Claude):**
+- Expostos apenas: logo, status, `+ Novo chat`, botão Chat e a lista de
+  **Chats** (busca + lista flat, movida do painel direito). Agentes,
+  Cowork, Ferramentas/docs, Preferências (Modo IA + Estilo) e Progresso
+  do projeto viraram expanders recolhidos.
+- **Painel direito removido** — Histórico e Progresso agora moram na
+  sidebar; todas as páginas usam a largura inteira.
+
+**Higiene da auditoria:** 3 imports mortos removidos (`lilo_api.Request`,
+`chat_memory.Path`, `mcp_client.Path`); avisos restantes do pyflakes são
+probes de disponibilidade intencionais (try/import).
+
+## v12.12 — 2026-08-09 (V18.8: E8 — redesign visual do dashboard, estilo Claude)
+
+Fecha o ÚLTIMO item H2 do roadmap da análise Open Agent Studio (E1–E8
+completos). Só camada visual/UX — nenhuma função removida; fluxo de chat
+(slash skills, `_resend_text`, confirmações, PARAR) idêntico.
+
+**Tema claro/escuro com botão no topo:**
+- A paleta clara já vivia em variáveis CSS (`:root`, `--lilo-*`) no
+  `dashboard_styles.py`; o novo `THEME_DARK_CSS` só REDEFINE as mesmas
+  variáveis (fundos #1F1E1D/#262624/#30302E, texto claro quente, coral
+  mantido) e é injetado DEPOIS do `GLOBAL_CSS` quando
+  `st.session_state.theme == "dark"` — vence por cascata, tema inteiro troca
+  de uma vez. Botão lua/sol na barra superior alterna e faz `st.rerun()`.
+- `WELCOME_CSS`/`HISTORICO_CSS` tinham cores fixas da paleta clara; foram
+  convertidas para `var(--lilo-*, fallback)` — o escuro vale também na tela
+  de boas-vindas e no histórico. Blocos de código (`.main pre`) escurecidos
+  no override.
+
+**Sidebar recolhível com botão «/»:**
+- `initial_sidebar_state` deixou de ser fixo: vem de
+  `st.session_state.sidebar_state`, alternado pelo botão «/» da barra
+  superior (+ `st.rerun()`). O chevron nativo do Streamlit segue funcionando;
+  o botão é um atalho sempre visível.
+
+**Caixa de mensagem ACIMA das demais caixas (estilo Claude):**
+- O `st.chat_input` nativo é sempre ancorado no rodapé pelo Streamlit e não
+  pode subir. Substituído por composer no TOPO da página Chat: `st.form`
+  (`clear_on_submit`) + `st.text_area` estilizado como cartão + botão
+  Enviar (Ctrl+Enter também envia). Modo de execução, anexos (+) e microfone
+  ficam ABAIXO do composer.
+- Barra superior com botões ghost (só ícone) via seletores `.st-key-*`.
+- Sem testes novos (dashboard não tem suíte própria; Streamlit fora do CI) —
+  validação por sintaxe/pyflakes + smoke visual na máquina do dono.
+
+## v12.11 — 2026-08-04 (V18.6/18.7: E6 cliente MCP + E7 workflow dev + git tools)
+
+Fecha os itens H2 restantes do roadmap (menos E8, refactor visual). Aditivo
+e default-safe; 171/171 testes.
+
+**E6 — cliente MCP (LILO deixa de ser só servidor):**
+- `shared/mcp_client.py`: consome servidores MCP EXTERNOS via stdio.
+  Allow-list DUPLA em `config/mcp/clients.yaml` (só servidores habilitados +
+  tools permitidas por servidor). Import de `mcp` LAZY e offline-safe (pacote
+  ausente/servidor offline → mensagem de erro, nunca crash); `_run_async` em
+  thread dedicada (sync-callable até de dentro do FastAPI); timeout por
+  chamada. **Sem injeção dinâmica** das tools externas no servidor do LILO —
+  acesso só pela ponte `mcp_call(server, tool, args)`.
+- Tools MCP `mcp_list_servers`/`mcp_list_tools`/`mcp_call` nos perfis
+  `pycharm`, `claude_code` e `desktop`. `config/mcp/clients.yaml` com
+  exemplos (filesystem/fetch/github) desligados.
+
+**E7 — tools git dedicadas + workflow dev opt-in:**
+- `shared/git_tools.py`: `git_status`/`git_diff` (somente leitura) e
+  `git_commit` (gate `git_write`; a chamada explícita da tool autoriza —
+  padrão git_dione — exceto no modo `plan`, onde defere).
+- `shared/dev_workflow.py`: `run_dev_workflow()` encadeia
+  testa→commita→documenta→memoriza, OPT-IN por `LILO_DEV_WORKFLOW=1`; aborta
+  se os testes falham (não commita vermelho), atualiza `notes.md` e registra
+  no KV (`ns=lilo_dev_workflow`). Runner de teste injetável.
+- Tools MCP `git_status`/`git_diff`/`git_commit`/`dev_workflow` nos perfis
+  `pycharm` e `claude_code`.
+
+**Bugfix incluído (v12.10):** métodos `fs_*` do `DesktopAgent` (crash do
+Explorer). **Dogfooding:** o `/diagnostico_lilo` acusou 2 falsos-positivos de
+`B-REG` (handlers `if tool in ("a","b","c")` casavam o padrão de registro de
+agente) — o check foi escopado ao bloco `_AGENT_REGISTRY` com âncoras
+(módulo com ponto + classe `*Agent`).
+- Testes: `test_mcp_client.py` (7), `test_git_dev_workflow.py` (7). Estado:
+  171/171, `scripts/check.py` == TUDO OK ==, diagnóstico P0=0 | P1=1 (paper).
+- H2 restante: só **E8** (split do dashboard — refactor visual, melhor com o
+  usuário acompanhando).
+
+## v12.10 — 2026-08-04 (V18.5: bugfix — crash do Explorer de projeto do Villa)
+
+- **`DesktopAgent` sem métodos `fs_*`** (P0 de runtime, reportado pela UI):
+  `dashboard._render_villa_project_explorer` chama `_desktop.fs_list(...)`,
+  `.fs_read(...)`, `.fs_write(...)` como MÉTODOS, mas eram só funções de
+  módulo → `AttributeError: 'DesktopAgent' object has no attribute 'fs_list'`
+  a cada abertura da página Desktop/Explorer. Adicionados delegadores finos
+  (`fs_read/fs_write/fs_list/fs_stat/fs_search/fs_move/run_shell/run_python`)
+  com assinaturas idênticas — a allow-list e os gates continuam nas funções
+  de módulo, zero lógica duplicada. `tests/test_desktop_methods.py` cobre a
+  regressão (a chamada exata do Explorer). 150/150.
+
+## v12.9 — 2026-08-04 (V18.4: E3 — memory_facade + lilo_recall + smart context)
+
+ROADMAP itens A + C entregues sobre o E2 (a fachada nasce semântica).
+Aditivo e default-safe; 149/149 testes.
+
+- **`shared/memory_facade.py`** (item A): ponto único de consulta de memória.
+  `get_relevant_context(query, project_id, k, owner_verified)` monta bloco
+  compacto combinando KV semântico (user gated por voz + project_<id>) e
+  notes.md, marcado como DADO (anti prompt-injection, política V15 intacta);
+  `recall()` gera o relatório unificado (KV com score + notes.md + chats que
+  batem via `search_chats`).
+- **Inject de `lilo.route` migrado p/ a fachada**: o bloco manual de memória
+  do dono (LIKE) vira chamada única — agora SEMÂNTICO com fallback textual,
+  mesma política de gate por voz.
+- **Tool MCP `lilo_recall`** (query, project_id, limit) nos 6 perfis com
+  memória + handler em `lilo.py` — "o que o LILO já sabe sobre X?" em uma
+  chamada.
+- **Smart context do Reader do Villa** (item C): antes de varrer arquivos, o
+  Reader recebe "MEMORIA JA CONHECIDA (não redescubra)" via fachada (k=3,
+  600 chars, dados-não-instruções). Kill-switch `LILO_SMART_CONTEXT=0`.
+- Testes: `tests/shared/test_memory_facade.py` (4, offline: gate de voz,
+  notes por projeto, recall combinado, handler MCP).
+- H2 restante: E6 (cliente MCP), E7 (workflow dev), E8 (split dashboard).
+
+## v12.8 — 2026-08-04 (V18.3: E2 — busca semântica na memória KV)
+
+ROADMAP item D entregue (validado pela análise Open Agent Studio como o
+degrau de memória de maior impacto). Aditivo e default-safe; 145/145 testes.
+
+- **Schema v3**: coluna `kv.embedding BLOB` via migração incremental
+  (`_ensure_column`, retrocompatível com bancos v2 existentes).
+- **Embedding na escrita**: `set()` embeda `key: value` via Ollama
+  `/api/embed` com `OLLAMA_MODEL_EMBED` (mxbai, já default). Offline/falha
+  NUNCA quebra a escrita (linha fica sem vetor). `LILO_KV_EMBED=0` desliga;
+  timeout `LILO_KV_EMBED_TIMEOUT` (4s). Embedder injetável p/ testes.
+- **`search_semantic(query, ns, limit, min_score)`**: cosseno em numpy sobre
+  SQLite (sem ChromaDB aqui, de propósito — Chroma fica no scholaragent);
+  fallback TRANSPARENTE p/ busca textual quando não há embeddings (itens
+  marcados `match: semantic|like_fallback`); dimensões divergentes (troca de
+  modelo de embed) são puladas com segurança.
+- **`backfill_embeddings(ns, limit)`**: embeda entradas antigas em lote,
+  abortando no primeiro sinal de offline (não paga N timeouts).
+- **Tool MCP `lilo_memory_semantic_search`** exposta nos 6 perfis que têm
+  memória (pycharm, bio, cowork, claude_desktop, claude_code, desktop);
+  handler em `lilo.py` com score por item. `stats()` ganha `with_embedding`.
+- Testes: `tests/shared/test_kv_semantic.py` (6, offline com embedder fake:
+  ranking, fallback, backfill, migração v2→v3, stats, handler MCP).
+- Próximo degrau: E3 (`memory_facade` + `lilo_recall` + smart context do
+  Reader), que nasce já semântico sobre este E2.
+
+## v12.7 — 2026-08-04 (V18.2: skill /diagnostico_lilo — auditoria com 0 tokens)
+
+Skill de diagnóstico para desenvolvimento/correções gastando o mínimo de tokens:
+a varredura pesada é um script determinístico (sem LLM); o Claude só interpreta
+o relatório compacto e devolve o plano.
+
+- **`scripts/diagnostico_lilo.py`** — auditoria em 5 níveis, offline-safe:
+  (A) código: sintaxe + pytest (`--fast` pula); (B) fiação: registro de agentes
+  importa? keyword-map órfão? tools dos profiles existem no `lilo_mcp`? (a
+  classe de bug "paper fantasma" vira check permanente); (C) envs: `.env.example`
+  vs leituras reais (canais mortos, com wrapper `_env_flag` e allowlist p/ envs
+  dinâmicas `VILLA_TIER_*`); (D) runtime best-effort (Ollama+`missing_models`
+  do catálogo E1, LiteLLM, Anthropic, custo gravável, KV) — offline vira INFO;
+  (E) docs: drift de versão README×CHANGELOG. Saída compacta com IDs
+  (`[P1][B-REG-AUSENTE] ...`), `--json` completo, exit 2/1/0 por severidade.
+- **`.claude/skills/diagnostico_lilo/SKILL.md`** — a skill `/diagnostico_lilo`
+  (Claude Code): protocolo de economia de tokens (rodar o script PRIMEIRO, não
+  re-explorar o que ele já checou, citar achados por ID, só plano — sem aplicar)
+  + **rubrica padrão-ouro Claude Code** (10 dimensões → equivalente LILO →
+  próximo degrau, amarrada ao roadmap E1..E8/S1..S5).
+- Estreia do próprio diagnóstico pegou e corrigiu: drift do badge do README
+  (12.4.0 → 12.6.0) e `LILO_CLOUD_GATE` fora do `.env.example`.
+- `tests/test_diagnostico.py` (smoke offline). Estado: 139/139,
+  `scripts/check.py` == TUDO OK ==.
+- **Primeiro plano executado (dogfooding):** P2 de envs 20 → 1 — 17 vars
+  documentadas no `.env.example` em blocos temáticos (serviços/paths,
+  Scholar RAG, Villa retries/worker/fallback), `LILO_VERSION` morta removida,
+  `LILO_PAPER_MODEL` anotada (acoplada ao B-REG-AUSENTE do paper, que exige
+  commit na máquina de origem) e filtro de envs dinâmicas aplicado aos dois
+  lados do check C. Restam: P1=1 (paper) + P2=1 (var do paper), ambos
+  destraváveis só na máquina de origem.
+
+## v12.6 — 2026-08-04 (V18.1: H2 parcial — E1 catálogo, E4 memória, E5 gate cloud)
+
+Primeiro lote estrutural (H2) do roadmap de `docs/tecnico/analise_open_agent_studio.md`.
+Tudo aditivo e default-safe; 138/138 testes.
+
+- **E1 — catálogo central de modelos.** Novo `shared/model_catalog.py`: fonte
+  única de metadados por modelo (provedor, contexto em tokens, capacidades,
+  latência, custo USD/MTok), com heurísticas p/ modelos fora do catálogo
+  (`*-cloud` → Ollama Cloud; `claude-*` → família Anthropic, desconhecida
+  assume preço Opus — fail-safe). `ExecutionTier.OLLAMA_CLOUD` passa a existir
+  (só rótulo/telemetria nesta fase: não entra em `decide()` nem no fallback).
+  Telemetria do Villa rotula estágios em Ollama Cloud como `ollama_cloud`
+  (antes apareciam como `ollama` — o único provedor cloud em uso era invisível
+  na página Custos). Preços Anthropic do QW4 migrados p/ o catálogo.
+  `missing_models()` pronto p/ validação de boot (fiação no health fica p/ E1b).
+- **E4 — memória de projeto na síntese de diretório.** `_KEY_FILES` ganha
+  `CLAUDE.md, TASKS.md, CONTEXT.md, DECISIONS.md, NOTES.md, ARCHITECTURE.md,
+  AGENTS.md` (exatamente os arquivos que a spec pede como memória e que
+  faltavam), e a síntese ganha a seção "Memória do projeto" com snippets
+  curtos dos `.md` de `docs/` e `prompts/` (1 nível, máx. 8 arquivos ×
+  600 chars — bounded). Refresh automático por mtime fica p/ E4b.
+- **E5 — gate de privacidade pré-cloud.** Novo kind `cloud_send` no
+  `exec_mode` + `_cloud_gate` no `llm_client`, aplicado em TODOS os caminhos
+  de despacho quando o destino é cloud (Anthropic ou `*-cloud`): `auto`
+  (default) → passa e **loga** destino+tamanho; `ask`/`accept_edits` → pede
+  confirmação (mesmo fluxo do shell); `plan` → acumula no plano e bloqueia.
+  Fecha o requisito "nunca enviar sem autorização explícita" da spec sem
+  mudar o comportamento default. Kill-switch: `LILO_CLOUD_GATE=0`.
+- Testes: `tests/shared/test_model_catalog.py` (E1+E4+E5, 11 testes).
+  Estado: 138/138, `scripts/check.py` == TUDO OK ==.
+
+## v12.5 — 2026-08-04 (V18: quick wins QW1–QW7 da análise "Open Agent Studio")
+
+Aplicação do horizonte H1 do roadmap de `docs/tecnico/analise_open_agent_studio.md`
+(gap analysis vs spec externa). Tudo aditivo e default-safe; 127/127 testes.
+
+- **QW1 — `agents/paper` fantasma neutralizado.** O diretório nunca foi commitado
+  (existe só na máquina de origem) mas estava registrado em `lilo.py`/README/testes.
+  `tests/test_paper_agent.py` ganha `pytest.importorskip` (pula limpo em checkout
+  sem o diretório) e `test_skillsmith::test_scaffold_refuses_existing_agent` deixa
+  de depender do fantasma — antes, em máquina limpa, o teste **criava**
+  `agents/paper/` de verdade (scaffold real via `_scaffold("paper", ...)`),
+  poluindo o repo; agora exercita a guarda com `gateway` (versionado).
+  *Pendente na máquina de origem: commitar o `agents/paper/` real.*
+- **QW2 — fiação policy→agentes, fase 1 (observabilidade).** Novo
+  `BaseAgent.resolve_model()`: loga a divergência entre a decisão do Policy
+  Engine (`ctx["_model"]`, escrita em `lilo.route` e até a V17 ignorada por
+  TODOS os subagentes) e o modelo que o agente realmente usa. Ligado em
+  gateway, docgen, skillsmith, scholar (review) e Villa (`_call_agent`, por
+  stage). Comportamento inalterado; enforcement fica para o catálogo de
+  modelos (E1).
+- **QW3 — limites de custo mortos aplicados.** `LILO_MAX_SINGLE_COST` passa a
+  barrar chamada única acima do teto em `_budget_allows`; `LILO_ALLOW_CLOUD`
+  volta a ser lida (nuvem = flag ligada **E** chave presente; default preserva
+  o comportamento anterior). `PolicyConfig.allow_cloud` vira `default_factory`
+  (relê o ambiente a cada instância). + `tests/shared/test_policy_budget.py`.
+- **QW4 — custo REAL da Anthropic.** `_chat_anthropic` deixa de descartar o
+  `usage` da resposta: grava tokens (input/output/cache write/cache read) e
+  custo real no CostTracker (preços por família conferidos em 2026-08-04;
+  cache write 1,25×, read 0,10×; modelo desconhecido superestima com preço
+  Opus — fail-safe p/ budget). `lilo.route` zera a estimativa p/ tiers
+  `claude_*` (evita dupla contagem — e o custo fantasma que era registrado
+  mesmo quando o agente nem chamava a Anthropic). O gate diário do Policy
+  passa a operar sobre gasto real. + `tests/shared/test_cost_telemetry.py`.
+- **QW5 — latência agregada.** `CostTracker.latency_summary()` (p50/p95/média
+  por dia, nearest-rank, stdlib) + linha de métricas na página Custos do
+  dashboard (`duration_ms` já era gravado por request; faltava agregar).
+- **QW6 — CI mínimo.** `.github/workflows/tests.yml` roda
+  `python scripts/check.py` (sintaxe + pyflakes + pytest) em push/PR, com
+  `requirements-ci.txt` (subconjunto validado, sem chromadb/torch). Um CI
+  assim teria pego o paper fantasma meses atrás.
+- **QW7 — higiene de config.** `docker-compose.yml`: `scistudio` atrás de
+  profile (build context ausente do repo quebrava `docker compose up` em
+  checkout limpo); `Dockerfile.api` 3.11→3.13 (alvo do repo);
+  `.env.example` documenta `LILO_LLM_RETRIES/BACKOFF`, `LILO_ANTHROPIC_CACHE`,
+  `LILO_MAX_SINGLE_COST`, `LILO_COST_DB`, `LILO_SERVER_PROFILE`,
+  `LILO_SKILLSMITH_MODEL/DOCGEN/REVIEW`, alinha `LLM_TIMEOUT` (120→300, valor
+  real do código) e anota `OPENAI_API_KEY` como reservada ao LiteLLM.
+- Estado: 127/127 testes (120 anteriores − 6 do paper que agora pulam limpo
+  + 13 novos), `scripts/check.py` == TUDO OK ==.
 
 ## v12.4 — 2026-07-20 (V17.2: modularização do CSS do dashboard)
 

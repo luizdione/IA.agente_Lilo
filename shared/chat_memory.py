@@ -296,7 +296,6 @@ class ChatMemory:
 
     def _project_notes_path(self, project_id):
         """Retorna o caminho do notes.md do projeto, criando o diretorio."""
-        from pathlib import Path
         notes_dir = self.db_path.parent / "projects" / project_id
         notes_dir.mkdir(parents=True, exist_ok=True)
         return notes_dir / "notes.md"
