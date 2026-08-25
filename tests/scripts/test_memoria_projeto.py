@@ -45,5 +45,6 @@ def test_substitui_bloco_erro_sem_marcador():
 
 def test_entregas_le_changelog_real():
     md = mp._entregas_md(max_itens=2)
-    # o CHANGELOG real do repo tem entradas v12.x no topo
-    assert md.startswith("- v12.")
+    # o CHANGELOG real do repo tem entradas versionadas no topo (v13+)
+    assert md.startswith("- v1")
+    assert len(md.splitlines()) == 2

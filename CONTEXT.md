@@ -6,25 +6,31 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** 13.0.0-dev | **branch:** arch-v12 | reset em andamento (F0 feito)
-- **Testes:** rode `python scripts/check.py`
-- **Atualizado em:** 2026-08-24
+- **Versao:** v13.0.0 | **branch:** arch-v12 | **commit:** 6ba6cc1 feat(v13-f4): sessoes persistentes (SQLite WAL) + lilo -c
+- **Testes:** 55 funcoes de teste (rode `python scripts/check.py`)
+- **Atualizado em:** 2026-08-25
 <!-- /AUTO:estado -->
 
 ## Ultimas entregas (AUTO — topo do CHANGELOG)
 <!-- AUTO:entregas -->
-- v13 F0 — demolicao do legado + esqueleto do pacote `lilo/` (arch-v12)
+- v13.0 — 2026-08-24 (RENASCIMENTO: agente de terminal 100% local sobre Ollama)
+- v12.15 — 2026-08-20 (V18.11: guarda de versão do dashboard + scrubber pré-cloud)
+- v12.14 — 2026-08-19 (V18.10: gerente de memória do projeto)
 <!-- /AUTO:entregas -->
 
 ## Pendencias (MANUAL)
 
-- [ ] F1: `config.py` + `log.py` + `cliente.py` (Ollama /api/chat multi-turno
-      + tools, retry/keep_alive herdados, num_ctx explicito) + testes FakeOllama.
-- [ ] F2: `agente.py` (loop) + tools ler/listar/buscar + `contexto.py`.
-- [ ] F3: escrever/editar/shell + `portao.py` (pausa-no-ponto, sem replay).
-      Aceite canonico: LILO cria script, roda, VE o erro e conserta sozinho.
-- [ ] F4: `sessoes.py` (SQLite WAL em %LOCALAPPDATA%) + `lilo -c`.
-- [ ] F5: REPL completo, plan e2e, lilo.bat, smoke_lilo.py, CHANGELOG v13.0.
+- [x] F0-F5 CONSTRUIDAS (cliente, loop, 6 tools, portao, sessoes, CLI/REPL,
+      lilo.bat, criar_atalho, smoke, CHANGELOG). 55 testes hermeticos verdes.
+- [ ] **MAQUINA DO DONO**: `git fetch && git checkout arch-v12` →
+      `pip install -r requirements.txt` → `python scripts\smoke_lilo.py`
+      (Ollama de pe; exige modelo `qwen2.5-coder:14b` — `ollama pull`).
+- [ ] Icone: `python scripts\criar_atalho.py` (cria LILO.lnk na Area de
+      Trabalho apontando p/ lilo.bat).
+- [ ] Smoke PASSOU → mergear PR #6 (arch-v12 → main; ai o dashboard v12
+      sai do main de vez) e tirar o `-dev` da versao.
+- [ ] v13.1 (backlog): streaming da resposta, memoria semantica KV como
+      tools memorizar/lembrar, sumarizacao de janela por LLM.
 
 ## Decisoes-chave (MANUAL)
 

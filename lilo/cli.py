@@ -167,8 +167,18 @@ def main(argv: list[str] | None = None) -> int:
             pass
 
     if tarefa:  # one-shot
-        print(sessao.rodar(tarefa, ui, cliente))
-        return 0
+        try:
+            print(sessao.rodar(tarefa, ui, cliente))
+            return 0
+        except KeyboardInterrupt:
+            print("\n[cancelado]")
+            return 130
+        except Exception as e:  # noqa: BLE001 — erro final vira mensagem util
+            print("[ERRO] %s: %s" % (type(e).__name__, e))
+            if not cliente.ping():
+                print("O Ollama parece OFFLINE em %s — inicie-o e tente de novo."
+                      % config.ollama_host())
+            return 1
 
     # REPL
     print("LILO v%s — modelo %s · modo %s · Ollama %s" % (

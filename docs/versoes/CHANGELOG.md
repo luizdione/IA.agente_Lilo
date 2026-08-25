@@ -1,8 +1,55 @@
 # LILO — Changelog
 
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
-> branch/arquitetura (atual: `arch-v11`); `VNN` = rodada interna de features nos
-> commits (atual: V18).
+> branch/arquitetura (atual: `arch-v12`).
+
+## v13.0 — 2026-08-24 (RENASCIMENTO: agente de terminal 100% local sobre Ollama)
+
+**Reset radical aprovado pelo dono.** A plataforma v12.x (42k LOC: dashboard
+Streamlit, MCP server, API HTTP, 10 subagentes, skills auto-geradas) virou uma
+colcha de retalhos **sem a capacidade central** — não havia tool-calling nativo
+em lugar nenhum (tudo prompt+regex), o cliente LLM não suportava conversa
+multi-turno e 5 entry points duplicavam a mesma superfície. Demolida em
+`arch-v12`; **tudo recuperável** no branch `v12.15-legado`
+(`git show v12.15-legado:<caminho>`).
+
+O v13 nasce como **"Claude Code local"** (~1,6k linhas, deps: requests+dotenv):
+
+- **`lilo/cliente.py`** — Ollama `/api/chat` **multi-turno** com **tools
+  nativas**; `num_ctx` sempre explícito; retry/backoff, keep_alive normalizado
+  e parse defensivo (thinking-fallback) herdados do legado; transporte
+  injetável (suíte 100% hermética via FakeOllama).
+- **`lilo/agente.py`** — o loop: chat → tool_calls → executa → `role:"tool"` →
+  repete; casamento por ordem; `[ERRO]` volta ao modelo (aborta em 3
+  consecutivos); teto `LILO_MAX_ITERS`; janela podada deterministicamente;
+  system prompt PT-BR + contexto do projeto (`LILO.md`/`CLAUDE.md`/
+  `CONTEXT.md` do cwd) injetado como bloco rotulado DADOS.
+- **`lilo/tools.py`** — `ler`, `escrever` (atômica), **`editar`** (trecho
+  exato e único), `listar`, `buscar` (rg ou puro-Python com ignore-list),
+  `shell` (deny-list destrutiva; timeout mata a **árvore** de processos).
+  **`executar_tool` = choke-point único** — implementações privadas, nenhum
+  caminho fora do portão.
+- **`lilo/portao.py`** — plan/ask/accept_edits/auto **sem estado global**;
+  *never-commit-unless-asked* (git_write confirma até em auto); grants
+  **escopados** (write por kind; shell/git por hash do comando). Confirmação
+  **no ponto da tool** — `n` vira `[NEGADO]` e a MESMA conversa continua
+  (zero replay). Default de fábrica: `ask`.
+- **`lilo/sessoes.py`** — transcript SQLite (WAL, `%LOCALAPPDATA%\LILO`),
+  persistência a cada iteração; `lilo -c` retoma a última sessão fielmente
+  (tool_calls inclusos).
+- **`lilo/cli.py`** — one-shot + REPL (`\modo \modelo \plano \nova \ajuda`);
+  aprovar plano segue na mesma conversa em accept_edits.
+- **Windows**: `lilo.bat` (UTF-8, duplo clique = REPL) +
+  `scripts/criar_atalho.py` (**ícone LILO na Área de Trabalho** via
+  PowerShell, respeitando Desktop no OneDrive).
+- **Verificação**: `scripts/check.py` verde (55 testes herméticos);
+  `scripts/smoke_lilo.py` = teste VIVO na máquina do dono (Ollama real,
+  aceite canônico: criar script → rodar → ver o erro → consertar sozinho).
+- Regra anti-inchaço gravada no CLAUDE.md: **funcionalidade nova = tool atrás
+  do loop/choke-point; nunca novo entry point. Um binário: `lilo`.**
+
+Adiado p/ v13.x (como tools): memória semântica KV, cloud opcional, RAG/
+Scholar/PDF, MCP.
 
 ## v12.15 — 2026-08-20 (V18.11: guarda de versão do dashboard + scrubber pré-cloud)
 
