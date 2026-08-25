@@ -38,6 +38,16 @@ def test_tools_incluidas_so_quando_passadas():
     assert fake.chamadas[1][1]["tools"] == schemas
 
 
+def test_think_desligado_por_default(monkeypatch):
+    fake = FakeOllama([resposta_texto("a"), resposta_texto("b")])
+    cli = ClienteOllama(transport=fake)
+    cli.chat([{"role": "user", "content": "x"}])
+    assert fake.chamadas[0][1]["think"] is False  # default: sem monologo
+    monkeypatch.setenv("LILO_THINK", "1")
+    cli.chat([{"role": "user", "content": "x"}])
+    assert "think" not in fake.chamadas[1][1]  # religado: campo ausente
+
+
 def test_keep_alive_normalizado(monkeypatch):
     monkeypatch.setenv("OLLAMA_KEEP_ALIVE", "-1")
     fake = FakeOllama([resposta_texto("x")])

@@ -118,6 +118,8 @@ class ClienteOllama:
         }
         if tools:
             payload["tools"] = tools
+        if not config.pensar():
+            payload["think"] = False  # modelos sem thinking ignoram (200 OK)
 
         url = config.ollama_host() + "/api/chat"
         ultima: Exception | None = None

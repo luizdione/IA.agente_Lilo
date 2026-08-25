@@ -39,7 +39,8 @@ python scripts\check.py       # saúde do código (sintaxe + pyflakes + pytest)
 ```
 
 Requisitos: Python 3.11+, [Ollama](https://ollama.com) ≥ 0.9 com um modelo
-com suporte a tools (default: `qwen2.5-coder:14b`).
+com suporte a tools (default: `qwen3:14b` — a família qwen2.5-coder tem o
+template de tool-calling quebrado no Ollama 0.32.x; o smoke detecta e avisa).
 
 ## Regra anti-inchaço (a lição do legado)
 

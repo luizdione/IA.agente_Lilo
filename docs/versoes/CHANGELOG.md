@@ -3,6 +3,24 @@
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v12`).
 
+## v13.0.2 — 2026-08-25 (modelo default: qwen3 + smoke auto-descoberta)
+
+Primeiro smoke real (máquina do dono + reprodução ao vivo em container com o
+MESMO Ollama 0.32.15) fechou o diagnóstico do risco nº 1: **o template do
+`qwen2.5-coder` está quebrado para tool-calling nativo no Ollama 0.32.x** —
+até o exemplo canônico do `/api/chat` devolve a chamada como texto
+(`tool_calls: null`), em 3b e 14b. **`qwen3` no mesmo servidor emite
+`tool_calls` nativos perfeitos.** O cliente do LILO estava correto.
+
+- Default trocado: `LILO_MODEL=qwen3:14b` (fast: `qwen3:4b`); .env.example e
+  README explicam o porquê.
+- `smoke_lilo.py` virou **auto-descoberta**: inventaria os modelos instalados
+  (`/api/show` → capability `tools`), testa candidatos em ordem de família
+  (qwen3 → qwen2.5-coder → llama3.1 → …) nos 2 aceites, e **grava o vencedor
+  no `.env`** — um comando, zero decisões manuais.
+- v13.0.1: loop detecta "tool escrita como TEXTO" e corrige o modelo (até 2
+  nudges, sem executar nada parseado de texto).
+
 ## v13.0 — 2026-08-24 (RENASCIMENTO: agente de terminal 100% local sobre Ollama)
 
 **Reset radical aprovado pelo dono.** A plataforma v12.x (42k LOC: dashboard

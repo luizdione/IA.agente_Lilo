@@ -107,6 +107,7 @@ def _gravar_env_modelo(modelo: str) -> None:
 
 def main() -> int:
     os.environ["LILO_MODE"] = "auto"  # smoke nunca pede confirmacao
+    os.environ.setdefault("LLM_TIMEOUT", "600")  # 1a carga em maquina lenta
 
     from lilo import config
     config.load_env(ROOT / ".env")
@@ -138,8 +139,10 @@ def main() -> int:
 
     # --- [2] fila de candidatos --------------------------------------------
     candidatos: list[str] = []
-    base_cfg = configurado.split(":")[0]
-    if any(n.startswith(base_cfg) for n in nomes):
+    instalado = (configurado in nomes or configurado + ":latest" in nomes
+                 or (":" not in configurado
+                     and any(n.split(":")[0] == configurado for n in nomes)))
+    if instalado:
         candidatos.append(configurado)
     else:
         print("    aviso: %s nao esta instalado (ollama pull %s) — testando "
