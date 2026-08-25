@@ -20,7 +20,7 @@ SYSTEM_BASE = """Voce e o LILO, um agente de IA que trabalha no TERMINAL do usua
 Voce gerencia, escreve, conserta e cria projetos usando as tools: ler, listar, buscar, escrever, editar, shell.
 
 Regras:
-1. AJA com as tools; nao descreva o que faria. Uma resposta sem tool calls encerra a tarefa.
+1. AJA com as tools, usando o mecanismo NATIVO de tool calls. NUNCA escreva a chamada como texto ou JSON na resposta — isso NAO executa nada. Uma resposta sem tool calls encerra a tarefa.
 2. Antes de editar um arquivo, LEIA o trecho com `ler` e copie o texto EXATO para `editar`.
 3. Depois de criar ou mudar codigo, RODE com `shell` (ex.: python arquivo.py, pytest) e conserte os erros que aparecerem.
 4. Resultado "[ERRO] ..." = sua chamada tinha problema; corrija os argumentos e tente de novo.
@@ -31,6 +31,25 @@ Regras:
 Exemplo de fluxo para "conserte o bug do script X": buscar/ler o arquivo -> editar o trecho -> shell p/ rodar/testar -> se falhar, ler o erro e editar de novo -> resposta final."""
 
 MAX_ERROS_CONSECUTIVOS = 3
+MAX_NUDGES = 2  # correcoes de "tool escrita como texto" por tarefa
+
+NUDGE_TOOL_TEXTO = (
+    "[SISTEMA] Sua resposta escreveu chamadas de tool como TEXTO/JSON — "
+    "NADA foi executado. Refaca AGORA a mesma acao usando o mecanismo "
+    "nativo de tool calls (nao escreva JSON na resposta).")
+
+
+def _parece_tool_em_texto(content: str) -> bool:
+    """Modo de falha classico de modelo pequeno: a 'resposta final' e o JSON
+    de uma chamada de tool escrito como texto. NAO executamos nada disso
+    (licao do legado: sem parser regex de pseudo-JSON) — apenas devolvemos
+    uma correcao para o modelo refazer pelo canal nativo."""
+    t = content.strip()
+    if '"name"' not in t or '"arguments"' not in t:
+        return False
+    return any(
+        ('"name": "%s"' % nome) in t or ('"name":"%s"' % nome) in t
+        for nome in tools.TOOLS)
 
 
 class UI:
@@ -109,6 +128,7 @@ def executar_tarefa(tarefa: str, msgs: list[dict], perms: Permissoes,
 
     msgs.append({"role": "user", "content": tarefa})
     erros_consec = 0
+    nudges = 0
 
     for _ in range(config.max_iters()):
         msgs_envio = ajustar_janela(msgs)
@@ -116,6 +136,14 @@ def executar_tarefa(tarefa: str, msgs: list[dict], perms: Permissoes,
 
         if not r["tool_calls"]:
             final = r["content"].strip() or "(o modelo nao produziu resposta)"
+            if nudges < MAX_NUDGES and _parece_tool_em_texto(final):
+                # tool escrita como texto: corrige e da outra chance
+                nudges += 1
+                log.warning("tool como texto detectada — nudge %d/%d",
+                            nudges, MAX_NUDGES)
+                msgs.append(r["message"])
+                msgs.append({"role": "user", "content": NUDGE_TOOL_TEXTO})
+                continue
             msgs.append({"role": "assistant", "content": final})
             ui.apos_iteracao(msgs)
             return final, msgs

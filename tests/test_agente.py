@@ -102,6 +102,37 @@ def test_negado_flui_para_o_modelo(sandbox):
     assert not (sandbox / "d.txt").exists()
 
 
+def test_tool_como_texto_recebe_nudge_e_refaz(sandbox):
+    """Modelo escreve a tool como JSON-texto -> nudge -> refaz nativo."""
+    (sandbox / "n.txt").write_text("oi", encoding="utf-8")
+    texto_falho = '{"name": "ler", "arguments": {"caminho": "n.txt"}}'
+    fake = FakeOllama([
+        resposta_texto(texto_falho),
+        resposta_tools(("ler", {"caminho": str(sandbox / "n.txt")})),
+        resposta_texto("li o arquivo"),
+    ])
+    final, msgs = _rodar(fake)
+    assert final == "li o arquivo"
+    assert any(m["role"] == "user" and "TEXTO" in (m.get("content") or "")
+               for m in msgs)  # o nudge foi enviado
+    assert len(fake.chamadas) == 3
+
+
+def test_nudge_tem_teto_e_aceita_como_final(sandbox):
+    texto_falho = '{"name": "shell", "arguments": {"comando": "x"}}'
+    fake = FakeOllama([resposta_texto(texto_falho)] * 3)
+    final, _ = _rodar(fake)
+    assert final == texto_falho  # apos 2 nudges, vira resposta final
+    assert len(fake.chamadas) == 3  # 1 original + 2 re-tentativas
+
+
+def test_texto_normal_nao_dispara_nudge(sandbox):
+    fake = FakeOllama([resposta_texto('a funcao chama-se "name" e recebe '
+                                      '"arguments" como parametro')])
+    final, _ = _rodar(fake)
+    assert len(fake.chamadas) == 1  # sem nome de tool real -> sem nudge
+
+
 def test_janela_poda_resultados_antigos(monkeypatch):
     monkeypatch.setenv("LILO_NUM_CTX", "2048")
     monkeypatch.setenv("LILO_MAX_TOKENS", "256")
