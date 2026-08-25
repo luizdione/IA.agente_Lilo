@@ -67,11 +67,14 @@ def keep_alive() -> str:
 
 
 def modelo() -> str:
-    return get_env("LILO_MODEL", "qwen2.5-coder:14b")
+    # qwen3: unica familia local com tool-calling NATIVO comprovado no
+    # Ollama 0.32.x — o template do qwen2.5-coder devolve a chamada como
+    # texto ate no exemplo canonico (verificado ao vivo em 25/08).
+    return get_env("LILO_MODEL", "qwen3:14b")
 
 
 def modelo_fast() -> str:
-    return get_env("LILO_MODEL_FAST", "qwen2.5-coder:7b-instruct")
+    return get_env("LILO_MODEL_FAST", "qwen3:4b")
 
 
 def num_ctx() -> int:
@@ -84,6 +87,14 @@ def temperatura() -> float:
 
 def max_tokens() -> int:
     return _int("LILO_MAX_TOKENS", 4096)
+
+
+def pensar() -> bool:
+    """Thinking dos modelos raciocinantes (qwen3 etc). DESLIGADO por default:
+    no loop agentico o monologo so atrasa (CPU: >300s vs 36s medidos) — o
+    modelo age igual. Modelos sem thinking ignoram o campo (verificado no
+    Ollama 0.32.15). LILO_THINK=1 religa."""
+    return get_env("LILO_THINK", "0").strip().lower() in ("1", "true", "on")
 
 
 def retries() -> int:
