@@ -3,6 +3,14 @@
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v12`).
 
+## v13.0.0 — 2026-08-25 (LANÇAMENTO: validado na máquina do dono)
+
+Smoke **PASSOU na RTX 3060** com `qwen3:14b` (candidato nº 1 da
+auto-descoberta, já instalado): o LILO criou um script, executou via shell e,
+no aceite canônico, **leu o erro de um script quebrado, consertou com `editar`
+e provou com `exit=0`** — na máquina real do dono. `LILO_MODEL` gravado no
+`.env` automaticamente. Versão sai de `-dev`: **13.0.0**.
+
 ## v13.0.2 — 2026-08-25 (modelo default: qwen3 + smoke auto-descoberta)
 
 Primeiro smoke real (máquina do dono + reprodução ao vivo em container com o
