@@ -1,7 +1,6 @@
-# LILO — Dependências de desenvolvimento (lint + testes)
+# LILO v13 — dependencias de desenvolvimento (lint + testes)
 # Instalar: pip install -r requirements-dev.txt
 -r requirements.txt
 
 pytest>=8.0
 pyflakes>=3.0
-ruff>=0.6        # linter/formatter — config em pyproject.toml [tool.ruff]

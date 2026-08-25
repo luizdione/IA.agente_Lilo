@@ -1,9 +1,0 @@
-{
-  "name": "numpy_geterr",
-  "description": "Get the current way of handling floating-point errors.\n\nReturns\n-------\nres : dict\n    A dictionary with keys \"divide\", \"over\", \"under\", and \"invalid\",\n    whose values are from the strings \"ignore\", ",
-  "parameters": {
-    "type": "object",
-    "properties": {},
-    "required": []
-  }
-}

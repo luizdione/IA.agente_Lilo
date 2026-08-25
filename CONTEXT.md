@@ -2,57 +2,53 @@
 
 > Secoes **AUTO** sao regeneradas por `python scripts/memoria_projeto.py`
 > (skill `/gerente_memoria`) — NAO edite dentro dos marcadores. Secoes
-> **MANUAL** sao suas: mantenha-as curtas (isto entra no contexto de
-> sessoes do LILO e do Claude Code).
+> **MANUAL** sao suas: mantenha-as curtas (isto entra no contexto de sessoes).
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v12.15.0 | **branch:** claude/open-agent-studio-analysis-wgru64 | **commit:** 71de6a2 fix(v12.15): scrubber le LILO_SCRUB via environ.get inline (nao doc-morta)
-- **Testes:** 150 funcoes de teste (rode `python scripts/check.py`)
-- **Diagnostico:** P0=0 | P1=1 | P2=1 | INFO=2 | OK=12
-- **Atualizado em:** 2026-08-20
+- **Versao:** v13.0.0 | **branch:** arch-v12 | **commit:** 6ba6cc1 feat(v13-f4): sessoes persistentes (SQLite WAL) + lilo -c
+- **Testes:** 55 funcoes de teste (rode `python scripts/check.py`)
+- **Atualizado em:** 2026-08-25
 <!-- /AUTO:estado -->
 
 ## Ultimas entregas (AUTO — topo do CHANGELOG)
 <!-- AUTO:entregas -->
+- v13.0 — 2026-08-24 (RENASCIMENTO: agente de terminal 100% local sobre Ollama)
 - v12.15 — 2026-08-20 (V18.11: guarda de versão do dashboard + scrubber pré-cloud)
 - v12.14 — 2026-08-19 (V18.10: gerente de memória do projeto)
-- v12.13 — 2026-08-19 (V18.9: dashboard minimalista — layout Claude completo)
 <!-- /AUTO:entregas -->
 
 ## Pendencias (MANUAL)
 
-- [ ] Commitar `agents/paper/` **da maquina Windows do dono** (unico P1 do
-      diagnostico; resolve tambem o P2 da env `LILO_PAPER_MODEL`).
-- [ ] Smoke visual do dashboard na maquina do dono
-      (`streamlit run dashboard.py`). v12.15 tornou o diagnostico self-service:
-      se o Streamlit for < 1.39 aparece um `st.error` pedindo upgrade, e o selo
-      na sidebar mostra versao do build + do Streamlit. **Se "nao mudou nada":
-      1) cheque o selo (esta em v12.15.0?); 2) `streamlit --version` >= 1.39;
-      3) rode a partir do repo, nao do OneDrive.** Ajustes finos a pedido.
-- [ ] Revisar e mergear o PR #5 (serie v12.5→v12.15, CI verde, draft).
-- [x] E5b: scrubber de segredos pre-cloud (`shared/scrubber.py`) — FEITO v12.15.
+- [x] F0-F5 CONSTRUIDAS (cliente, loop, 6 tools, portao, sessoes, CLI/REPL,
+      lilo.bat, criar_atalho, smoke, CHANGELOG). 55 testes hermeticos verdes.
+- [ ] **MAQUINA DO DONO**: `git fetch && git checkout arch-v12` →
+      `pip install -r requirements.txt` → `python scripts\smoke_lilo.py`
+      (Ollama de pe; exige modelo `qwen2.5-coder:14b` — `ollama pull`).
+- [ ] Icone: `python scripts\criar_atalho.py` (cria LILO.lnk na Area de
+      Trabalho apontando p/ lilo.bat).
+- [ ] Smoke PASSOU → mergear PR #6 (arch-v12 → main; ai o dashboard v12
+      sai do main de vez) e tirar o `-dev` da versao.
+- [ ] v13.1 (backlog): streaming da resposta, memoria semantica KV como
+      tools memorizar/lembrar, sumarizacao de janela por LLM.
 
 ## Decisoes-chave (MANUAL)
 
-- Local-first: Ollama resolve; nuvem so com `LILO_ALLOW_CLOUD` + budget
-  diario (`LILO_DAILY_BUDGET`) + gate `cloud_send` (E5).
-- Streamlit mantido; UI React/editor REJEITADA (ver
-  `docs/tecnico/analise_open_agent_studio.md`, secao rejeitados).
-- KV SQLite e o storage primario de memoria; markdown e interface (E4).
-- Roadmap Open Agent Studio: H1 (QW1-7) e H2 (E1-E8) COMPLETOS; H3
-  (S1-S5) opcional, avaliar com caso de uso na mao.
-- Layout do dashboard espelha o Claude: sidebar enxuta com expanders,
-  composer-cartao (anexos/pastas/mic/modelo/modo), tema claro/escuro.
-- **Dashboard exige Streamlit >= 1.39** (classes `st-key-*`); abaixo disso o
-  layout degrada em silencio. Guard no boot + selo de versao avisam (v12.15).
-- Novo provedor LLM = via LiteLLM YAML (S2), nunca client hardcoded.
+- **Reset radical aprovado (24/08)**: legado v12.x (42k LOC) demolido; TUDO
+  recuperavel no branch `v12.15-legado`. Plano completo na sessao de 24/08.
+- 100% offline: so Ollama; nuvem NAO existe no nucleo (provider pluggavel
+  poderia voltar como tool em v13.x).
+- CLI unico (`lilo`); sem Streamlit/API/MCP no nucleo.
+- **Anti-inchaco**: funcionalidade nova = TOOL atras do loop/choke-point,
+  nunca novo entry point. Cientificos (Scholar/PDF/Prism/RAG) = tools futuras.
+- Permissoes: plan/ask/accept_edits/auto, grants escopados, sem replay;
+  default `ask`; never-commit-unless-asked.
+- DBs fora do repo/OneDrive (%LOCALAPPDATA%\LILO).
 
 ## Como retomar uma sessao (MANUAL)
 
 ```cmd
-python scripts\check.py                          # saude do codigo
-python scripts\diagnostico_lilo.py --fast        # auditoria compacta
-python scripts\memoria_projeto.py                # atualiza esta memoria
-streamlit run dashboard.py                        # UI -> localhost:8100
+python scripts\check.py             # saude do codigo
+python -m lilo                      # o agente (quando F2+ estiver pronto)
+python scripts\memoria_projeto.py   # atualiza esta memoria
 ```
