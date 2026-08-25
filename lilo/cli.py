@@ -27,6 +27,13 @@ Qualquer outro texto = tarefa para o agente. Ctrl+C cancela a tarefa atual."""
 class UITerminal(agente.UI):
     """Callbacks de terminal: imprime tools e pergunta s/n/t no stdin."""
 
+    def __init__(self, sessao: "Sessao | None" = None):
+        self.sessao = sessao
+
+    def apos_iteracao(self, msgs: list[dict]) -> None:
+        if self.sessao is not None:
+            self.sessao.persistir(msgs)
+
     def confirmar(self, kind: str, preview: str) -> str:
         print("\n┌─ CONFIRMACAO (%s) " % kind + "─" * max(0, 40 - len(kind)))
         for linha in preview.splitlines()[:14]:
@@ -57,8 +64,19 @@ class Sessao:
     def __init__(self):
         self.perms = Permissoes(modo=config.modo_inicial())
         self.modelo: str | None = None  # None = config.modelo()
+        self.chat_id: str | None = None  # criado no 1o persistir
         self.msgs: list[dict] = [
             {"role": "system", "content": agente.montar_system(Path.cwd())}]
+
+    def persistir(self, msgs: list[dict]) -> None:
+        """Grava o transcript a cada iteracao — nunca derruba o turno."""
+        try:
+            from lilo import sessoes
+            if self.chat_id is None:
+                self.chat_id = sessoes.nova_sessao(str(Path.cwd()))
+            sessoes.gravar(self.chat_id, msgs)
+        except Exception:  # noqa: BLE001 — persistencia e best-effort
+            pass
 
     def rodar(self, tarefa: str, ui: agente.UI, cliente: ClienteOllama) -> str:
         resposta, self.msgs = agente.executar_tarefa(
@@ -134,16 +152,18 @@ def main(argv: list[str] | None = None) -> int:
     tarefa = " ".join(args).strip()
 
     cliente = ClienteOllama()
-    ui = UITerminal()
     sessao = Sessao()
+    ui = UITerminal(sessao)
     if continuar:
         try:
             from lilo import sessoes
-            recuperadas = sessoes.carregar_ultima()
-            if recuperadas:
-                sessao.msgs = recuperadas
-                print("(sessao anterior retomada — %d mensagens)" % len(recuperadas))
-        except ImportError:
+            cid = sessoes.ultima_sessao()
+            if cid:
+                sessao.chat_id = cid
+                sessao.msgs = sessoes.carregar(cid)
+                print("(sessao anterior retomada — %d mensagens)"
+                      % len(sessao.msgs))
+        except Exception:  # noqa: BLE001 — retomada e best-effort
             pass
 
     if tarefa:  # one-shot
