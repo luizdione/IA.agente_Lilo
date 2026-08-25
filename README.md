@@ -1,7 +1,7 @@
 # LILO v13 — agente de terminal 100% local
 
 ![Status](https://img.shields.io/badge/status-ativo-brightgreen)
-![Version](https://img.shields.io/badge/version-13.0.0-blue)
+![Version](https://img.shields.io/badge/version-13.1.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-yellow)
 ![Arch](https://img.shields.io/badge/arch-v12-purple)
 
@@ -18,10 +18,13 @@ lugar nenhum). Tudo está preservado no branch **`v12.15-legado`**:
 
 ## O que é o núcleo v13
 
-- **Um binário**: `lilo` (REPL interativo ou `lilo "tarefa"`).
+- **Um binário**: `lilo` (REPL interativo ou `lilo "tarefa"`), com **resposta
+  em streaming** no terminal.
 - **Um loop agêntico** com tool-calling nativo do Ollama (`/api/chat` + `tools`).
-- **Seis tools**: `ler`, `escrever`, `editar`, `listar`, `buscar`, `shell` —
-  todas atrás de um único choke-point com portão de permissões
+- **Nove tools**: `ler`, `escrever`, `editar`, `listar`, `buscar`, `shell`,
+  `memorizar`/`lembrar` (memória persistente entre sessões) e `mcp`
+  (servidores MCP externos, allow-list `LILO_MCP`, dep. opcional) — todas
+  atrás de um único choke-point com portão de permissões
   (modos `plan` / `ask` / `accept_edits` / `auto`; *never-commit-unless-asked*).
 - **Memória**: sessões em SQLite (fora do OneDrive, `%LOCALAPPDATA%\LILO`) +
   contexto do projeto lido de `LILO.md`/`CLAUDE.md`/`CONTEXT.md` do diretório.

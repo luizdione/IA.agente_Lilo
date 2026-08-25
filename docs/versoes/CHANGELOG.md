@@ -3,6 +3,30 @@
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v12`).
 
+## v13.1.0 — 2026-08-26 (streaming + memória persistente + MCP como tool)
+
+As três evoluções do backlog, todas como TOOLS atrás do loop/choke-point
+(regra anti-inchaço respeitada) e validadas ao vivo contra Ollama real:
+
+- **Streaming**: a resposta aparece token a token no terminal. `stream:true`
+  no `/api/chat` com acumulador NDJSON que reduz os chunks ao MESMO formato
+  não-stream — o loop não muda; transporte de stream injetável (suíte segue
+  hermética). Só a UI de terminal liga (`suporta_stream`); `LILO_STREAM=0`
+  desliga. Impressão única (sem eco duplicado da resposta final).
+- **Memória persistente** (`lilo/memoria.py` + tools `memorizar`/`lembrar`):
+  KV mínimo em SQLite (WAL, `%LOCALAPPDATA%\LILO\memoria.db`), busca LIKE por
+  chave/valor/tags, upsert. Validado ao vivo ENTRE PROCESSOS: gravou numa
+  execução, lembrou em outra. Sem embeddings por ora (anti-inchaço).
+- **MCP como tool** (`lilo/mcp_cliente.py` + tool `mcp`): o LILO consome
+  servidores MCP externos com allow-list explícita (`LILO_MCP=nome=comando
+  args;...`), dependência OPCIONAL (`pip install mcp` — ausência vira [ERRO]
+  instrutivo). Sem `tool` lista as tools do servidor; kind `mcp` no portão
+  (confirma em ask/accept_edits; grant por kind com `t`).
+- Extra: `scripts/limpar_mcp_claude.py` remove do Claude Desktop os MCP do
+  LILO legado (backup + idempotente).
+- Testes: 67 herméticos (streaming acumulação/tool_calls/desligado, memória
+  roundtrip, parse/gate/execução do mcp). `check.py` verde.
+
 ## v13.0.0 — 2026-08-25 (LANÇAMENTO: validado na máquina do dono)
 
 Smoke **PASSOU na RTX 3060** com `qwen3:14b` (candidato nº 1 da

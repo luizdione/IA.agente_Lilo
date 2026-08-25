@@ -23,7 +23,7 @@ import subprocess
 from pathlib import Path
 from typing import Callable
 
-from lilo import config, portao
+from lilo import config, memoria, mcp_cliente, portao
 from lilo.log import get_logger
 
 log = get_logger("tools")
@@ -268,6 +268,36 @@ def _shell(args: dict) -> str:
         (err or "")[:SHELL_STDERR_MAX])
 
 
+def _memorizar(args: dict) -> str:
+    chave = str(args["chave"]).strip()
+    memoria.gravar(chave, str(args["valor"]), str(args.get("tags") or ""))
+    return "[OK] memorizado: %s" % chave
+
+
+def _lembrar(args: dict) -> str:
+    chave = str(args.get("chave") or "").strip()
+    busca = str(args.get("busca") or "").strip()
+    if chave:
+        valor = memoria.obter(chave)
+        return ("%s: %s" % (chave, valor)) if valor is not None else (
+            "(nada memorizado com a chave %r)" % chave)
+    if not busca:
+        return "[ERRO] informe `busca` (texto) ou `chave` (exata)"
+    achados = memoria.buscar(busca)
+    if not achados:
+        return "(nada na memoria para %r)" % busca
+    return "\n".join("%s: %s%s" % (c, v, (" [%s]" % t) if t else "")
+                     for c, v, t in achados)
+
+
+def _mcp(args: dict) -> str:
+    return mcp_cliente.chamar(str(args["servidor"]).strip(),
+                              str(args.get("tool") or "").strip(),
+                              args.get("argumentos")
+                              if isinstance(args.get("argumentos"), dict)
+                              else None)
+
+
 # --- previews (o que o usuario ve ao confirmar) -----------------------------
 def _preview_editar(args: dict) -> str:
     try:
@@ -349,6 +379,34 @@ TOOLS: dict[str, _Tool] = {
         lambda a: (("git_write" if _cmd_git_write(str(a["comando"])) else "shell"),
                    portao.token_comando(str(a["comando"]))),
         lambda a: "shell$ %s" % a.get("comando")),
+    "memorizar": _Tool(
+        _memorizar,
+        _schema("memorizar", "Guarda um fato duravel na memoria persistente "
+                             "do LILO (sobrevive entre sessoes). Use com "
+                             "parcimonia, para fatos uteis do usuario/projeto.",
+                {"chave": _S, "valor": _S,
+                 "tags": {**_S, "description": "palavras-chave opcionais"}},
+                ["chave", "valor"]),
+        ("chave", "valor"), lambda a: (None, None),
+        lambda a: "memorizar %s" % a.get("chave")),
+    "lembrar": _Tool(
+        _lembrar,
+        _schema("lembrar", "Recupera fatos da memoria persistente do LILO: "
+                           "por busca textual ou por chave exata.",
+                {"busca": _S, "chave": _S}, []),
+        (), lambda a: (None, None),
+        lambda a: "lembrar %s" % (a.get("busca") or a.get("chave") or "")),
+    "mcp": _Tool(
+        _mcp,
+        _schema("mcp", "Acessa um servidor MCP externo configurado pelo "
+                       "usuario em LILO_MCP. Sem `tool`: lista as tools do "
+                       "servidor. Com `tool`+`argumentos`: executa.",
+                {"servidor": _S, "tool": _S,
+                 "argumentos": {"type": "object",
+                                "description": "argumentos da tool remota"}},
+                ["servidor"]),
+        ("servidor",), lambda a: ("mcp", None),
+        lambda a: "mcp %s.%s" % (a.get("servidor"), a.get("tool") or "(listar)")),
 }
 
 SCHEMAS = [t.schema for t in TOOLS.values()]

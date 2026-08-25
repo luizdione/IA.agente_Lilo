@@ -27,8 +27,16 @@ Qualquer outro texto = tarefa para o agente. Ctrl+C cancela a tarefa atual."""
 class UITerminal(agente.UI):
     """Callbacks de terminal: imprime tools e pergunta s/n/t no stdin."""
 
+    suporta_stream = True
+
     def __init__(self, sessao: "Sessao | None" = None):
         self.sessao = sessao
+        self.chars_stream = 0  # quanto da resposta ja saiu ao vivo neste turno
+
+    def token(self, texto: str) -> None:
+        sys.stdout.write(texto)
+        sys.stdout.flush()
+        self.chars_stream += len(texto)
 
     def apos_iteracao(self, msgs: list[dict]) -> None:
         if self.sessao is not None:
@@ -85,6 +93,23 @@ class Sessao:
         return resposta
 
 
+def _rodar_e_imprimir(sessao: Sessao, tarefa: str, ui: agente.UI,
+                      cliente: ClienteOllama) -> str:
+    """Roda a tarefa e imprime a resposta UMA vez: se o streaming ja exibiu
+    o texto ao vivo, so fecha a linha (finais sinteticos [LIMITE]/[ABORTADO]
+    sempre sao impressos por extenso)."""
+    if hasattr(ui, "chars_stream"):
+        ui.chars_stream = 0
+    resposta = sessao.rodar(tarefa, ui, cliente)
+    if getattr(ui, "chars_stream", 0):
+        print()
+        if resposta.lstrip().startswith("["):
+            print(resposta)
+    else:
+        print("\n" + resposta)
+    return resposta
+
+
 def _comando(linha: str, sessao: Sessao, ui: agente.UI,
              cliente: ClienteOllama) -> bool:
     """Trata \\comandos. Retorna True se a linha era um comando."""
@@ -128,9 +153,9 @@ def _comando(linha: str, sessao: Sessao, ui: agente.UI,
             sessao.perms.plano.clear()
             sessao.perms.trocar_modo("accept_edits")
             print("modo: accept_edits — executando o plano na MESMA conversa...")
-            resposta = sessao.rodar(
-                "Plano aprovado pelo usuario. Execute-o agora.", ui, cliente)
-            print("\n" + resposta)
+            _rodar_e_imprimir(sessao,
+                              "Plano aprovado pelo usuario. Execute-o agora.",
+                              ui, cliente)
     else:
         print("comando desconhecido: \\%s (\\ajuda lista)" % cmd)
     return True
@@ -168,7 +193,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if tarefa:  # one-shot
         try:
-            print(sessao.rodar(tarefa, ui, cliente))
+            _rodar_e_imprimir(sessao, tarefa, ui, cliente)
             return 0
         except KeyboardInterrupt:
             print("\n[cancelado]")
@@ -196,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
         if _comando(linha, sessao, ui, cliente):
             continue
         try:
-            print("\n" + sessao.rodar(linha, ui, cliente))
+            _rodar_e_imprimir(sessao, linha, ui, cliente)
             if sessao.perms.modo == "plan" and sessao.perms.plano:
                 print("(%d acoes anotadas — \\plano para revisar e aprovar)"
                       % len(sessao.perms.plano))
