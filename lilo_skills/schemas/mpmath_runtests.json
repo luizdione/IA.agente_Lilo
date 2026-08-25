@@ -1,9 +1,0 @@
-{
-  "name": "mpmath_runtests",
-  "description": "Run all mpmath tests and print output.",
-  "parameters": {
-    "type": "object",
-    "properties": {},
-    "required": []
-  }
-}

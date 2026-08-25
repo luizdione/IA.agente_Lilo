@@ -1,7 +1,7 @@
 """Pytest configuration -- adiciona raiz do projeto ao sys.path.
 
-Permite `from shared.kv_memory import ...` mesmo executando `pytest` a
-partir de subpastas.
+Permite `from lilo import ...` mesmo executando `pytest` a partir de
+subpastas. Mantem o autoskip de testes que exigem Ollama/GPU.
 """
 
 from __future__ import annotations

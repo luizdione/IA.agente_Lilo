@@ -1,9 +1,0 @@
-{
-  "name": "fft_get_workers",
-  "description": "Returns the default number of workers within the current context\n\nExamples\n--------\n>>> from scipy import fft\n>>> fft.get_workers()\n1\n>>> with fft.set_workers(4):\n...     fft.get_workers()\n4",
-  "parameters": {
-    "type": "object",
-    "properties": {},
-    "required": []
-  }
-}

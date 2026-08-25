@@ -1,9 +1,0 @@
-{
-  "name": "seaborn_reset_orig",
-  "description": "Restore all RC params to original settings (respects custom rc).",
-  "parameters": {
-    "type": "object",
-    "properties": {},
-    "required": []
-  }
-}

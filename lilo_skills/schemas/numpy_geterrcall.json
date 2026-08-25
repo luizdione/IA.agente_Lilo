@@ -1,9 +1,0 @@
-{
-  "name": "numpy_geterrcall",
-  "description": "Return the current callback function used on floating-point errors.\n\nWhen the error handling for a floating-point error (one of \"divide\",\n\"over\", \"under\", or \"invalid\") is set to 'call' or 'log', the ",
-  "parameters": {
-    "type": "object",
-    "properties": {},
-    "required": []
-  }
-}

@@ -1,24 +1,8 @@
-# LILO — Dependencias de CI (V18 QW6)
-# Subconjunto VALIDADO para rodar `python scripts/check.py` (sintaxe +
-# pyflakes + pytest, 127 testes) em maquina limpa — sem a pilha pesada de RAG
-# (chromadb / sentence-transformers / torch), que nenhum teste importa hoje.
-# Se um teste novo importar pacote fora desta lista, o CI falha com
-# ModuleNotFoundError: adicione o pacote aqui.
+# LILO v13 — Dependencias de CI
+# Subconjunto minimo para `python scripts/check.py` (sintaxe + pyflakes +
+# pytest) em maquina limpa. Se um teste novo importar pacote fora desta
+# lista, o CI falha com ModuleNotFoundError: adicione o pacote aqui.
 pytest>=8.0
 pyflakes>=3.0
 python-dotenv>=1.0.0
 requests>=2.31.0
-httpx>=0.26.0
-pandas>=2.1.0
-numpy
-scipy
-pyyaml
-python-pptx
-openpyxl
-PyMuPDF>=1.23.0
-pdfminer.six>=20221105
-lxml>=5.0.0
-matplotlib
-faster-whisper
-librosa
-soundfile

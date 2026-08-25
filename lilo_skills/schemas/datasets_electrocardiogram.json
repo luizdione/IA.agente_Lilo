@@ -1,9 +1,0 @@
-{
-  "name": "datasets_electrocardiogram",
-  "description": "Load an electrocardiogram as an example for a 1-D signal.\n\nThe returned signal is a 5 minute long electrocardiogram (ECG), a medical\nrecording of the heart's electrical activity, sampled at 360 Hz.\n\nR",
-  "parameters": {
-    "type": "object",
-    "properties": {},
-    "required": []
-  }
-}
