@@ -56,6 +56,23 @@ def main() -> int:
     print("[1/3] Ollama %s ON — %d modelos" % (ver, len(nomes)))
     if not any(n.startswith(modelo.split(":")[0]) for n in nomes):
         return _falhou("modelo %r ausente. Rode: ollama pull %s" % (modelo, modelo))
+    # Capability 'tools': sem ela o template do modelo NAO produz tool_calls
+    # nativos (o modelo escreve JSON como texto e nada executa).
+    try:
+        show = requests.post(host + "/api/show", json={"model": modelo},
+                             timeout=5).json()
+        caps = show.get("capabilities") or []
+        if caps:
+            print("      capabilities: %s" % ", ".join(caps))
+            if "tools" not in caps:
+                return _falhou(
+                    "o template de %s NAO suporta tool-calling (sem "
+                    "capability 'tools'). Troque o modelo no .env, ex.:\n"
+                    "  LILO_MODEL=qwen3:14b      (ollama pull qwen3:14b)\n"
+                    "  LILO_MODEL=llama3.1:8b    (leve, template de tools "
+                    "mais maduro)" % modelo)
+    except requests.RequestException:
+        pass  # API antiga sem /api/show detalhado — segue o fluxo
 
     cliente = ClienteOllama()
     msgs = [{"role": "system", "content": agente.montar_system(sandbox)}]
@@ -70,6 +87,11 @@ def main() -> int:
     rodou = any(m.get("role") == "tool" and "ola do lilo" in (m.get("content") or "")
                 for m in msgs)
     if not (criado and rodou):
+        if '"name"' in final and '"arguments"' in final:
+            print("DICA: o modelo escreveu a tool como TEXTO (nao emitiu "
+                  "tool_calls nativos) mesmo apos correcao. Troque o modelo:\n"
+                  "  $env:LILO_MODEL=\"qwen3:14b\"; ollama pull qwen3:14b\n"
+                  "  (ou llama3.1:8b, leve e com template de tools maduro)")
         return _falhou("etapa 2: criado=%s rodou=%s | resposta: %.200s"
                        % (criado, rodou, final))
     print("[2/3] criar+rodar OK — resposta: %.60s" % final)
