@@ -6,31 +6,28 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.0.0 | **branch:** arch-v12 | **commit:** 6ba6cc1 feat(v13-f4): sessoes persistentes (SQLite WAL) + lilo -c
-- **Testes:** 55 funcoes de teste (rode `python scripts/check.py`)
+- **Versao:** v13.0.0 | **branch:** arch-v12 | **commit:** ca6d1ab Merge PR #8: v13.0.2 — default qwen3 + think:false + smoke auto-descoberta (VALIDADO ao vivo)
+- **Testes:** 59 funcoes de teste (rode `python scripts/check.py`)
 - **Atualizado em:** 2026-08-25
 <!-- /AUTO:estado -->
 
 ## Ultimas entregas (AUTO — topo do CHANGELOG)
 <!-- AUTO:entregas -->
+- v13.0.0 — 2026-08-25 (LANÇAMENTO: validado na máquina do dono)
+- v13.0.2 — 2026-08-25 (modelo default: qwen3 + smoke auto-descoberta)
 - v13.0 — 2026-08-24 (RENASCIMENTO: agente de terminal 100% local sobre Ollama)
-- v12.15 — 2026-08-20 (V18.11: guarda de versão do dashboard + scrubber pré-cloud)
-- v12.14 — 2026-08-19 (V18.10: gerente de memória do projeto)
 <!-- /AUTO:entregas -->
 
 ## Pendencias (MANUAL)
 
-- [x] F0-F5 CONSTRUIDAS (cliente, loop, 6 tools, portao, sessoes, CLI/REPL,
-      lilo.bat, criar_atalho, smoke, CHANGELOG). 55 testes hermeticos verdes.
-- [ ] **MAQUINA DO DONO**: `git fetch && git checkout arch-v12` →
-      `pip install -r requirements.txt` → `python scripts\smoke_lilo.py`
-      (Ollama de pe; exige modelo `qwen2.5-coder:14b` — `ollama pull`).
-- [ ] Icone: `python scripts\criar_atalho.py` (cria LILO.lnk na Area de
-      Trabalho apontando p/ lilo.bat).
-- [ ] Smoke PASSOU → mergear PR #6 (arch-v12 → main; ai o dashboard v12
-      sai do main de vez) e tirar o `-dev` da versao.
+- [x] v13.0 LANCADO E VALIDADO NA MAQUINA DO DONO (25/08): smoke PASSOU na
+      RTX 3060 com qwen3:14b (aceite canonico: leu o erro e consertou
+      sozinho); icone LILO na Area de Trabalho; pasta legada local apagada.
+      Repo local do dono: C:\github\LILO.
 - [ ] v13.1 (backlog): streaming da resposta, memoria semantica KV como
-      tools memorizar/lembrar, sumarizacao de janela por LLM.
+      tools memorizar/lembrar, sumarizacao de janela por LLM, MCP como tool.
+- [ ] Se o template do qwen2.5-coder for corrigido em Ollama futuro,
+      reavaliar como LILO_MODEL_FAST (hoje: familia qwen3).
 
 ## Decisoes-chave (MANUAL)
 
