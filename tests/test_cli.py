@@ -11,6 +11,7 @@ def ambiente(tmp_path, monkeypatch):
     monkeypatch.setenv("LILO_SESSIONS_DB", str(tmp_path / "s.db"))
     monkeypatch.setenv("LILO_ALLOW", str(tmp_path))
     monkeypatch.setenv("LILO_MODE", "auto")
+    monkeypatch.setenv("LILO_STREAM", "0")  # e2e pelo transporte nao-stream
     monkeypatch.chdir(tmp_path)
     return tmp_path
 

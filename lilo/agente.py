@@ -27,6 +27,8 @@ Regras:
 5. Resultado "[NEGADO] ..." = o usuario recusou; NAO repita a mesma acao, proponha alternativa ou pergunte.
 6. Caminhos sao relativos ao diretorio atual do usuario. Nao invente arquivos: confira com listar/buscar.
 7. Ao terminar, responda curto: o que foi feito, o que foi verificado, e pendencias se houver.
+8. Memoria persistente entre sessoes: memorizar(chave, valor) guarda fatos duraveis do usuario/projeto; lembrar(busca) recupera. Use com parcimonia.
+9. A tool mcp acessa servidores MCP externos que o usuario configurou (mcp so com servidor lista as tools dele).
 
 Exemplo de fluxo para "conserte o bug do script X": buscar/ler o arquivo -> editar o trecho -> shell p/ rodar/testar -> se falhar, ler o erro e editar de novo -> resposta final."""
 
@@ -55,8 +57,13 @@ def _parece_tool_em_texto(content: str) -> bool:
 class UI:
     """Callbacks do terminal (o CLI implementa; os testes usam fakes)."""
 
+    suporta_stream = False  # so a UI de terminal liga o streaming de tokens
+
     def confirmar(self, kind: str, preview: str) -> str:  # 's'|'n'|'t'
         return "n"
+
+    def token(self, texto: str) -> None:
+        """Pedaco de resposta chegando (streaming). Default: descarta."""
 
     def tool_inicio(self, nome: str, preview: str) -> None:
         pass
@@ -132,7 +139,8 @@ def executar_tarefa(tarefa: str, msgs: list[dict], perms: Permissoes,
 
     for _ in range(config.max_iters()):
         msgs_envio = ajustar_janela(msgs)
-        r = cliente.chat(msgs_envio, tools=tools.SCHEMAS, model=modelo)
+        r = cliente.chat(msgs_envio, tools=tools.SCHEMAS, model=modelo,
+                         on_token=ui.token if ui.suporta_stream else None)
 
         if not r["tool_calls"]:
             final = r["content"].strip() or "(o modelo nao produziu resposta)"

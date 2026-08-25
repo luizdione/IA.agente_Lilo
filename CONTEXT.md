@@ -6,16 +6,16 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.0.0 | **branch:** arch-v12 | **commit:** ca6d1ab Merge PR #8: v13.0.2 — default qwen3 + think:false + smoke auto-descoberta (VALIDADO ao vivo)
-- **Testes:** 59 funcoes de teste (rode `python scripts/check.py`)
+- **Versao:** v13.1.0 | **branch:** arch-v12 | **commit:** db6a72e feat: scripts/limpar_mcp_claude.py — remove MCP legado do Claude Desktop (backup + idempotente)
+- **Testes:** 67 funcoes de teste (rode `python scripts/check.py`)
 - **Atualizado em:** 2026-08-25
 <!-- /AUTO:estado -->
 
 ## Ultimas entregas (AUTO — topo do CHANGELOG)
 <!-- AUTO:entregas -->
+- v13.1.0 — 2026-08-26 (streaming + memória persistente + MCP como tool)
 - v13.0.0 — 2026-08-25 (LANÇAMENTO: validado na máquina do dono)
 - v13.0.2 — 2026-08-25 (modelo default: qwen3 + smoke auto-descoberta)
-- v13.0 — 2026-08-24 (RENASCIMENTO: agente de terminal 100% local sobre Ollama)
 <!-- /AUTO:entregas -->
 
 ## Pendencias (MANUAL)
@@ -24,8 +24,11 @@
       RTX 3060 com qwen3:14b (aceite canonico: leu o erro e consertou
       sozinho); icone LILO na Area de Trabalho; pasta legada local apagada.
       Repo local do dono: C:\github\LILO.
-- [ ] v13.1 (backlog): streaming da resposta, memoria semantica KV como
-      tools memorizar/lembrar, sumarizacao de janela por LLM, MCP como tool.
+- [x] v13.1 ENTREGUE (26/08): streaming no terminal, tools memorizar/lembrar
+      (validadas ao vivo entre processos) e tool mcp (allow-list LILO_MCP,
+      dep opcional). 67 testes.
+- [ ] Backlog v13.2: sumarizacao de janela por LLM; embeddings na memoria
+      (busca semantica) quando houver caso de uso; teste vivo de MCP.
 - [ ] Se o template do qwen2.5-coder for corrigido em Ollama futuro,
       reavaliar como LILO_MODEL_FAST (hoje: familia qwen3).
 

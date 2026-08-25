@@ -46,7 +46,7 @@ class Permissoes:
 
     def registrar_grant(self, kind: str, token: str | None = None) -> None:
         """Resposta 't' (= sempre nesta sessao) do usuario."""
-        if kind in ("write", "write_outside"):
+        if kind in ("write", "write_outside", "mcp"):
             self.grants_kind.add(kind)
         elif token:  # shell e git_write: SO pelo comando exato
             self.grants_cmd.add(token)

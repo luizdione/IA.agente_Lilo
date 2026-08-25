@@ -52,6 +52,40 @@ def _transport_requests(url: str, payload: dict) -> dict:
     return r.json()
 
 
+def _transport_requests_stream(url: str, payload: dict):
+    """Gera os chunks NDJSON do /api/chat com stream:true."""
+    with requests.post(url, json=payload, stream=True,
+                       timeout=config.timeout_s()) as r:
+        r.raise_for_status()
+        for linha in r.iter_lines():
+            if linha:
+                yield json.loads(linha)
+
+
+def _acumular_stream(chunks, on_token) -> dict:
+    """Reduz os chunks a UMA resposta no formato nao-stream do /api/chat.
+    on_token(texto) e chamado a cada pedaco de content (exibicao ao vivo)."""
+    content, thinking, tool_calls, done_reason = "", "", [], ""
+    for ch in chunks:
+        m = ch.get("message") or {}
+        pedaco = m.get("content") or ""
+        if pedaco:
+            content += pedaco
+            if on_token:
+                on_token(pedaco)
+        thinking += m.get("thinking") or ""
+        if m.get("tool_calls"):
+            tool_calls.extend(m["tool_calls"])
+        if ch.get("done"):
+            done_reason = ch.get("done_reason") or ""
+    msg: dict = {"role": "assistant", "content": content}
+    if thinking:
+        msg["thinking"] = thinking
+    if tool_calls:
+        msg["tool_calls"] = tool_calls
+    return {"message": msg, "done_reason": done_reason}
+
+
 def _strip_thinking(texto: str) -> str:
     """Remove um bloco <thinking>...</thinking> no inicio da resposta."""
     t = texto.lstrip()
@@ -87,10 +121,12 @@ def _normalizar_tool_calls(brutos: list) -> list[dict]:
 
 
 class ClienteOllama:
-    """Cliente minimo e sincrono do /api/chat (stream desligado no v13.0)."""
+    """Cliente minimo e sincrono do /api/chat, com streaming opcional."""
 
-    def __init__(self, transport: Transport | None = None):
+    def __init__(self, transport: Transport | None = None,
+                 stream_transport=None):
         self._transport = transport or _transport_requests
+        self._stream_transport = stream_transport or _transport_requests_stream
 
     def ping(self) -> bool:
         try:
@@ -100,15 +136,19 @@ class ClienteOllama:
             return False
 
     def chat(self, messages: list[dict], tools: list[dict] | None = None,
-             model: str | None = None) -> dict[str, Any]:
+             model: str | None = None, on_token=None) -> dict[str, Any]:
         """Uma rodada de chat. Retorna:
         {"message": <mensagem crua p/ anexar ao historico>,
          "content": str, "tool_calls": [{name, arguments}], "done_reason": str}
-        """
+
+        on_token(texto): callback de exibicao ao vivo — quando presente (e
+        LILO_STREAM!=0), a chamada usa stream:true e o acumulador reduz os
+        chunks ao MESMO formato de resposta; o resto do loop nao muda."""
+        usar_stream = bool(on_token) and config.stream()
         payload: dict[str, Any] = {
             "model": model or config.modelo(),
             "messages": messages,
-            "stream": False,
+            "stream": usar_stream,
             "keep_alive": _normalize_keep_alive(config.keep_alive()),
             "options": {
                 "num_ctx": config.num_ctx(),
@@ -125,7 +165,11 @@ class ClienteOllama:
         ultima: Exception | None = None
         for tentativa in range(config.retries() + 1):
             try:
-                data = self._transport(url, payload)
+                if usar_stream:
+                    data = _acumular_stream(
+                        self._stream_transport(url, payload), on_token)
+                else:
+                    data = self._transport(url, payload)
                 break
             except Exception as exc:  # noqa: BLE001 — classificado abaixo
                 ultima = exc

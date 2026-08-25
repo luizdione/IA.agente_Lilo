@@ -6,4 +6,4 @@ portao de permissoes. Nada de dashboards, APIs ou subagentes de dominio no
 nucleo — funcionalidade nova entra como TOOL atras do loop.
 """
 
-__version__ = "13.0.0"
+__version__ = "13.1.0"

@@ -89,6 +89,11 @@ def max_tokens() -> int:
     return _int("LILO_MAX_TOKENS", 4096)
 
 
+def stream() -> bool:
+    """Streaming da resposta no terminal (token a token). LILO_STREAM=0 desliga."""
+    return get_env("LILO_STREAM", "1").strip().lower() not in ("0", "false", "off")
+
+
 def pensar() -> bool:
     """Thinking dos modelos raciocinantes (qwen3 etc). DESLIGADO por default:
     no loop agentico o monologo so atrasa (CPU: >300s vs 36s medidos) — o
