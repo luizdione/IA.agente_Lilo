@@ -1,7 +1,7 @@
 # LILO v13 — agente de terminal 100% local
 
 ![Status](https://img.shields.io/badge/status-ativo-brightgreen)
-![Version](https://img.shields.io/badge/version-13.3.0-blue)
+![Version](https://img.shields.io/badge/version-13.4.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-yellow)
 ![Arch](https://img.shields.io/badge/arch-v12-purple)
 
@@ -44,6 +44,20 @@ python scripts\check.py       # saúde do código (sintaxe + pyflakes + pytest)
 Requisitos: Python 3.11+, [Ollama](https://ollama.com) ≥ 0.9 com um modelo
 com suporte a tools (default: `qwen3:14b` — a família qwen2.5-coder tem o
 template de tool-calling quebrado no Ollama 0.32.x; o smoke detecta e avisa).
+
+## LILO no Claude Desktop (servidor MCP, v13.4)
+
+O mesmo binário serve as tools ao Claude Desktop (`pip install mcp` antes):
+
+```jsonc
+// %APPDATA%\Claude\claude_desktop_config.json
+"mcpServers": {"lilo": {"command": "python",
+                        "args": ["-m", "lilo", "mcp-serve"],
+                        "cwd": "C:\\github\\LILO"}}
+```
+
+Modo do servidor: `LILO_MCP_SERVE_MODE` (default `accept_edits` — leituras e
+escrita na allow-list passam; shell pede `auto`; git nunca passa sem grant).
 
 ## Regra anti-inchaço (a lição do legado)
 
