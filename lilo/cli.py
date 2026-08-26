@@ -10,7 +10,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from lilo import __version__, agente, config
+from lilo import __version__, agente, config, cores
 from lilo.cliente import ClienteOllama
 from lilo.portao import MODOS, Permissoes
 
@@ -18,10 +18,14 @@ AJUDA = """Comandos do REPL:
   \\modo <plan|ask|accept_edits|auto>   troca o modo de permissao
   \\modelo <nome|fast>                  troca o modelo (fast = LILO_MODEL_FAST)
   \\plano                               mostra/aprova o plano acumulado (modo plan)
+  \\memoria [busca]                     lista a memoria persistente (ou busca)
+  \\sessoes                             lista as conversas salvas
   \\nova                                zera a conversa (novo chat)
   \\ajuda                               esta ajuda
   \\sair                                encerra
-Qualquer outro texto = tarefa para o agente. Ctrl+C cancela a tarefa atual."""
+Qualquer outro texto = tarefa para o agente. Ctrl+C cancela a tarefa atual.
+Fora do REPL: lilo "tarefa" (one-shot) · lilo -c (retoma a ultima) ·
+lilo -c <id> (retoma uma sessao especifica; ids no \\sessoes)."""
 
 
 class UITerminal(agente.UI):
@@ -43,9 +47,10 @@ class UITerminal(agente.UI):
             self.sessao.persistir(msgs)
 
     def confirmar(self, kind: str, preview: str) -> str:
-        print("\n┌─ CONFIRMACAO (%s) " % kind + "─" * max(0, 40 - len(kind)))
+        rotulo = cores.pinta(kind, "amarelo")
+        print("\n┌─ CONFIRMACAO (%s) " % rotulo + "─" * max(0, 40 - len(kind)))
         for linha in preview.splitlines()[:14]:
-            print("│ " + linha)
+            print("│ " + cores.pinta_diff(linha))
         print("└" + "─" * 55)
         while True:
             try:
@@ -58,12 +63,12 @@ class UITerminal(agente.UI):
                 return r
 
     def tool_inicio(self, nome: str, preview: str) -> None:
-        print("  → %s" % preview.splitlines()[0][:100])
+        print(cores.pinta("  → %s" % preview.splitlines()[0][:100], "dim"))
 
     def tool_fim(self, nome: str, resultado: str) -> None:
         primeira = (resultado.splitlines() or [""])[0]
         if resultado.startswith(("[ERRO]", "[NEGADO]", "[BLOQUEADO]")):
-            print("    %s" % primeira[:120])
+            print(cores.pinta("    %s" % primeira[:120], "vermelho"))
 
 
 class Sessao:
@@ -137,6 +142,27 @@ def _comando(linha: str, sessao: Sessao, ui: agente.UI,
     elif cmd == "nova":
         sessao.__init__()
         print("nova conversa (modo %s)" % sessao.perms.modo)
+    elif cmd == "memoria":
+        from lilo import memoria
+        linhas = (memoria.buscar_inteligente(arg) if arg
+                  else memoria.listar(20))
+        if not linhas:
+            print("(memoria vazia%s)" % (" para %r" % arg if arg else ""))
+        for chave, valor, tags in linhas:
+            print("  %s: %s%s" % (cores.pinta(chave, "ciano"), valor[:100],
+                                  (" [%s]" % tags) if tags else ""))
+    elif cmd == "sessoes":
+        from lilo import sessoes as _s
+        linhas = _s.listar()
+        if not linhas:
+            print("(nenhuma sessao salva)")
+        for sid, titulo, quando in linhas:
+            marca = " ←" if sid == sessao.chat_id else ""
+            print("  %s  %s  (%s)%s" % (cores.pinta(sid, "ciano"),
+                                        (titulo or "(sem titulo)")[:60],
+                                        quando[:16], marca))
+        if linhas:
+            print("retome com: lilo -c <id>")
     elif cmd == "plano":
         plano = sessao.perms.plano
         if not plano:
@@ -162,7 +188,9 @@ def _comando(linha: str, sessao: Sessao, ui: agente.UI,
 
 
 def main(argv: list[str] | None = None) -> int:
-    if sys.platform == "win32":  # cmd.exe com acentos
+    if sys.platform == "win32":  # cmd.exe: acentos + cores ANSI (truque VT)
+        import os as _os
+        _os.system("")
         for stream in (sys.stdout, sys.stderr):
             try:
                 stream.reconfigure(encoding="utf-8")
@@ -171,9 +199,14 @@ def main(argv: list[str] | None = None) -> int:
 
     config.load_env()
     args = list(argv or [])
-    continuar = "-c" in args
-    if continuar:
-        args.remove("-c")
+    continuar, chat_pedido = False, None
+    if "-c" in args:
+        continuar = True
+        i = args.index("-c")
+        args.pop(i)
+        # `lilo -c <id>`: retoma uma sessao ESPECIFICA (ids no \sessoes)
+        if i < len(args) and len(args[i]) == 12 and args[i].isalnum():
+            chat_pedido = args.pop(i)
     tarefa = " ".join(args).strip()
 
     cliente = ClienteOllama()
@@ -182,12 +215,16 @@ def main(argv: list[str] | None = None) -> int:
     if continuar:
         try:
             from lilo import sessoes
-            cid = sessoes.ultima_sessao()
-            if cid:
+            cid = chat_pedido or sessoes.ultima_sessao()
+            msgs = sessoes.carregar(cid) if cid else []
+            if msgs:
                 sessao.chat_id = cid
-                sessao.msgs = sessoes.carregar(cid)
-                print("(sessao anterior retomada — %d mensagens)"
-                      % len(sessao.msgs))
+                sessao.msgs = msgs
+                print("(sessao %s retomada — %d mensagens)"
+                      % (cid, len(msgs)))
+            elif chat_pedido:
+                print("(sessao %r nao encontrada — comecando nova; "
+                      "veja \\sessoes)" % chat_pedido)
         except Exception:  # noqa: BLE001 — retomada e best-effort
             pass
 

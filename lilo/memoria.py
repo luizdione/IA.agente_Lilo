@@ -151,3 +151,11 @@ def apagar(chave: str) -> bool:
     with _connect() as con:
         return con.execute("DELETE FROM kv WHERE chave = ?",
                            (chave.strip(),)).rowcount > 0
+
+
+def listar(limite: int = 20) -> list[tuple[str, str, str]]:
+    """[(chave, valor, tags)] mais recentes primeiro (p/ \\memoria no REPL)."""
+    with _connect() as con:
+        return con.execute(
+            "SELECT chave, valor, tags FROM kv ORDER BY atualizado_em DESC "
+            "LIMIT ?", (limite,)).fetchall()
