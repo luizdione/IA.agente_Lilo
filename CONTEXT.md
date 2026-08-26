@@ -6,16 +6,16 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.4.0 | **branch:** arch-v12 | **commit:** 992aa5e feat(v13.3.0): esquecer + \memoria + sessoes nomeadas + cores no terminal
-- **Testes:** 84 funcoes de teste (rode `python scripts/check.py`)
+- **Versao:** v13.5.0 | **branch:** arch-v12 | **commit:** 6ec9a0f Merge PR #14: v13.4.0 — LILO como servidor MCP (round-trip validado)
+- **Testes:** 92 funcoes de teste (rode `python scripts/check.py`)
 - **Atualizado em:** 2026-08-26
 <!-- /AUTO:estado -->
 
 ## Ultimas entregas (AUTO — topo do CHANGELOG)
 <!-- AUTO:entregas -->
+- v13.5.0 — 2026-08-26 (blindagem offline + ergonomia de manutenção)
 - v13.4.0 — 2026-08-26 (ecossistema: LILO como SERVIDOR MCP)
 - v13.3.0 — 2026-08-26 (ergonomia: esquecer, \memoria, sessões nomeadas, cores)
-- v13.2.0 — 2026-08-26 (qualidade: janela com resumo LLM + memória semântica)
 <!-- /AUTO:entregas -->
 
 ## Pendencias (MANUAL)
@@ -30,8 +30,12 @@
       com o mcp-serve novo (snippet no README).
 - [ ] GATED ate caso de uso nomeado (decisao): provider cloud plugavel;
       cientificos (Scholar/PDF) como tools.
-- [ ] Backlog v13.5: `\esquecer` direto no REPL? export/import da memoria;
-      compactacao automatica de sessoes antigas.
+- [x] v13.5 ENTREGUE (26/08): blindagem offline (*-cloud fora da
+      auto-descoberta), icone abre POWERSHELL com o REPL (regravar com
+      criar_atalho.py), LILO_DEBUG, \atualizar, \esquecer, \memoria
+      exportar/importar.
+- [ ] v13.6: coletar friccoes de USO REAL do dono -> correcoes; candidata
+      cientifica: tool ler_pdf (PyMuPDF opcional) quando o dono nomear o caso.
 - [ ] Reavaliar qwen2.5-coder como LILO_MODEL_FAST se o template de tools
       for corrigido em Ollama futuro (hoje: familia qwen3).
 

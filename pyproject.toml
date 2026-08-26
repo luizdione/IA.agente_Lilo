@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lilo"
-version = "13.4.0"
+version = "13.5.0"
 description = "Agente de terminal 100% local sobre Ollama (estilo Claude Code)"
 requires-python = ">=3.11"
 dependencies = [

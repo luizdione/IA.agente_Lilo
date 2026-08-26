@@ -161,6 +161,10 @@ class ClienteOllama:
         if not config.pensar():
             payload["think"] = False  # modelos sem thinking ignoram (200 OK)
 
+        if config.debug():  # v13.5: diagnostico de respostas ruins
+            log.debug("payload: %s",
+                      json.dumps(payload, ensure_ascii=False)[:4000])
+
         url = config.ollama_host() + "/api/chat"
         ultima: Exception | None = None
         for tentativa in range(config.retries() + 1):
@@ -193,6 +197,10 @@ class ClienteOllama:
         content = _strip_thinking(content)
 
         done = data.get("done_reason") or ""
+        if config.debug():
+            log.debug("resposta: content=%d chars, tool_calls=%d, done=%s | %s",
+                      len(content), len(tool_calls), done,
+                      json.dumps(msg, ensure_ascii=False)[:2000])
         if done == "length":
             log.warning("resposta truncada (num_predict=%d atingido)",
                         config.max_tokens())

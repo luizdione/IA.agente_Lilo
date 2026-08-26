@@ -107,6 +107,12 @@ def resumo_janela() -> bool:
         "0", "false", "off")
 
 
+def debug() -> bool:
+    """LILO_DEBUG=1: payloads e respostas no log (diagnostico de respostas
+    ruins do modelo). O log vive em <dados>/logs/lilo.log."""
+    return get_env("LILO_DEBUG", "0").strip().lower() in ("1", "true", "on")
+
+
 def stream() -> bool:
     """Streaming da resposta no terminal (token a token). LILO_STREAM=0 desliga."""
     return get_env("LILO_STREAM", "1").strip().lower() not in ("0", "false", "off")

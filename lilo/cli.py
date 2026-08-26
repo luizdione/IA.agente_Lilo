@@ -19,7 +19,10 @@ AJUDA = """Comandos do REPL:
   \\modelo <nome|fast>                  troca o modelo (fast = LILO_MODEL_FAST)
   \\plano                               mostra/aprova o plano acumulado (modo plan)
   \\memoria [busca]                     lista a memoria persistente (ou busca)
+  \\memoria exportar|importar <arq>     backup/restauracao da memoria (JSON)
+  \\esquecer <chave>                    apaga um fato da memoria
   \\sessoes                             lista as conversas salvas
+  \\atualizar                           git pull + reinstala o LILO
   \\nova                                zera a conversa (novo chat)
   \\ajuda                               esta ajuda
   \\sair                                encerra
@@ -144,6 +147,22 @@ def _comando(linha: str, sessao: Sessao, ui: agente.UI,
         print("nova conversa (modo %s)" % sessao.perms.modo)
     elif cmd == "memoria":
         from lilo import memoria
+        sub, _, resto = arg.partition(" ")
+        if sub == "exportar":
+            destino = resto.strip() or "memoria_lilo.json"
+            print("exportadas %d entradas -> %s"
+                  % (memoria.exportar_json(destino), destino))
+            return True
+        if sub == "importar":
+            if not resto.strip():
+                print("uso: \\memoria importar <arquivo.json>")
+            else:
+                try:
+                    print("importadas %d entradas"
+                          % memoria.importar_json(resto.strip()))
+                except (OSError, ValueError) as e:
+                    print("[ERRO] %s" % e)
+            return True
         linhas = (memoria.buscar_inteligente(arg) if arg
                   else memoria.listar(20))
         if not linhas:
@@ -151,6 +170,28 @@ def _comando(linha: str, sessao: Sessao, ui: agente.UI,
         for chave, valor, tags in linhas:
             print("  %s: %s%s" % (cores.pinta(chave, "ciano"), valor[:100],
                                   (" [%s]" % tags) if tags else ""))
+    elif cmd == "esquecer":
+        if not arg:
+            print("uso: \\esquecer <chave>  (veja as chaves com \\memoria)")
+        else:
+            from lilo import memoria
+            print("esquecido: %s" % arg if memoria.apagar(arg)
+                  else "(chave %r nao existe)" % arg)
+    elif cmd == "atualizar":
+        import subprocess
+        from lilo.config import RAIZ
+        passos = (["git", "pull"],
+                  [sys.executable, "-m", "pip", "install", "-q", "-e", "."])
+        for c in passos:
+            r = subprocess.run(c, cwd=str(RAIZ), capture_output=True,
+                               text=True, timeout=300)
+            if r.returncode != 0:
+                print("[ERRO] %s:\n%s" % (" ".join(c),
+                                          (r.stderr or r.stdout or "")[-500:]))
+                break
+            print((r.stdout or "").strip()[-300:] or "(ok)")
+        else:
+            print("atualizado — feche e reabra o LILO p/ carregar a versao nova")
     elif cmd == "sessoes":
         from lilo import sessoes as _s
         linhas = _s.listar()
