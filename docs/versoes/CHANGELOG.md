@@ -3,6 +3,23 @@
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v12`).
 
+## v13.2.0 — 2026-08-26 (qualidade: janela com resumo LLM + memória semântica)
+
+- **Sumarização de janela por LLM**: quando o histórico estoura `num_ctx`,
+  antes da poda determinística o miolo da conversa é condensado em um bloco
+  `[RESUMO DA CONVERSA ANTERIOR]` pelo modelo FAST (uma chamada, sem tools).
+  A poda continua como fallback que nunca falha (e preserva o bloco de
+  resumo). `LILO_RESUMO=0` volta ao comportamento v13.1.
+- **Busca semântica na memória**: `gravar` calcula embedding via `/api/embed`
+  (best-effort, timeout 3s, embedder fora do ar degrada silencioso);
+  `lembrar` usa cosseno em Python puro (sem numpy no runtime) com fallback e
+  mescla LIKE. **Validado ao vivo**: consulta "placa de video" achou a chave
+  `gpu_dono` (RTX 3060) onde o LIKE não achava nada. Migração de schema
+  automática (coluna `embedding`). Envs: `LILO_MEMORIA_EMBED`,
+  `LILO_MODEL_EMBED` (default mxbai-embed-large, que o dono já tem).
+- Testes: 74 herméticos (+7: cosseno ranqueia, mescla, fallback, migração,
+  resumo substitui miolo, desligado/falho caem na poda).
+
 ## v13.1.0 — 2026-08-26 (streaming + memória persistente + MCP como tool)
 
 As três evoluções do backlog, todas como TOOLS atrás do loop/choke-point
