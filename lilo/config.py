@@ -89,6 +89,24 @@ def max_tokens() -> int:
     return _int("LILO_MAX_TOKENS", 4096)
 
 
+def modelo_embed() -> str:
+    return get_env("LILO_MODEL_EMBED", "mxbai-embed-large")
+
+
+def memoria_embed() -> bool:
+    """Embeddings na memoria (busca semantica). Best-effort: embedder fora
+    do ar degrada silenciosamente p/ LIKE. LILO_MEMORIA_EMBED=0 desliga."""
+    return get_env("LILO_MEMORIA_EMBED", "1").strip().lower() not in (
+        "0", "false", "off")
+
+
+def resumo_janela() -> bool:
+    """Sumarizacao por LLM quando a janela estoura (antes da poda de grupos).
+    LILO_RESUMO=0 desliga (volta a poda puramente deterministica)."""
+    return get_env("LILO_RESUMO", "1").strip().lower() not in (
+        "0", "false", "off")
+
+
 def stream() -> bool:
     """Streaming da resposta no terminal (token a token). LILO_STREAM=0 desliga."""
     return get_env("LILO_STREAM", "1").strip().lower() not in ("0", "false", "off")

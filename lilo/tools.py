@@ -283,7 +283,7 @@ def _lembrar(args: dict) -> str:
             "(nada memorizado com a chave %r)" % chave)
     if not busca:
         return "[ERRO] informe `busca` (texto) ou `chave` (exata)"
-    achados = memoria.buscar(busca)
+    achados = memoria.buscar_inteligente(busca)
     if not achados:
         return "(nada na memoria para %r)" % busca
     return "\n".join("%s: %s%s" % (c, v, (" [%s]" % t) if t else "")

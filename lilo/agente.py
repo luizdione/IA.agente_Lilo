@@ -80,17 +80,59 @@ def montar_system(cwd: Path | None = None) -> str:
     return SYSTEM_BASE + ("\n\n" + bloco if bloco else "")
 
 
-# --- janela de contexto (deterministica, sem LLM) ---------------------------
+# --- janela de contexto -----------------------------------------------------
 def _tok(msg: dict) -> int:
     """Estimativa: chars/3 (PT-BR e menos denso que ingles) + 8 de overhead."""
     total = len(str(msg.get("content") or "")) + len(str(msg.get("tool_calls") or ""))
     return total // 3 + 8
 
 
-def ajustar_janela(msgs: list[dict]) -> list[dict]:
-    """Poda quando o historico ameaca estourar num_ctx:
+RESUMO_MARCA = "[RESUMO DA CONVERSA ANTERIOR — gerado automaticamente]"
+_RESUMO_CAUDA = 6      # mensagens do fim preservadas integrais
+_RESUMO_MAX_IN = 9000  # chars de historico enviados ao resumidor
+
+
+def _resumir_historico(msgs: list[dict], cliente, modelo) -> list[dict] | None:
+    """v13.2: condensa o MIOLO da conversa (entre o 1o pedido e a cauda) em
+    UM bloco de resumo, usando o modelo FAST. Retorna a nova lista ou None
+    (miolo pequeno demais / falha do LLM — o chamador cai na poda)."""
+    ini, fim = 2, len(msgs) - _RESUMO_CAUDA
+    if fim - ini < 4:
+        return None
+    miolo = msgs[ini:fim]
+    linhas = []
+    for m in miolo:
+        c = str(m.get("content") or "")[:300]
+        if m.get("tool_calls"):
+            c += " [chamou tools: %s]" % ",".join(
+                tc.get("function", {}).get("name", "?")
+                for tc in m["tool_calls"])
+        linhas.append("%s: %s" % (m.get("role"), c))
+    transcricao = "\n".join(linhas)[:_RESUMO_MAX_IN]
+    try:
+        r = cliente.chat(
+            [{"role": "system",
+              "content": ("Resuma a transcricao a seguir em ate 12 linhas, em "
+                          "portugues: fatos apurados, arquivos tocados, "
+                          "decisoes e estado atual. So o resumo, nada mais.")},
+             {"role": "user", "content": transcricao}],
+            model=modelo or config.modelo_fast())
+        resumo = (r.get("content") or "").strip()
+    except Exception as e:  # noqa: BLE001 — resumo e otimizacao, nao requisito
+        log.warning("resumo de janela falhou (%s) — usando poda", e)
+        return None
+    if not resumo:
+        return None
+    bloco = {"role": "user", "content": RESUMO_MARCA + "\n" + resumo}
+    return msgs[:ini] + [bloco] + msgs[fim:]
+
+
+def ajustar_janela(msgs: list[dict], cliente=None,
+                   modelo: str | None = None) -> list[dict]:
+    """Gestao da janela quando o historico ameaca estourar num_ctx:
     1) substitui resultados de tool ANTIGOS (preserva os 4 ultimos);
-    2) remove grupos antigos (assistant+suas tools / pares user-assistant).
+    2) v13.2: RESUME o miolo da conversa via LLM fast (LILO_RESUMO=0 pula);
+    3) poda deterministica de grupos antigos (fallback que nunca falha).
     Nunca toca: system (indice 0) e o 1o pedido do usuario (indice 1)."""
     orcamento = config.num_ctx() - config.max_tokens() - 1024
     if sum(_tok(m) for m in msgs) <= orcamento:
@@ -107,9 +149,20 @@ def ajustar_janela(msgs: list[dict]) -> list[dict]:
         if sum(_tok(m) for m in msgs) <= orcamento:
             return msgs
 
-    # Passo 2: remove grupos antigos a partir do indice 2
+    # Passo 2 (v13.2): resumo do miolo via LLM
+    if cliente is not None and config.resumo_janela():
+        resumido = _resumir_historico(msgs, cliente, modelo)
+        if resumido is not None:
+            msgs = resumido
+            if sum(_tok(m) for m in msgs) <= orcamento:
+                return msgs
+
+    # Passo 3: remove grupos antigos a partir do indice 2 (preservando um
+    # bloco de resumo recem-criado — ele ja E a versao condensada do miolo)
     while sum(_tok(m) for m in msgs) > orcamento and len(msgs) > 3:
         i = 2
+        if str(msgs[i].get("content") or "").startswith(RESUMO_MARCA):
+            i = 3
         if i >= len(msgs) - 1:  # nunca remove a ultima mensagem
             break
         grupo_fim = i + 1
@@ -138,7 +191,7 @@ def executar_tarefa(tarefa: str, msgs: list[dict], perms: Permissoes,
     nudges = 0
 
     for _ in range(config.max_iters()):
-        msgs_envio = ajustar_janela(msgs)
+        msgs_envio = ajustar_janela(msgs, cliente=cliente, modelo=modelo)
         r = cliente.chat(msgs_envio, tools=tools.SCHEMAS, model=modelo,
                          on_token=ui.token if ui.suporta_stream else None)
 
