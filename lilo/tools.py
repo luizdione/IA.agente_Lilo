@@ -290,6 +290,13 @@ def _lembrar(args: dict) -> str:
                      for c, v, t in achados)
 
 
+def _esquecer(args: dict) -> str:
+    chave = str(args["chave"]).strip()
+    if memoria.apagar(chave):
+        return "[OK] esquecido: %s" % chave
+    return "(nada memorizado com a chave %r)" % chave
+
+
 def _mcp(args: dict) -> str:
     return mcp_cliente.chamar(str(args["servidor"]).strip(),
                               str(args.get("tool") or "").strip(),
@@ -396,6 +403,13 @@ TOOLS: dict[str, _Tool] = {
                 {"busca": _S, "chave": _S}, []),
         (), lambda a: (None, None),
         lambda a: "lembrar %s" % (a.get("busca") or a.get("chave") or "")),
+    "esquecer": _Tool(
+        _esquecer,
+        _schema("esquecer", "Apaga um fato da memoria persistente pela chave "
+                            "exata (use lembrar antes p/ conferir a chave).",
+                {"chave": _S}, ["chave"]),
+        ("chave",), lambda a: (None, None),
+        lambda a: "esquecer %s" % a.get("chave")),
     "mcp": _Tool(
         _mcp,
         _schema("mcp", "Acessa um servidor MCP externo configurado pelo "

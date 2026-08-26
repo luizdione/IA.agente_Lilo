@@ -115,3 +115,12 @@ def carregar_ultima() -> list[dict] | None:
     """Transcript da sessao mais recente, ou None se nao houver."""
     chat_id = ultima_sessao()
     return carregar(chat_id) if chat_id else None
+
+
+def listar(limite: int = 15) -> list[tuple[str, str, str]]:
+    """[(id, titulo, atualizado_em)] mais recentes primeiro (\\sessoes)."""
+    with _connect() as con:
+        return con.execute(
+            "SELECT id, titulo, atualizado_em FROM chats "
+            "ORDER BY atualizado_em DESC, rowid DESC LIMIT ?",
+            (limite,)).fetchall()

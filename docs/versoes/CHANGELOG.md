@@ -3,6 +3,21 @@
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v12`).
 
+## v13.3.0 — 2026-08-26 (ergonomia: esquecer, \memoria, sessões nomeadas, cores)
+
+- **Tool `esquecer(chave)`**: apaga um fato da memória persistente (par do
+  memorizar/lembrar; idempotente).
+- **`\memoria [busca]`** no REPL: lista/busca a memória sem gastar o modelo;
+  **`\sessoes`** lista as conversas salvas (id, título, quando, marca a
+  atual); **`lilo -c <id>`** retoma uma sessão ESPECÍFICA (id de 12 chars do
+  `\sessoes`) — `lilo -c` sozinho segue retomando a última.
+- **Cores ANSI** (`lilo/cores.py`): preview de confirmação com diff
+  verde/vermelho e kind em amarelo; linhas de tool em cinza; erros em
+  vermelho. Auto-desligadas sem TTY (pipe/CI) e por `LILO_CORES=0`; no
+  Windows o truque `os.system('')` ativa o VT do cmd.
+- Testes: 80 herméticos (+6: esquecer idempotente, listagens, retomada por
+  id com verificação do histórico enviado, cores tty/kill-switch).
+
 ## v13.2.0 — 2026-08-26 (qualidade: janela com resumo LLM + memória semântica)
 
 - **Sumarização de janela por LLM**: quando o histórico estoura `num_ctx`,
