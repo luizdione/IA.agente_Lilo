@@ -1,7 +1,7 @@
 # LILO v13 — agente de terminal 100% local
 
 ![Status](https://img.shields.io/badge/status-ativo-brightgreen)
-![Version](https://img.shields.io/badge/version-13.5.0-blue)
+![Version](https://img.shields.io/badge/version-13.6.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-yellow)
 ![Arch](https://img.shields.io/badge/arch-v12-purple)
 
@@ -21,10 +21,11 @@ lugar nenhum). Tudo está preservado no branch **`v12.15-legado`**:
 - **Um binário**: `lilo` (REPL interativo ou `lilo "tarefa"`), com **resposta
   em streaming** no terminal.
 - **Um loop agêntico** com tool-calling nativo do Ollama (`/api/chat` + `tools`).
-- **Nove tools**: `ler`, `escrever`, `editar`, `listar`, `buscar`, `shell`,
-  `memorizar`/`lembrar` (memória persistente entre sessões) e `mcp`
-  (servidores MCP externos, allow-list `LILO_MCP`, dep. opcional) — todas
-  atrás de um único choke-point com portão de permissões
+- **Onze tools**: `ler`, `ler_pdf` (artigos/manuais, dep. opcional PyMuPDF),
+  `escrever`, `editar`, `listar`, `buscar`, `shell`,
+  `memorizar`/`lembrar`/`esquecer` (memória persistente entre sessões) e
+  `mcp` (servidores MCP externos, allow-list `LILO_MCP`, dep. opcional) —
+  todas atrás de um único choke-point com portão de permissões
   (modos `plan` / `ask` / `accept_edits` / `auto`; *never-commit-unless-asked*).
 - **Memória**: sessões em SQLite (fora do OneDrive, `%LOCALAPPDATA%\LILO`) +
   contexto do projeto lido de `LILO.md`/`CLAUDE.md`/`CONTEXT.md` do diretório.
@@ -58,6 +59,19 @@ O mesmo binário serve as tools ao Claude Desktop (`pip install mcp` antes):
 
 Modo do servidor: `LILO_MCP_SERVE_MODE` (default `accept_edits` — leituras e
 escrita na allow-list passam; shell pede `auto`; git nunca passa sem grant).
+
+## Claude Code nos seus modelos Ollama (ponte inversa)
+
+O Ollama expõe um endpoint compatível com a API da Anthropic — dá para rodar
+o **Claude Code CLI** sobre os seus modelos locais (nada sai da máquina):
+
+```powershell
+.\scripts\claude_ollama.ps1            # default qwen3:14b
+.\scripts\claude_ollama.ps1 qwen3:4b   # ou outro modelo instalado
+```
+
+Expectativa honesta: modelos de 4–14B são muito mais fracos que o Claude —
+use para tarefas simples/privadas; o LILO continua sendo o agente nativo.
 
 ## Regra anti-inchaço (a lição do legado)
 

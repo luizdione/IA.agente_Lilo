@@ -28,7 +28,7 @@ def test_wrappers_passam_pelo_choke_point(sandbox, monkeypatch):
                                          "tags": "t"})
     # a tool mcp NAO e reexposta (proxy de proxy)
     assert "mcp" not in mcp_servidor.WRAPPERS
-    assert len(mcp_servidor.WRAPPERS) == 9
+    assert len(mcp_servidor.WRAPPERS) == 10
 
 
 def test_default_accept_edits_write_passa_shell_nega(sandbox):

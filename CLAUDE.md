@@ -21,7 +21,7 @@ python scripts\memoria_projeto.py   # atualiza CONTEXT.md (skill /gerente_memori
 
 ## Arquitetura (alvo ~2k linhas)
 `lilo/`: `cliente.py` (Ollama /api/chat + tools, num_ctx explícito) ·
-`agente.py` (o loop) · `tools.py` (6 tools + `executar_tool` = **choke-point
+`agente.py` (o loop) · `tools.py` (11 tools + `executar_tool` = **choke-point
 único**) · `portao.py` (plan/ask/accept_edits/auto, grants escopados) ·
 `contexto.py` (LILO.md/CLAUDE.md/CONTEXT.md do cwd como bloco DADOS) ·
 `sessoes.py` (SQLite WAL em `%LOCALAPPDATA%\LILO`) · `cli.py` (REPL).

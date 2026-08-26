@@ -3,6 +3,28 @@
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v12`).
 
+## v13.6.0 — 2026-08-26 (primeira tool científica: ler_pdf)
+
+- **`ler_pdf`** (11ª tool): extrai texto de PDFs (artigos, manuais) com
+  paginação — cabeçalho `[PDF nome — N paginas; exibindo A-B]`, marcadores
+  `--- pagina N ---`, argumentos `pagina_inicial`/`paginas` (teto 40) e corte
+  interno em 24k chars que **preserva a dica de continuação** (`use
+  pagina_inicial=X`) em vez de deixar o truncador global comê-la. Abre o
+  gate científico com caso de uso nomeado pelo dono (leitura de artigos).
+- Leitura **livre** (kind None) atrás do MESMO choke-point/portão; PyMuPDF é
+  dependência **opcional** (sem ele, a tool instrui `pip install PyMuPDF` —
+  o núcleo continua requests+dotenv).
+- Exposta também no **`lilo mcp-serve`** (10 wrappers) — Claude Desktop lê
+  PDFs da máquina via LILO.
+- Prompt do agente: regra 10 (PDFs → `ler_pdf`, navegar com `pagina_inicial`).
+- **Ponte inversa documentada**: `scripts\claude_ollama.ps1` abre o Claude
+  Code CLI rodando nos SEUS modelos Ollama locais (endpoint
+  Anthropic-compatível do Ollama; nada sai da máquina).
+- Testes: 103 herméticos (+11; os de PDF real geram o PDF com o próprio
+  fitz e pulam limpo sem PyMuPDF). Validação viva dupla: choke-point com
+  paginação correta E o LOOP completo (qwen3:4b real chamou `ler_pdf`
+  nativamente num artigo de 3 páginas e respondeu "DESeq2" citando o trecho).
+
 ## v13.5.0 — 2026-08-26 (blindagem offline + ergonomia de manutenção)
 
 - 🔴 **Blindagem 100% local**: modelos Ollama Cloud (`*-cloud`) — que MANDAM

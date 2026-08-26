@@ -1,4 +1,4 @@
-"""Tools do LILO v13 — 6 ferramentas + `executar_tool`, o CHOKE-POINT unico.
+"""Tools do LILO v13 — as ferramentas + `executar_tool`, o CHOKE-POINT unico.
 
 Regra nao-negociavel (CLAUDE.md): SO `executar_tool` executa. As
 implementacoes (_ler, _escrever, ...) sao privadas e nada fora deste modulo
@@ -32,6 +32,8 @@ log = get_logger("tools")
 LIMITE_RESULTADO = 30_000       # teto global por resultado de tool (chars)
 LER_MAX_LINHAS = 2_000
 LER_MAX_BYTES = 50_000
+LER_PDF_MAX_PAGINAS = 40
+LER_PDF_MAX_CHARS = 24_000      # abaixo do teto global: preserva a dica de continuacao
 LISTAR_MAX = 200
 BUSCAR_MAX_HITS = 50
 BUSCAR_MAX_ARQ = 1_000_000      # pula arquivos > 1 MB
@@ -121,6 +123,59 @@ def _ler(args: dict) -> str:
     if resto > 0:
         corpo += "\n... (+%d linhas — use offset=%d)" % (resto, offset + len(fatia))
     return corpo or "(arquivo vazio)"
+
+
+def _importar_fitz():
+    """Import LAZY do PyMuPDF, isolado p/ monkeypatch nos testes. PyMuPDF e
+    dependencia OPCIONAL: o nucleo continua requests+dotenv."""
+    import fitz  # PyMuPDF
+    return fitz
+
+
+def _ler_pdf(args: dict) -> str:
+    """Primeira tool cientifica (v13.6): extrai texto de PDFs (artigos,
+    manuais) paginado — leitura livre, mesmo portao, zero dependencia dura."""
+    p = _resolver(args["caminho"])
+    if not p.exists():
+        return "[ERRO] arquivo nao existe: %s" % p
+    if p.suffix.lower() != ".pdf":
+        return "[ERRO] %s nao e um PDF — use a tool ler" % p.name
+    try:
+        fitz = _importar_fitz()
+    except ImportError:
+        return ("[ERRO] PyMuPDF nao instalado (dependencia opcional p/ PDFs) "
+                "— rode: pip install PyMuPDF")
+    inicial = max(1, int(args.get("pagina_inicial") or 1))
+    quantas = max(1, min(LER_PDF_MAX_PAGINAS,
+                         int(args.get("paginas") or LER_PDF_MAX_PAGINAS)))
+    try:
+        doc = fitz.open(str(p))
+    except Exception as e:  # noqa: BLE001 — PDF corrompido/cifrado volta ao modelo
+        return "[ERRO] PDF ilegivel (%s): %s" % (type(e).__name__, e)
+    try:
+        total = doc.page_count
+        if inicial > total:
+            return "[ERRO] pagina_inicial=%d, mas o PDF tem %d pagina%s" % (
+                inicial, total, "s" if total != 1 else "")
+        fim = min(total, inicial + quantas - 1)
+        partes, chars, ultima = [], 0, inicial - 1
+        for i in range(inicial - 1, fim):
+            texto = doc[i].get_text("text").strip()
+            bloco = "--- pagina %d ---\n%s" % (
+                i + 1, texto or "(sem texto — pagina so de imagem?)")
+            partes.append(bloco)
+            chars += len(bloco)
+            ultima = i + 1
+            if chars >= LER_PDF_MAX_CHARS and ultima < fim:
+                break  # corta AQUI p/ nao estourar o teto global sem a dica
+        corpo = ["[PDF %s — %d paginas; exibindo %d-%d]" % (
+            p.name, total, inicial, ultima)] + partes
+        if total - ultima > 0:
+            corpo.append("... (+%d paginas — use pagina_inicial=%d)" % (
+                total - ultima, ultima + 1))
+        return "\n".join(corpo)
+    finally:
+        doc.close()
 
 
 def _escrever(args: dict) -> str:
@@ -345,6 +400,16 @@ TOOLS: dict[str, _Tool] = {
                 {"caminho": _S, "offset": {**_I, "description": "1a linha (1-based)"},
                  "limite": {**_I, "description": "max de linhas"}}, ["caminho"]),
         ("caminho",), lambda a: (None, None), lambda a: "ler %s" % a.get("caminho")),
+    "ler_pdf": _Tool(
+        _ler_pdf,
+        _schema("ler_pdf", "Extrai o texto de um arquivo PDF (artigos, manuais)"
+                           " paginado. Continue com pagina_inicial.",
+                {"caminho": _S,
+                 "pagina_inicial": {**_I, "description": "1a pagina (1-based)"},
+                 "paginas": {**_I, "description": "max de paginas (default %d)"
+                             % LER_PDF_MAX_PAGINAS}}, ["caminho"]),
+        ("caminho",), lambda a: (None, None),
+        lambda a: "ler_pdf %s" % a.get("caminho")),
     "listar": _Tool(
         _listar,
         _schema("listar", "Lista arquivos/pastas de um diretorio (glob opcional).",
