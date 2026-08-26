@@ -1,7 +1,7 @@
 """LILO como SERVIDOR MCP (v13.4) — `lilo mcp-serve`.
 
-Expoe as tools do LILO (ler/escrever/editar/listar/buscar/shell/memorizar/
-lembrar/esquecer) a clientes MCP como o Claude Desktop — repondo a ponte que
+Expoe as tools do LILO (ler/ler_pdf/escrever/editar/listar/buscar/shell/
+memorizar/lembrar/esquecer) a clientes MCP como o Claude Desktop — repondo a ponte que
 o legado tinha, sem violar a regra anti-inchaco: e um SUBCOMANDO do mesmo
 binario (nao um entry point novo) e TODA execucao passa pelo mesmo
 `tools.executar_tool` (choke-point + portao).
@@ -54,6 +54,13 @@ def ler(caminho: str, offset: int = 1, limite: int = 2000) -> str:
                          "limite": limite})
 
 
+def ler_pdf(caminho: str, pagina_inicial: int = 1, paginas: int = 40) -> str:
+    """Extrai o texto de um arquivo PDF, paginado (dep. opcional PyMuPDF)."""
+    return _exec("ler_pdf", {"caminho": caminho,
+                             "pagina_inicial": pagina_inicial,
+                             "paginas": paginas})
+
+
 def listar(caminho: str = ".", padrao: str = "*", recursivo: bool = False) -> str:
     """Lista arquivos/pastas de um diretorio (glob opcional)."""
     return _exec("listar", {"caminho": caminho, "padrao": padrao,
@@ -100,7 +107,7 @@ def esquecer(chave: str) -> str:
 
 
 WRAPPERS = {f.__name__: f for f in
-            (ler, listar, buscar, escrever, editar, shell,
+            (ler, ler_pdf, listar, buscar, escrever, editar, shell,
              memorizar, lembrar, esquecer)}
 
 

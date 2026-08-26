@@ -6,16 +6,16 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.5.0 | **branch:** arch-v12 | **commit:** 6ec9a0f Merge PR #14: v13.4.0 — LILO como servidor MCP (round-trip validado)
-- **Testes:** 92 funcoes de teste (rode `python scripts/check.py`)
+- **Versao:** v13.6.0 | **branch:** arch-v12 | **commit:** 6411728 Merge PR #15: v13.5.0 — blindagem offline + ícone PowerShell + manutenção no REPL
+- **Testes:** 103 funcoes de teste (rode `python scripts/check.py`)
 - **Atualizado em:** 2026-08-26
 <!-- /AUTO:estado -->
 
 ## Ultimas entregas (AUTO — topo do CHANGELOG)
 <!-- AUTO:entregas -->
+- v13.6.0 — 2026-08-26 (primeira tool científica: ler_pdf)
 - v13.5.0 — 2026-08-26 (blindagem offline + ergonomia de manutenção)
 - v13.4.0 — 2026-08-26 (ecossistema: LILO como SERVIDOR MCP)
-- v13.3.0 — 2026-08-26 (ergonomia: esquecer, \memoria, sessões nomeadas, cores)
 <!-- /AUTO:entregas -->
 
 ## Pendencias (MANUAL)
@@ -26,16 +26,21 @@
       Claude Desktop) com round-trip cliente<->servidor provado.
 - [ ] Maquina do dono (nao urgente): `git pull`; `pip install -e .` (comando
       global `lilo`); `pip install mcp` se for usar mcp/mcp-serve;
-      `python scripts\limpar_mcp_claude.py`; reconfigurar o Claude Desktop
-      com o mcp-serve novo (snippet no README).
+      `pip install PyMuPDF` p/ ler_pdf; `python scripts\criar_atalho.py`
+      (icone v13.5); `python scripts\limpar_mcp_claude.py`; Claude Desktop
+      com o mcp-serve novo (snippet no README); Claude Code sobre Ollama:
+      `scripts\claude_ollama.ps1`.
 - [ ] GATED ate caso de uso nomeado (decisao): provider cloud plugavel;
-      cientificos (Scholar/PDF) como tools.
+      mais cientificos (Scholar/RAG) alem do ler_pdf.
 - [x] v13.5 ENTREGUE (26/08): blindagem offline (*-cloud fora da
       auto-descoberta), icone abre POWERSHELL com o REPL (regravar com
       criar_atalho.py), LILO_DEBUG, \atualizar, \esquecer, \memoria
       exportar/importar.
-- [ ] v13.6: coletar friccoes de USO REAL do dono -> correcoes; candidata
-      cientifica: tool ler_pdf (PyMuPDF opcional) quando o dono nomear o caso.
+- [x] v13.6 ENTREGUE (26/08): tool ler_pdf (11a; PyMuPDF opcional; paginada,
+      corte com dica de continuacao) no choke-point E no mcp-serve; gate
+      cientifico aberto pelo dono ("execute o 13.6"). + ponte inversa
+      claude_ollama.ps1 (Claude Code rodando nos modelos Ollama locais).
+- [ ] v13.7: coletar friccoes de USO REAL do dono -> correcoes.
 - [ ] Reavaliar qwen2.5-coder como LILO_MODEL_FAST se o template de tools
       for corrigido em Ollama futuro (hoje: familia qwen3).
 

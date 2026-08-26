@@ -6,3 +6,4 @@ pytest>=8.0
 pyflakes>=3.0
 python-dotenv>=1.0.0
 requests>=2.31.0
+PyMuPDF>=1.23.0  # opcional no runtime (tool ler_pdf); no CI roda os testes reais de PDF
