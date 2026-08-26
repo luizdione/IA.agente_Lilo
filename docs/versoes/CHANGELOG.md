@@ -3,6 +3,25 @@
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v12`).
 
+## v13.4.0 — 2026-08-26 (ecossistema: LILO como SERVIDOR MCP)
+
+- **`lilo mcp-serve`** (`lilo/mcp_servidor.py`): o LILO serve suas 9 tools a
+  clientes MCP (Claude Desktop) — repondo a ponte do legado SEM violar o
+  anti-inchaço: subcomando do MESMO binário e TODA execução pelo MESMO
+  `executar_tool` (choke-point + portão). A tool `mcp` não é reexposta
+  (proxy-de-proxy). Suporta mcp 1.x (FastMCP) e 2.x (MCPServer).
+- Permissões sem stdin: modo por `LILO_MCP_SERVE_MODE` (default
+  `accept_edits` — leitura/escrita na allow-list passam; shell vira
+  `[NEGADO]` instrutivo; `auto` libera shell, **git nunca**).
+- **Validação viva (round-trip)**: a tool `mcp` do LILO conectou no PRÓPRIO
+  `lilo mcp-serve` (processo separado, stdio), listou as tools, memorizou e
+  lembrou via MCP — cliente E servidor provados juntos (fecha também o
+  "teste vivo de MCP" da v13.2).
+- Gated (sem caso de uso nomeado, conforme decisão): provider cloud
+  plugável e científicos como tools.
+- Testes: 84 herméticos (+4: wrappers passam pelo choke-point, defaults de
+  modo, git nunca, roteamento do subcomando).
+
 ## v13.3.0 — 2026-08-26 (ergonomia: esquecer, \memoria, sessões nomeadas, cores)
 
 - **Tool `esquecer(chave)`**: apaga um fato da memória persistente (par do

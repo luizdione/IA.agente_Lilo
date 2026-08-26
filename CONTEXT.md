@@ -6,32 +6,32 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.1.0 | **branch:** arch-v12 | **commit:** 78d23c4 Merge PR #10: v13.1.0 — streaming + memória persistente + MCP como tool
-- **Testes:** 67 funcoes de teste (rode `python scripts/check.py`)
+- **Versao:** v13.4.0 | **branch:** arch-v12 | **commit:** 992aa5e feat(v13.3.0): esquecer + \memoria + sessoes nomeadas + cores no terminal
+- **Testes:** 84 funcoes de teste (rode `python scripts/check.py`)
 - **Atualizado em:** 2026-08-26
 <!-- /AUTO:estado -->
 
 ## Ultimas entregas (AUTO — topo do CHANGELOG)
 <!-- AUTO:entregas -->
-- v13.1.0 — 2026-08-26 (streaming + memória persistente + MCP como tool)
-- v13.0.0 — 2026-08-25 (LANÇAMENTO: validado na máquina do dono)
-- v13.0.2 — 2026-08-25 (modelo default: qwen3 + smoke auto-descoberta)
+- v13.4.0 — 2026-08-26 (ecossistema: LILO como SERVIDOR MCP)
+- v13.3.0 — 2026-08-26 (ergonomia: esquecer, \memoria, sessões nomeadas, cores)
+- v13.2.0 — 2026-08-26 (qualidade: janela com resumo LLM + memória semântica)
 <!-- /AUTO:entregas -->
 
-## Pendencias (MANUAL) — roadmap de versionamento
+## Pendencias (MANUAL)
 
-- [ ] **v13.2 (qualidade)**: sumarizacao de janela por LLM (substitui a poda
-      quando estourar); busca SEMANTICA na memoria (embeddings /api/embed +
-      fallback LIKE, padrao herdado do kv legado); teste VIVO da tool mcp
-      com um servidor real configurado.
-- [ ] **v13.3 (ergonomia)**: tool `esquecer` + comando `\memoria` no REPL;
-      sessoes nomeadas (`lilo -c <id>` + `\sessoes`); cores no preview de
-      confirmacao (diff verde/vermelho).
-- [ ] **v13.4 (ecossistema — so com caso de uso na mao)**: LILO como
-      SERVIDOR MCP (expor as tools ao Claude Desktop); provider cloud
-      plugavel opcional; cientificos (Scholar/PDF) como tools.
-- [ ] Maquina do dono (nao urgente): `pip install -e .` (comando global
-      `lilo`) e `python scripts\limpar_mcp_claude.py`.
+- [x] v13.2/v13.3/v13.4 ENTREGUES (26/08, validadas ao vivo): resumo de
+      janela por LLM + memoria semantica; esquecer/\memoria/\sessoes/
+      `lilo -c <id>`/cores; `lilo mcp-serve` (LILO como servidor MCP p/
+      Claude Desktop) com round-trip cliente<->servidor provado.
+- [ ] Maquina do dono (nao urgente): `git pull`; `pip install -e .` (comando
+      global `lilo`); `pip install mcp` se for usar mcp/mcp-serve;
+      `python scripts\limpar_mcp_claude.py`; reconfigurar o Claude Desktop
+      com o mcp-serve novo (snippet no README).
+- [ ] GATED ate caso de uso nomeado (decisao): provider cloud plugavel;
+      cientificos (Scholar/PDF) como tools.
+- [ ] Backlog v13.5: `\esquecer` direto no REPL? export/import da memoria;
+      compactacao automatica de sessoes antigas.
 - [ ] Reavaliar qwen2.5-coder como LILO_MODEL_FAST se o template de tools
       for corrigido em Ollama futuro (hoje: familia qwen3).
 

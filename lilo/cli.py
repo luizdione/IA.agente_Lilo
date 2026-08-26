@@ -199,6 +199,9 @@ def main(argv: list[str] | None = None) -> int:
 
     config.load_env()
     args = list(argv or [])
+    if args and args[0] == "mcp-serve":  # v13.4: LILO como servidor MCP
+        from lilo import mcp_servidor
+        return mcp_servidor.main()
     continuar, chat_pedido = False, None
     if "-c" in args:
         continuar = True
