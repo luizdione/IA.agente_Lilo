@@ -6,9 +6,9 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.1.0 | **branch:** arch-v12 | **commit:** db6a72e feat: scripts/limpar_mcp_claude.py — remove MCP legado do Claude Desktop (backup + idempotente)
+- **Versao:** v13.1.0 | **branch:** arch-v12 | **commit:** 78d23c4 Merge PR #10: v13.1.0 — streaming + memória persistente + MCP como tool
 - **Testes:** 67 funcoes de teste (rode `python scripts/check.py`)
-- **Atualizado em:** 2026-08-25
+- **Atualizado em:** 2026-08-26
 <!-- /AUTO:estado -->
 
 ## Ultimas entregas (AUTO — topo do CHANGELOG)
@@ -18,19 +18,22 @@
 - v13.0.2 — 2026-08-25 (modelo default: qwen3 + smoke auto-descoberta)
 <!-- /AUTO:entregas -->
 
-## Pendencias (MANUAL)
+## Pendencias (MANUAL) — roadmap de versionamento
 
-- [x] v13.0 LANCADO E VALIDADO NA MAQUINA DO DONO (25/08): smoke PASSOU na
-      RTX 3060 com qwen3:14b (aceite canonico: leu o erro e consertou
-      sozinho); icone LILO na Area de Trabalho; pasta legada local apagada.
-      Repo local do dono: C:\github\LILO.
-- [x] v13.1 ENTREGUE (26/08): streaming no terminal, tools memorizar/lembrar
-      (validadas ao vivo entre processos) e tool mcp (allow-list LILO_MCP,
-      dep opcional). 67 testes.
-- [ ] Backlog v13.2: sumarizacao de janela por LLM; embeddings na memoria
-      (busca semantica) quando houver caso de uso; teste vivo de MCP.
-- [ ] Se o template do qwen2.5-coder for corrigido em Ollama futuro,
-      reavaliar como LILO_MODEL_FAST (hoje: familia qwen3).
+- [ ] **v13.2 (qualidade)**: sumarizacao de janela por LLM (substitui a poda
+      quando estourar); busca SEMANTICA na memoria (embeddings /api/embed +
+      fallback LIKE, padrao herdado do kv legado); teste VIVO da tool mcp
+      com um servidor real configurado.
+- [ ] **v13.3 (ergonomia)**: tool `esquecer` + comando `\memoria` no REPL;
+      sessoes nomeadas (`lilo -c <id>` + `\sessoes`); cores no preview de
+      confirmacao (diff verde/vermelho).
+- [ ] **v13.4 (ecossistema — so com caso de uso na mao)**: LILO como
+      SERVIDOR MCP (expor as tools ao Claude Desktop); provider cloud
+      plugavel opcional; cientificos (Scholar/PDF) como tools.
+- [ ] Maquina do dono (nao urgente): `pip install -e .` (comando global
+      `lilo`) e `python scripts\limpar_mcp_claude.py`.
+- [ ] Reavaliar qwen2.5-coder como LILO_MODEL_FAST se o template de tools
+      for corrigido em Ollama futuro (hoje: familia qwen3).
 
 ## Decisoes-chave (MANUAL)
 
@@ -44,11 +47,14 @@
 - Permissoes: plan/ask/accept_edits/auto, grants escopados, sem replay;
   default `ask`; never-commit-unless-asked.
 - DBs fora do repo/OneDrive (%LOCALAPPDATA%\LILO).
+- **Versionamento**: minor = PR verde em `arch-v12` + CHANGELOG + smoke na
+  maquina do dono; patch = fix pontual; feature entra SEMPRE pela regra
+  anti-inchaco. Tags sao bloqueadas pelo proxy git — marcos viram branch.
 
 ## Como retomar uma sessao (MANUAL)
 
 ```cmd
 python scripts\check.py             # saude do codigo
-python -m lilo                      # o agente (quando F2+ estiver pronto)
+python -m lilo                      # o agente (REPL; `lilo -c` retoma)
 python scripts\memoria_projeto.py   # atualiza esta memoria
 ```
