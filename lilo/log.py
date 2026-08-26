@@ -15,7 +15,7 @@ def get_logger(nome: str) -> logging.Logger:
     log = logging.getLogger("lilo." + nome)
     if log.handlers:
         return log
-    log.setLevel(logging.INFO)
+    log.setLevel(logging.DEBUG if config.debug() else logging.INFO)
     log.propagate = False
 
     con = logging.StreamHandler(sys.stderr)

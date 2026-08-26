@@ -153,6 +153,34 @@ def apagar(chave: str) -> bool:
                            (chave.strip(),)).rowcount > 0
 
 
+def exportar_json(caminho: str) -> int:
+    """Backup da memoria em JSON legivel. Retorna o nº de entradas."""
+    import json
+    with _connect() as con:
+        linhas = con.execute("SELECT chave, valor, tags FROM kv "
+                             "ORDER BY chave").fetchall()
+    dados = [{"chave": c, "valor": v, "tags": t} for c, v, t in linhas]
+    Path(caminho).write_text(
+        json.dumps(dados, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8")
+    return len(dados)
+
+
+def importar_json(caminho: str) -> int:
+    """Restaura/mescla um backup (upsert por chave; embeddings recalculados
+    no gravar). Retorna o nº de entradas importadas."""
+    import json
+    dados = json.loads(Path(caminho).read_text(encoding="utf-8"))
+    n = 0
+    for item in dados:
+        chave = str(item.get("chave") or "").strip()
+        if chave:
+            gravar(chave, str(item.get("valor") or ""),
+                   str(item.get("tags") or ""))
+            n += 1
+    return n
+
+
 def listar(limite: int = 20) -> list[tuple[str, str, str]]:
     """[(chave, valor, tags)] mais recentes primeiro (p/ \\memoria no REPL)."""
     with _connect() as con:

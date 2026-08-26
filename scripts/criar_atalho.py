@@ -4,9 +4,11 @@ Rode NA MAQUINA WINDOWS (nao no CI/Linux):
 
     python scripts\\criar_atalho.py
 
-O atalho aponta para o lilo.bat da raiz do repo (duplo clique abre o REPL),
-com o icone lilo_icon.ico. Usa [Environment]::GetFolderPath('Desktop') via
-PowerShell, entao respeita Desktop redirecionado pelo OneDrive.
+v13.5: o duplo clique abre uma janela POWERSHELL rodando o REPL do LILO
+(via lilo.ps1 da raiz; -NoExit mantem a janela viva ao sair do REPL). Nao
+existe dashboard de navegador no v13 — o terminal E a interface. Icone:
+lilo_icon.ico. Usa [Environment]::GetFolderPath('Desktop'), entao respeita
+Desktop redirecionado pelo OneDrive.
 """
 from __future__ import annotations
 
@@ -23,23 +25,25 @@ def main() -> int:
         print("Rode na sua maquina: python scripts\\criar_atalho.py")
         return 1
 
-    bat = ROOT / "lilo.bat"
+    ps1 = ROOT / "lilo.ps1"
     ico = ROOT / "lilo_icon.ico"
-    if not bat.exists():
-        print("[ERRO] lilo.bat nao encontrado em %s" % ROOT)
+    if not ps1.exists():
+        print("[ERRO] lilo.ps1 nao encontrado em %s" % ROOT)
         return 1
 
     # PowerShell: resolve a Area de Trabalho real e grava o .lnk via COM.
+    # Alvo = powershell.exe rodando o lilo.ps1 (janela de TERMINAL, por design).
     ps = (
         "$d=[Environment]::GetFolderPath('Desktop');"
         "$s=(New-Object -ComObject WScript.Shell).CreateShortcut(\"$d\\LILO.lnk\");"
-        "$s.TargetPath='%s';"
+        "$s.TargetPath='powershell.exe';"
+        "$s.Arguments='-NoExit -ExecutionPolicy Bypass -File \"%s\"';"
         "$s.WorkingDirectory='%s';"
         "$s.IconLocation='%s';"
-        "$s.Description='LILO — agente de IA local (Ollama)';"
+        "$s.Description='LILO — agente de IA local (Ollama) no terminal';"
         "$s.Save();"
         "Write-Output \"$d\\LILO.lnk\""
-    ) % (bat, ROOT, ico if ico.exists() else bat)
+    ) % (ps1, ROOT, ico if ico.exists() else ps1)
 
     r = subprocess.run(
         ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps],

@@ -3,6 +3,25 @@
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v12`).
 
+## v13.5.0 — 2026-08-26 (blindagem offline + ergonomia de manutenção)
+
+- 🔴 **Blindagem 100% local**: modelos Ollama Cloud (`*-cloud`) — que MANDAM
+  DADOS PRA FORA — são **excluídos da auto-descoberta** do smoke (o dono tem
+  gpt-oss/mistral-cloud instalados e a fila poderia escolhê-los); se
+  `LILO_MODEL` apontar para um, o smoke recusa com aviso. Lógica extraída em
+  `montar_candidatos()` pura e testada.
+- **Ícone → PowerShell**: `lilo.ps1` (UTF-8, venv, `-NoExit`) e o
+  `criar_atalho.py` agora apontam o atalho para `powershell.exe` rodando o
+  REPL — clicar no ícone abre o agente NO TERMINAL (não existe dashboard de
+  navegador no v13, por decisão do reset). Rode `python scripts\criar_atalho.py`
+  para regravar o atalho.
+- **`LILO_DEBUG=1`**: payloads e respostas do modelo no log
+  (`<dados>/logs/lilo.log`) para diagnosticar respostas ruins.
+- **REPL**: `\atualizar` (git pull + `pip install -e .` num comando),
+  `\esquecer <chave>` direto, `\memoria exportar|importar <arquivo>` (backup
+  JSON da memória; import recalcula embeddings).
+- Testes: 92 herméticos (+8).
+
 ## v13.4.0 — 2026-08-26 (ecossistema: LILO como SERVIDOR MCP)
 
 - **`lilo mcp-serve`** (`lilo/mcp_servidor.py`): o LILO serve suas 9 tools a

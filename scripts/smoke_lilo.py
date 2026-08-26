@@ -36,6 +36,41 @@ def _rank(nome: str) -> int:
     return len(PREFERENCIA)
 
 
+def _eh_cloud(nome: str) -> bool:
+    """Modelos Ollama Cloud (sufixo -cloud) MANDAM DADOS PRA FORA — violam a
+    premissa 100% local do LILO e ficam fora da auto-descoberta."""
+    return nome.split(":")[0].endswith("-cloud") or "-cloud" in nome
+
+
+def montar_candidatos(configurado: str, instalados: list,
+                      com_tools: list) -> tuple[list, list]:
+    """(candidatos, avisos) — puro e testavel. Exclui *-cloud SEMPRE
+    (blindagem v13.5); o configurado entra primeiro se instalado e local."""
+    candidatos, avisos = [], []
+    instalado = (configurado in instalados
+                 or configurado + ":latest" in instalados
+                 or (":" not in configurado
+                     and any(n.split(":")[0] == configurado
+                             for n in instalados)))
+    if _eh_cloud(configurado):
+        avisos.append("LILO_MODEL=%s e um modelo CLOUD (manda dados pra "
+                      "fora) — ignorado; use um modelo local" % configurado)
+    elif instalado:
+        candidatos.append(configurado)
+    else:
+        avisos.append("%s nao esta instalado (ollama pull %s) — testando os "
+                      "instalados" % (configurado, configurado))
+    locais_com_tools = [n for n in com_tools if not _eh_cloud(n)]
+    ignorados = [n for n in com_tools if _eh_cloud(n)]
+    if ignorados:
+        avisos.append("modelos cloud IGNORADOS (premissa 100%% local): %s"
+                      % ", ".join(ignorados))
+    for n in sorted(locais_com_tools, key=_rank):
+        if n not in candidatos and len(candidatos) < MAX_CANDIDATOS:
+            candidatos.append(n)
+    return candidatos, avisos
+
+
 def _capabilities(requests, host: str, nome: str) -> list:
     try:
         r = requests.post(host + "/api/show", json={"model": nome},
@@ -137,21 +172,12 @@ def main() -> int:
     if com_tools:
         print("    com capability tools: %s" % ", ".join(sorted(com_tools, key=_rank)))
 
-    # --- [2] fila de candidatos --------------------------------------------
-    candidatos: list[str] = []
-    instalado = (configurado in nomes or configurado + ":latest" in nomes
-                 or (":" not in configurado
-                     and any(n.split(":")[0] == configurado for n in nomes)))
-    if instalado:
-        candidatos.append(configurado)
-    else:
-        print("    aviso: %s nao esta instalado (ollama pull %s) — testando "
-              "os instalados" % (configurado, configurado))
-    for n in sorted(com_tools, key=_rank):
-        if n not in candidatos and len(candidatos) < MAX_CANDIDATOS:
-            candidatos.append(n)
+    # --- [2] fila de candidatos (v13.5: *-cloud NUNCA entram) --------------
+    candidatos, avisos = montar_candidatos(configurado, nomes, com_tools)
+    for a in avisos:
+        print("    aviso: %s" % a)
     if not candidatos:
-        print("FALHOU — nenhum modelo com capability 'tools' instalado.\n"
+        print("FALHOU — nenhum modelo LOCAL com capability 'tools' instalado.\n"
               "Sugestao: ollama pull qwen3:14b  (ou llama3.1:8b)")
         return 1
 
