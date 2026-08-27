@@ -27,7 +27,7 @@ def test_ler_pdf_registrada_como_leitura_livre():
 
 def test_ler_pdf_exposta_no_mcp_serve():
     assert "ler_pdf" in mcp_servidor.WRAPPERS
-    assert len(mcp_servidor.WRAPPERS) == 10
+    assert len(mcp_servidor.WRAPPERS) == 11
 
 
 def test_ler_pdf_arquivo_inexistente(tmp_path):

@@ -13,6 +13,14 @@ perguntar). LILO_MCP_SERVE_MODE=auto libera shell (git_write NUNCA — e o
 proprio cliente MCP, ex. Claude Desktop, ja tem a camada de aprovacao dele).
 A tool `mcp` NAO e reexposta (proxy-de-proxy = loops).
 
+v13.8 — `delegar`: a excecao consciente ao padrao wrapper->_exec. Ela nao e
+uma tool do registro; ela roda O LOOP inteiro do LILO (agente.executar_tarefa
+sobre o Ollama local) e devolve a resposta final — e o loop, por construcao,
+executa TODA acao pelo mesmo executar_tool + portao acima. E o que permite ao
+Claude Code/Desktop despachar tarefas ao modelo LOCAL: gratis, offline,
+privado. Anti-recursao: nao configure o proprio LILO em LILO_MCP (delegar ->
+loop -> tool mcp -> lilo seria um laco; a allow-list vazia ja impede).
+
 Config no Claude Desktop (claude_desktop_config.json):
     "mcpServers": {"lilo": {"command": "python",
                             "args": ["-m", "lilo", "mcp-serve"],
@@ -106,9 +114,37 @@ def esquecer(chave: str) -> str:
     return _exec("esquecer", {"chave": chave})
 
 
+def _criar_cliente():
+    """Isolado p/ monkeypatch nos testes (padrao _importar_fitz do tools)."""
+    from lilo.cliente import ClienteOllama
+    return ClienteOllama()
+
+
+def delegar(tarefa: str, modelo: str = "") -> str:
+    """Executa uma tarefa COMPLETA no agente LILO local (loop + tools +
+    portao, sobre o Ollama DESTA maquina) e devolve a resposta final.
+    Use para despachar trabalho simples/privado/em lote ao modelo local:
+    gratis e offline. `modelo` opcional troca o modelo Ollama só nesta
+    tarefa (ex. um mais leve para tarefas triviais)."""
+    import os
+    from pathlib import Path
+
+    from lilo import agente
+
+    # Claude Code exporta CLAUDE_PROJECT_DIR p/ servidores stdio; ancora o
+    # contexto do agente delegado no projeto certo (o cwd do processo do
+    # servidor nao e garantido).
+    raiz = Path(os.environ.get("CLAUDE_PROJECT_DIR") or Path.cwd())
+    msgs = [{"role": "system", "content": agente.montar_system(raiz)}]
+    resposta, _ = agente.executar_tarefa(
+        tarefa, msgs, _perms(), cliente=_criar_cliente(),
+        ui=agente.UI(), modelo=modelo or None)
+    return resposta
+
+
 WRAPPERS = {f.__name__: f for f in
             (ler, ler_pdf, listar, buscar, escrever, editar, shell,
-             memorizar, lembrar, esquecer)}
+             memorizar, lembrar, esquecer, delegar)}
 
 
 def _criar_servidor():
