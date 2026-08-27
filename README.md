@@ -1,7 +1,7 @@
 # LILO v13 — agente de terminal 100% local
 
 ![Status](https://img.shields.io/badge/status-ativo-brightgreen)
-![Version](https://img.shields.io/badge/version-13.7.0-blue)
+![Version](https://img.shields.io/badge/version-13.8.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-yellow)
 ![Arch](https://img.shields.io/badge/arch-v12-purple)
 
@@ -68,6 +68,23 @@ O mesmo binário serve as tools ao Claude Desktop (`pip install mcp` antes):
 
 Modo do servidor: `LILO_MCP_SERVE_MODE` (default `accept_edits` — leituras e
 escrita na allow-list passam; shell pede `auto`; git nunca passa sem grant).
+
+## LILO dentro do Claude Code (v13.8)
+
+Uma linha registra o LILO como servidor MCP do Claude Code em **todos** os
+seus projetos:
+
+```powershell
+.\scripts\conectar_claude_code.ps1
+```
+
+O Claude real passa a ter, em qualquer pasta: **memória persistente
+compartilhada** (`memorizar`/`lembrar`/`esquecer` — o mesmo banco do LILO),
+**`ler_pdf`** e **`delegar`** — despachar uma tarefa completa ao agente LILO
+local (loop + tools + portão sobre a sua GPU): grátis, offline, privado.
+Expectativa honesta: o modelo local é bem mais fraco que o Claude — delegue
+tarefas simples/privadas/em lote. Desfazer: `claude mcp remove --scope user
+lilo`.
 
 ## Claude Code nos seus modelos Ollama (ponte inversa)
 

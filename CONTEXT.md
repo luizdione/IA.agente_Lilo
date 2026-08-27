@@ -6,16 +6,16 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.7.0 | **branch:** arch-v12 | **commit:** 8547aa5 feat(v13.6): tool ler_pdf (1a cientifica) + ponte Claude Code->Ollama
-- **Testes:** 111 funcoes de teste (rode `python scripts/check.py`)
+- **Versao:** v13.8.0 | **branch:** arch-v12 | **commit:** 375b1f6 feat(v13.7): `lilo web` — o chat no navegador de volta, sem repetir o v12
+- **Testes:** 117 funcoes de teste (rode `python scripts/check.py`)
 - **Atualizado em:** 2026-08-27
 <!-- /AUTO:estado -->
 
 ## Ultimas entregas (AUTO — topo do CHANGELOG)
 <!-- AUTO:entregas -->
+- v13.8.0 — 2026-08-27 (LILO dentro do Claude Code: memória + delegar)
 - v13.7.0 — 2026-08-26 (o chat no NAVEGADOR de volta: `lilo web`)
 - v13.6.0 — 2026-08-26 (primeira tool científica: ler_pdf)
-- v13.5.0 — 2026-08-26 (blindagem offline + ergonomia de manutenção)
 <!-- /AUTO:entregas -->
 
 ## Pendencias (MANUAL)
@@ -44,13 +44,12 @@
       dono "Web primeiro"): subcomando stdlib em 127.0.0.1:8100, mesmo
       loop/portao, confirmacao por botoes (Event bloqueante), persistencia
       compartilhada com o terminal; icone LILO.lnk -> web (--terminal volta).
-- [ ] v13.8 (PROXIMA, dono pediu "a seguir executar v13.8"): integracao
-      LILO<->Claude Code via mcp-serve — wrapper `delegar` (Claude real
-      despacha tarefa ao modelo local; ancorar em CLAUDE_PROJECT_DIR),
-      scripts/conectar_claude_code.ps1 (`claude mcp add --scope user ...
-      --env LILO_MCP_SERVE_MODE=accept_edits lilo -- python -m lilo
-      mcp-serve`; sintaxe verificada na doc oficial; timeouts default ok;
-      sem .mcp.json no repo). Depois: friccoes de uso real.
+- [x] v13.8 ENTREGUE (27/08): LILO dentro do Claude Code — `delegar` no
+      mcp-serve (loop inteiro no Ollama local; ancora em CLAUDE_PROJECT_DIR;
+      portao do serve vale DENTRO da tarefa) + conectar_claude_code.ps1
+      (claude mcp add --scope user, sintaxe verificada; sem .mcp.json).
+- [ ] v13.9: coletar friccoes de USO REAL do dono (terminal, web e Claude
+      Code) -> correcoes.
 - [ ] Reavaliar qwen2.5-coder como LILO_MODEL_FAST se o template de tools
       for corrigido em Ollama futuro (hoje: familia qwen3).
 

@@ -3,6 +3,27 @@
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v12`).
 
+## v13.8.0 — 2026-08-27 (LILO dentro do Claude Code: memória + delegar)
+
+- **`delegar`** no `lilo mcp-serve` (11 wrappers): o Claude Code/Desktop
+  despacha uma tarefa COMPLETA ao agente LILO local — o loop inteiro
+  (tools + portão `LILO_MCP_SERVE_MODE`) roda no Ollama da máquina e
+  devolve a resposta final. Grátis, offline, privado. Ancora o contexto em
+  `CLAUDE_PROJECT_DIR` (o projeto aberto no Claude Code); `modelo` opcional
+  por tarefa. Exceção consciente ao padrão wrapper→`_exec` documentada no
+  módulo: `delegar` É o loop, e o loop já executa tudo pelo choke-point.
+- **`scripts/conectar_claude_code.ps1`**: registro em UMA linha
+  (`claude mcp add --scope user ... lilo -- python -m lilo mcp-serve`,
+  sintaxe verificada na doc oficial) com pré-checagens e verificação;
+  escopo user = memória compartilhada em TODOS os projetos. Timeouts
+  default do Claude Code já comportam (nota sobre
+  `CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT` p/ casos raros). Sem `.mcp.json` no
+  repo (aprovação por sessão interativa; decisão registrada).
+- Anti-recursão documentada (não pôr `lilo` em `LILO_MCP`).
+- Testes: 117 herméticos (+6) — `delegar` com FakeOllama injetado
+  (resposta final, tool via choke-point, `[NEGADO]` do portão DENTRO da
+  tarefa delegada, âncora no CLAUDE_PROJECT_DIR, modelo por chamada).
+
 ## v13.7.0 — 2026-08-26 (o chat no NAVEGADOR de volta: `lilo web`)
 
 - **`lilo web`** (`lilo/web.py`): chat no navegador em `http://localhost:8100`
