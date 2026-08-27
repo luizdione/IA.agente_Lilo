@@ -2,18 +2,21 @@
 
 Rode NA MAQUINA WINDOWS (nao no CI/Linux):
 
-    python scripts\\criar_atalho.py
+    python scripts\\criar_atalho.py              # icone abre o CHAT NO NAVEGADOR
+    python scripts\\criar_atalho.py --terminal   # icone abre o REPL no PowerShell
 
-v13.5: o duplo clique abre uma janela POWERSHELL rodando o REPL do LILO
-(via lilo.ps1 da raiz; -NoExit mantem a janela viva ao sair do REPL). Nao
-existe dashboard de navegador no v13 — o terminal E a interface. Icone:
-lilo_icon.ico. Usa [Environment]::GetFolderPath('Desktop'), entao respeita
-Desktop redirecionado pelo OneDrive.
+v13.7 (decisao do dono, 26/08): o duplo clique abre uma janela PowerShell
+rodando `lilo web` — o servidor local sobe e o NAVEGADOR abre sozinho em
+http://localhost:8100 com o chat (mesmo loop/portao do terminal). A flag
+--terminal regrava o atalho para o comportamento v13.5 (so o REPL).
+Icone: lilo_icon.ico. Usa [Environment]::GetFolderPath('Desktop'), entao
+respeita Desktop redirecionado pelo OneDrive.
 """
 from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -25,6 +28,7 @@ def main() -> int:
         print("Rode na sua maquina: python scripts\\criar_atalho.py")
         return 1
 
+    terminal = "--terminal" in sys.argv
     ps1 = ROOT / "lilo.ps1"
     ico = ROOT / "lilo_icon.ico"
     if not ps1.exists():
@@ -32,18 +36,23 @@ def main() -> int:
         return 1
 
     # PowerShell: resolve a Area de Trabalho real e grava o .lnk via COM.
-    # Alvo = powershell.exe rodando o lilo.ps1 (janela de TERMINAL, por design).
+    # Default: lilo.ps1 web (sobe o servidor e abre o navegador);
+    # --terminal: lilo.ps1 puro (REPL na propria janela).
+    argumentos = '-NoExit -ExecutionPolicy Bypass -File \"%s\"%s' % (
+        ps1, "" if terminal else " web")
+    descricao = ("LILO — agente de IA local (Ollama) no terminal" if terminal
+                 else "LILO — agente de IA local (Ollama) no navegador")
     ps = (
         "$d=[Environment]::GetFolderPath('Desktop');"
         "$s=(New-Object -ComObject WScript.Shell).CreateShortcut(\"$d\\LILO.lnk\");"
         "$s.TargetPath='powershell.exe';"
-        "$s.Arguments='-NoExit -ExecutionPolicy Bypass -File \"%s\"';"
+        "$s.Arguments='%s';"
         "$s.WorkingDirectory='%s';"
         "$s.IconLocation='%s';"
-        "$s.Description='LILO — agente de IA local (Ollama) no terminal';"
+        "$s.Description='%s';"
         "$s.Save();"
         "Write-Output \"$d\\LILO.lnk\""
-    ) % (ps1, ROOT, ico if ico.exists() else ps1)
+    ) % (argumentos, ROOT, ico if ico.exists() else ps1, descricao)
 
     r = subprocess.run(
         ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps],
@@ -53,7 +62,11 @@ def main() -> int:
         print("[ERRO] PowerShell falhou:\n" + (r.stderr or r.stdout))
         return 1
     print("Atalho criado: " + r.stdout.strip())
-    print("Duplo clique nele abre o LILO no terminal.")
+    if terminal:
+        print("Duplo clique nele abre o LILO no terminal (REPL).")
+    else:
+        print("Duplo clique nele sobe o servidor e abre o CHAT no navegador "
+              "(http://localhost:8100).")
     return 0
 
 

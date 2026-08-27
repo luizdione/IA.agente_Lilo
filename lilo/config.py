@@ -165,6 +165,12 @@ def allow_list() -> list[Path]:
     return raizes or [Path.cwd().resolve()]
 
 
+def web_port() -> int:
+    """Porta do `lilo web` (127.0.0.1). 8100 = o endereco do dashboard v12,
+    que o dono ja tem no musculo do dedo."""
+    return _int("LILO_WEB_PORT", 8100)
+
+
 # --- Dados (SEMPRE fora do repo/OneDrive — licao kv_memory do legado) -------
 def dir_dados() -> Path:
     if os.name == "nt":

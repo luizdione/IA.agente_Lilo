@@ -6,4 +6,4 @@ unico choke-point com portao de permissoes. Nada de dashboards, APIs ou subagent
 nucleo — funcionalidade nova entra como TOOL atras do loop.
 """
 
-__version__ = "13.6.0"
+__version__ = "13.7.0"

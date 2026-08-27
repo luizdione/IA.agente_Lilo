@@ -3,6 +3,28 @@
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v12`).
 
+## v13.7.0 — 2026-08-26 (o chat no NAVEGADOR de volta: `lilo web`)
+
+- **`lilo web`** (`lilo/web.py`): chat no navegador em `http://localhost:8100`
+  — decisão do dono ("Web primeiro"), revertendo parcialmente o "sem
+  dashboard" do reset, MAS sem repetir o v12: é um **subcomando do mesmo
+  binário** (precedente do mcp-serve), **stdlib pura** (http.server, zero
+  dependência nova), servindo o MESMO loop/choke-point/portão do terminal.
+- **Portão com botões**: a confirmação pausa-no-ponto vira um cartão na
+  página — [Sim] [Não] [Sempre nesta sessão] — com a thread da tarefa
+  BLOQUEADA num Event até o clique (15 min sem resposta = não). Grants
+  escopados idênticos aos do terminal; modo trocável no cabeçalho.
+- **Continuidade real**: a conversa do navegador persiste no MESMO SQLite
+  das sessões — retome no terminal com `lilo -c <id>` (e vice-versa).
+- Escopo seguro: escuta SÓ em 127.0.0.1, uma tarefa por vez (409), eventos
+  de tool ao vivo por polling (1s), erros com dica de Ollama offline.
+- **Ícone → navegador**: `criar_atalho.py` agora grava o LILO.lnk abrindo
+  `lilo.ps1 web` (servidor + navegador sozinho); `--terminal` volta ao REPL
+  puro da v13.5. Porta via `LILO_WEB_PORT` ou `lilo web <porta>`.
+- Testes: 111 herméticos (+8) — servidor real em porta efêmera com
+  FakeOllama, incluindo o fluxo de confirmação bloqueante de ponta a ponta
+  e a persistência compartilhada.
+
 ## v13.6.0 — 2026-08-26 (primeira tool científica: ler_pdf)
 
 - **`ler_pdf`** (11ª tool): extrai texto de PDFs (artigos, manuais) com
