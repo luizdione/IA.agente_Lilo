@@ -6,16 +6,16 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.6.0 | **branch:** arch-v12 | **commit:** 6411728 Merge PR #15: v13.5.0 — blindagem offline + ícone PowerShell + manutenção no REPL
-- **Testes:** 103 funcoes de teste (rode `python scripts/check.py`)
-- **Atualizado em:** 2026-08-26
+- **Versao:** v13.7.0 | **branch:** arch-v12 | **commit:** 8547aa5 feat(v13.6): tool ler_pdf (1a cientifica) + ponte Claude Code->Ollama
+- **Testes:** 111 funcoes de teste (rode `python scripts/check.py`)
+- **Atualizado em:** 2026-08-27
 <!-- /AUTO:estado -->
 
 ## Ultimas entregas (AUTO — topo do CHANGELOG)
 <!-- AUTO:entregas -->
+- v13.7.0 — 2026-08-26 (o chat no NAVEGADOR de volta: `lilo web`)
 - v13.6.0 — 2026-08-26 (primeira tool científica: ler_pdf)
 - v13.5.0 — 2026-08-26 (blindagem offline + ergonomia de manutenção)
-- v13.4.0 — 2026-08-26 (ecossistema: LILO como SERVIDOR MCP)
 <!-- /AUTO:entregas -->
 
 ## Pendencias (MANUAL)
@@ -27,7 +27,7 @@
 - [ ] Maquina do dono (nao urgente): `git pull`; `pip install -e .` (comando
       global `lilo`); `pip install mcp` se for usar mcp/mcp-serve;
       `pip install PyMuPDF` p/ ler_pdf; `python scripts\criar_atalho.py`
-      (icone v13.5); `python scripts\limpar_mcp_claude.py`; Claude Desktop
+      (icone -> lilo web); `python scripts\limpar_mcp_claude.py`; Claude Desktop
       com o mcp-serve novo (snippet no README); Claude Code sobre Ollama:
       `scripts\claude_ollama.ps1`.
 - [ ] GATED ate caso de uso nomeado (decisao): provider cloud plugavel;
@@ -40,7 +40,17 @@
       corte com dica de continuacao) no choke-point E no mcp-serve; gate
       cientifico aberto pelo dono ("execute o 13.6"). + ponte inversa
       claude_ollama.ps1 (Claude Code rodando nos modelos Ollama locais).
-- [ ] v13.7: coletar friccoes de USO REAL do dono -> correcoes.
+- [x] v13.7 ENTREGUE (26/08): `lilo web` — chat no NAVEGADOR (decisao do
+      dono "Web primeiro"): subcomando stdlib em 127.0.0.1:8100, mesmo
+      loop/portao, confirmacao por botoes (Event bloqueante), persistencia
+      compartilhada com o terminal; icone LILO.lnk -> web (--terminal volta).
+- [ ] v13.8 (PROXIMA, dono pediu "a seguir executar v13.8"): integracao
+      LILO<->Claude Code via mcp-serve — wrapper `delegar` (Claude real
+      despacha tarefa ao modelo local; ancorar em CLAUDE_PROJECT_DIR),
+      scripts/conectar_claude_code.ps1 (`claude mcp add --scope user ...
+      --env LILO_MCP_SERVE_MODE=accept_edits lilo -- python -m lilo
+      mcp-serve`; sintaxe verificada na doc oficial; timeouts default ok;
+      sem .mcp.json no repo). Depois: friccoes de uso real.
 - [ ] Reavaliar qwen2.5-coder como LILO_MODEL_FAST se o template de tools
       for corrigido em Ollama futuro (hoje: familia qwen3).
 
@@ -50,7 +60,10 @@
   recuperavel no branch `v12.15-legado`. Plano completo na sessao de 24/08.
 - 100% offline: so Ollama; nuvem NAO existe no nucleo (provider pluggavel
   poderia voltar como tool em v13.x).
-- CLI unico (`lilo`); sem Streamlit/API/MCP no nucleo.
+- CLI unico (`lilo`); sem Streamlit/API/MCP no nucleo. **Emenda do dono
+  (26/08, v13.7)**: interface web VOLTOU como SUBCOMANDO `lilo web` (stdlib,
+  mesmo motor/portao) — "um binario" e anti-inchaco continuam de pe; o que
+  segue proibido e entry point/servico/framework separado.
 - **Anti-inchaco**: funcionalidade nova = TOOL atras do loop/choke-point,
   nunca novo entry point. Cientificos (Scholar/PDF/Prism/RAG) = tools futuras.
 - Permissoes: plan/ask/accept_edits/auto, grants escopados, sem replay;

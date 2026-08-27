@@ -28,7 +28,8 @@ AJUDA = """Comandos do REPL:
   \\sair                                encerra
 Qualquer outro texto = tarefa para o agente. Ctrl+C cancela a tarefa atual.
 Fora do REPL: lilo "tarefa" (one-shot) · lilo -c (retoma a ultima) ·
-lilo -c <id> (retoma uma sessao especifica; ids no \\sessoes)."""
+lilo -c <id> (retoma uma sessao especifica; ids no \\sessoes) ·
+lilo web (chat no NAVEGADOR, mesmo motor/portao)."""
 
 
 class UITerminal(agente.UI):
@@ -243,6 +244,9 @@ def main(argv: list[str] | None = None) -> int:
     if args and args[0] == "mcp-serve":  # v13.4: LILO como servidor MCP
         from lilo import mcp_servidor
         return mcp_servidor.main()
+    if args and args[0] == "web":        # v13.7: chat no navegador (mesmo motor)
+        from lilo import web
+        return web.main(args[1:])
     continuar, chat_pedido = False, None
     if "-c" in args:
         continuar = True

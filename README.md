@@ -1,7 +1,7 @@
 # LILO v13 — agente de terminal 100% local
 
 ![Status](https://img.shields.io/badge/status-ativo-brightgreen)
-![Version](https://img.shields.io/badge/version-13.6.0-blue)
+![Version](https://img.shields.io/badge/version-13.7.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-yellow)
 ![Arch](https://img.shields.io/badge/arch-v12-purple)
 
@@ -19,7 +19,10 @@ lugar nenhum). Tudo está preservado no branch **`v12.15-legado`**:
 ## O que é o núcleo v13
 
 - **Um binário**: `lilo` (REPL interativo ou `lilo "tarefa"`), com **resposta
-  em streaming** no terminal.
+  em streaming** no terminal — e **`lilo web`** (v13.7), o MESMO agente num
+  chat no navegador (`http://localhost:8100`, só 127.0.0.1): confirmações do
+  portão viram botões e a conversa persiste no mesmo SQLite (`lilo -c` retoma
+  no terminal o que começou no navegador).
 - **Um loop agêntico** com tool-calling nativo do Ollama (`/api/chat` + `tools`).
 - **Onze tools**: `ler`, `ler_pdf` (artigos/manuais, dep. opcional PyMuPDF),
   `escrever`, `editar`, `listar`, `buscar`, `shell`,
@@ -39,8 +42,14 @@ pip install -r requirements.txt
 copy .env.example .env        # ajuste LILO_ALLOW e o modelo
 python -m lilo "sua tarefa"   # one-shot
 python -m lilo                # REPL
+python -m lilo web            # chat no navegador (localhost:8100)
+python scripts\criar_atalho.py  # ícone na área de trabalho → navegador
 python scripts\check.py       # saúde do código (sintaxe + pyflakes + pytest)
 ```
+
+O ícone da área de trabalho abre o `lilo web` (a janela PowerShell que fica
+atrás é o servidor). Prefere só terminal? `python scripts\criar_atalho.py
+--terminal` regrava o atalho para o REPL.
 
 Requisitos: Python 3.11+, [Ollama](https://ollama.com) ≥ 0.9 com um modelo
 com suporte a tools (default: `qwen3:14b` — a família qwen2.5-coder tem o
