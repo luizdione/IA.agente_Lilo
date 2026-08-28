@@ -230,17 +230,20 @@ def _comando(linha: str, sessao: Sessao, ui: agente.UI,
 
 
 def main(argv: list[str] | None = None) -> int:
-    if sys.platform == "win32":  # cmd.exe: acentos + cores ANSI (truque VT)
-        import os as _os
-        _os.system("")
+    args = list(argv or [])
+    if sys.platform == "win32":  # UTF-8 sempre (inclusive no canal JSON-RPC)
         for stream in (sys.stdout, sys.stderr):
             try:
                 stream.reconfigure(encoding="utf-8")
             except (AttributeError, OSError):
                 pass
+        # Truque VT (cores ANSI no cmd.exe) so onde HA terminal: no mcp-serve
+        # o stdout e o canal do protocolo — nada de subprocessos herdando-o.
+        if not (args and args[0] == "mcp-serve"):
+            import os as _os
+            _os.system("")
 
     config.load_env()
-    args = list(argv or [])
     if args and args[0] == "mcp-serve":  # v13.4: LILO como servidor MCP
         from lilo import mcp_servidor
         return mcp_servidor.main()

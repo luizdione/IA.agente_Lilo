@@ -6,16 +6,16 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.8.0 | **branch:** arch-v12 | **commit:** 375b1f6 feat(v13.7): `lilo web` — o chat no navegador de volta, sem repetir o v12
-- **Testes:** 117 funcoes de teste (rode `python scripts/check.py`)
-- **Atualizado em:** 2026-08-27
+- **Versao:** v13.9.0 | **branch:** arch-v12 | **commit:** 4427acc Merge PR #18: v13.8.0 — LILO dentro do Claude Code (delegar + conexão em 1 linha)
+- **Testes:** 127 funcoes de teste (rode `python scripts/check.py`)
+- **Atualizado em:** 2026-08-28
 <!-- /AUTO:estado -->
 
 ## Ultimas entregas (AUTO — topo do CHANGELOG)
 <!-- AUTO:entregas -->
+- v13.9.0 — 2026-08-27 (conserto: a conexão com o Claude Code)
 - v13.8.0 — 2026-08-27 (LILO dentro do Claude Code: memória + delegar)
 - v13.7.0 — 2026-08-26 (o chat no NAVEGADOR de volta: `lilo web`)
-- v13.6.0 — 2026-08-26 (primeira tool científica: ler_pdf)
 <!-- /AUTO:entregas -->
 
 ## Pendencias (MANUAL)
@@ -48,8 +48,15 @@
       mcp-serve (loop inteiro no Ollama local; ancora em CLAUDE_PROJECT_DIR;
       portao do serve vale DENTRO da tarefa) + conectar_claude_code.ps1
       (claude mcp add --scope user, sintaxe verificada; sem .mcp.json).
-- [ ] v13.9: coletar friccoes de USO REAL do dono (terminal, web e Claude
-      Code) -> correcoes.
+- [x] v13.9 ENTREGUE (27/08) — 1a FRICCAO DE USO REAL do dono corrigida: o
+      `claude mcp add` da v13.8 falhava por ORDEM de argumentos (`--env`
+      colado no nome do servidor). Provado ao vivo: forma antiga responde
+      "Invalid environment variable format"; a nova registra e da Connected.
+      Script reescrito (ordem correta, sem EAP=Stop que escondia o erro no
+      PS 5.1, python ABSOLUTO, idempotente) + scripts/diagnosticar_mcp.py
+      (handshake JSON-RPC real) + stdout do mcp-serve blindado.
+- [ ] v13.10: proximas friccoes de USO REAL (terminal, web e Claude Code)
+      -> correcoes.
 - [ ] Reavaliar qwen2.5-coder como LILO_MODEL_FAST se o template de tools
       for corrigido em Ollama futuro (hoje: familia qwen3).
 

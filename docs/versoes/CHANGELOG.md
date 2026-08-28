@@ -3,6 +3,35 @@
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v12`).
 
+## v13.9.0 — 2026-08-27 (conserto: a conexão com o Claude Code)
+
+- 🔴 **Causa-raiz da falha do `claude mcp add`** (reportada pelo dono):
+  a ordem dos argumentos. A doc do Claude Code exige **pelo menos uma opção
+  entre `--env` e o nome do servidor**; a v13.8 mandava
+  `--scope user --env K=V lilo`, e o CLI lia `lilo` como mais um par de
+  variável. Provado ao vivo: a forma antiga responde *"Invalid environment
+  variable format: lilo…"*; a nova (`--env K=V --scope user --transport
+  stdio lilo -- <python> -m lilo mcp-serve`) registra e conecta
+  (`√ Connected`).
+- **A mensagem útil sumia**: `$ErrorActionPreference = "Stop"` + comando
+  nativo faz o PowerShell 5.1 levantar `NativeCommandError` terminante,
+  matando o script antes das instruções. Removido; erros do `claude` agora
+  são capturados e **reimpressos por extenso**.
+- **Caminho absoluto do Python** no registro (o Claude Code sobe o servidor
+  com o PATH dele — venv/`py` launcher/alias da Store levavam a um
+  interpretador sem `lilo`/`mcp`) e **idempotência** (`claude mcp remove`
+  antes do add, para reexecutar o script sem erro).
+- **`scripts/diagnosticar_mcp.py`** (novo): relatório que nomeia a causa —
+  versões/caminhos, **handshake JSON-RPC real** contra o `lilo mcp-serve`
+  (manda `initialize`, lê a resposta, mostra o stderr do servidor),
+  `claude mcp list/get` e o fim do `lilo.log`. O script de conexão só
+  registra se o handshake passar.
+- **stdout do servidor blindado**: o truque VT do Windows (`os.system("")`)
+  rodava ANTES do despacho e subia um `cmd.exe` herdando o canal JSON-RPC —
+  agora só roda fora do `mcp-serve` (o `reconfigure(utf-8)` continua).
+- Testes: 127 (+10) — frame/parse do handshake, regressão da ORDEM dos
+  argumentos no `.ps1`, e a promessa de stdout limpo no `mcp-serve`.
+
 ## v13.8.0 — 2026-08-27 (LILO dentro do Claude Code: memória + delegar)
 
 - **`delegar`** no `lilo mcp-serve` (11 wrappers): o Claude Code/Desktop
