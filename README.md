@@ -1,7 +1,7 @@
 # LILO v13 — agente de terminal 100% local
 
 ![Status](https://img.shields.io/badge/status-ativo-brightgreen)
-![Version](https://img.shields.io/badge/version-13.8.0-blue)
+![Version](https://img.shields.io/badge/version-13.9.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-yellow)
 ![Arch](https://img.shields.io/badge/arch-v12-purple)
 
@@ -85,6 +85,10 @@ local (loop + tools + portão sobre a sua GPU): grátis, offline, privado.
 Expectativa honesta: o modelo local é bem mais fraco que o Claude — delegue
 tarefas simples/privadas/em lote. Desfazer: `claude mcp remove --scope user
 lilo`.
+
+Não conectou? `python scripts\diagnosticar_mcp.py` diz a causa exata — ele
+faz um handshake JSON-RPC real com o servidor e mostra o que o Claude Code
+enxerga (`claude mcp list/get`).
 
 ## Claude Code nos seus modelos Ollama (ponte inversa)
 
