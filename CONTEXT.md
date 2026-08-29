@@ -6,7 +6,7 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.10.0 | **branch:** arch-v12 | **commit:** 1b42edf Merge PR #19: v13.9.0 — conserta a conexão com o Claude Code (ordem dos args do mcp add)
+- **Versao:** v13.10.0 | **branch:** arch-v12 | **commit:** 7d1ac47 Merge PR #20: v13.10.0 — registro MCP à prova de shell (comando sem hífens)
 - **Testes:** 129 funcoes de teste (rode `python scripts/check.py`)
 - **Atualizado em:** 2026-08-29
 <!-- /AUTO:estado -->
@@ -20,69 +20,37 @@
 
 ## Pendencias (MANUAL)
 
-- [x] v13.2/v13.3/v13.4 ENTREGUES (26/08, validadas ao vivo): resumo de
-      janela por LLM + memoria semantica; esquecer/\memoria/\sessoes/
-      `lilo -c <id>`/cores; `lilo mcp-serve` (LILO como servidor MCP p/
-      Claude Desktop) com round-trip cliente<->servidor provado.
-- [ ] Maquina do dono (nao urgente): `git pull`; `pip install -e .` (comando
-      global `lilo`); `pip install mcp` se for usar mcp/mcp-serve;
-      `pip install PyMuPDF` p/ ler_pdf; `python scripts\criar_atalho.py`
-      (icone -> lilo web); `python scripts\limpar_mcp_claude.py`; Claude Desktop
-      com o mcp-serve novo (snippet no README); Claude Code sobre Ollama:
-      `scripts\claude_ollama.ps1`.
-- [ ] GATED ate caso de uso nomeado (decisao): provider cloud plugavel;
-      mais cientificos (Scholar/RAG) alem do ler_pdf.
-- [x] v13.5 ENTREGUE (26/08): blindagem offline (*-cloud fora da
-      auto-descoberta), icone abre POWERSHELL com o REPL (regravar com
-      criar_atalho.py), LILO_DEBUG, \atualizar, \esquecer, \memoria
-      exportar/importar.
-- [x] v13.6 ENTREGUE (26/08): tool ler_pdf (11a; PyMuPDF opcional; paginada,
-      corte com dica de continuacao) no choke-point E no mcp-serve; gate
-      cientifico aberto pelo dono ("execute o 13.6"). + ponte inversa
-      claude_ollama.ps1 (Claude Code rodando nos modelos Ollama locais).
-- [x] v13.7 ENTREGUE (26/08): `lilo web` — chat no NAVEGADOR (decisao do
-      dono "Web primeiro"): subcomando stdlib em 127.0.0.1:8100, mesmo
-      loop/portao, confirmacao por botoes (Event bloqueante), persistencia
-      compartilhada com o terminal; icone LILO.lnk -> web (--terminal volta).
-- [x] v13.8 ENTREGUE (27/08): LILO dentro do Claude Code — `delegar` no
-      mcp-serve (loop inteiro no Ollama local; ancora em CLAUDE_PROJECT_DIR;
-      portao do serve vale DENTRO da tarefa) + conectar_claude_code.ps1
-      (claude mcp add --scope user, sintaxe verificada; sem .mcp.json).
-- [x] v13.9 ENTREGUE (27/08) — 1a FRICCAO DE USO REAL do dono corrigida: o
-      `claude mcp add` da v13.8 falhava por ORDEM de argumentos (`--env`
-      colado no nome do servidor). Provado ao vivo: forma antiga responde
-      "Invalid environment variable format"; a nova registra e da Connected.
-      Script reescrito (ordem correta, sem EAP=Stop que escondia o erro no
-      PS 5.1, python ABSOLUTO, idempotente) + scripts/diagnosticar_mcp.py
-      (handshake JSON-RPC real) + stdout do mcp-serve blindado.
-- [x] v13.10 ENTREGUE (28/08) — 2a FRICCAO REAL: `unknown option '-m'`. O
-      separador `--` do `claude mcp add` nao sobrevive ao PowerShell 5.1/shim
-      do npm. Fix estrutural: comando registrado SEM hifens
-      (<python> scripts\servir_mcp.py); autoteste valida o comando EXATO.
-      Provado ao vivo (sem `--`: forma antiga falha, nova da Connected).
-- [ ] v13.11: proximas friccoes de USO REAL (terminal, web e Claude Code)
-      -> correcoes.
-- [ ] Reavaliar qwen2.5-coder como LILO_MODEL_FAST se o template de tools
-      for corrigido em Ollama futuro (hoje: familia qwen3).
+- [ ] **Maquina do dono** (pendente): `git pull`; `pip install mcp` (ponte
+      Claude Code) e `pip install PyMuPDF` (ler_pdf);
+      `.\scripts\conectar_claude_code.ps1`; `python scripts\criar_atalho.py`
+      (icone -> lilo web). Opcional: `pip install -e .` (comando `lilo`),
+      `python scripts\limpar_mcp_claude.py` (entrada legada do Desktop).
+- [ ] **v13.11 = friccoes de USO REAL** (terminal, web e Claude Code) que o
+      dono relatar -> correcao + teste de regressao. Foi assim nas v13.9/13.10.
+- [ ] GATED ate caso de uso nomeado pelo dono: provider cloud plugavel;
+      cientificos alem do ler_pdf (Scholar/RAG).
+- [ ] Reavaliar qwen2.5-coder como LILO_MODEL_FAST se o Ollama corrigir o
+      template de tools (hoje: familia qwen3).
+- [x] Arco v13.0->v13.10 fechado e mergeado (PRs #6-#20, CI verde): loop,
+      portao, sessoes, memoria semantica, `lilo web`, ler_pdf, mcp-serve +
+      `delegar`. Detalhes NAO repetidos aqui — ver docs/versoes/CHANGELOG.md.
 
 ## Decisoes-chave (MANUAL)
 
-- **Reset radical aprovado (24/08)**: legado v12.x (42k LOC) demolido; TUDO
-  recuperavel no branch `v12.15-legado`. Plano completo na sessao de 24/08.
-- 100% offline: so Ollama; nuvem NAO existe no nucleo (provider pluggavel
-  poderia voltar como tool em v13.x).
-- CLI unico (`lilo`); sem Streamlit/API/MCP no nucleo. **Emenda do dono
-  (26/08, v13.7)**: interface web VOLTOU como SUBCOMANDO `lilo web` (stdlib,
-  mesmo motor/portao) — "um binario" e anti-inchaco continuam de pe; o que
-  segue proibido e entry point/servico/framework separado.
+- **Reset radical (24/08)**: legado v12.x (42k LOC) demolido; recuperavel em
+  `git show v12.15-legado:<caminho>`.
+- 100% offline: so Ollama; nuvem NAO existe no nucleo.
 - **Anti-inchaco**: funcionalidade nova = TOOL atras do loop/choke-point,
-  nunca novo entry point. Cientificos (Scholar/PDF/Prism/RAG) = tools futuras.
+  nunca entry point novo. Emenda do dono (26/08): interface web voltou como
+  SUBCOMANDO (`lilo web`), nao como servico separado — "um binario" de pe.
 - Permissoes: plan/ask/accept_edits/auto, grants escopados, sem replay;
-  default `ask`; never-commit-unless-asked.
-- DBs fora do repo/OneDrive (%LOCALAPPDATA%\LILO).
-- **Versionamento**: minor = PR verde em `arch-v12` + CHANGELOG + smoke na
-  maquina do dono; patch = fix pontual; feature entra SEMPRE pela regra
-  anti-inchaco. Tags sao bloqueadas pelo proxy git — marcos viram branch.
+  default `ask`; never-commit-unless-asked. DBs em %LOCALAPPDATA%\LILO.
+- **Ponte MCP (licao v13.9+v13.10)**: no `claude mcp add`, `--env` e
+  variadico (precisa de outra opcao antes do nome) e o `--` nao sobrevive ao
+  PowerShell — por isso o comando registrado NAO pode ter hifens. Travado em
+  tests/test_mcp_ponte.py; `scripts/diagnosticar_mcp.py` da a causa exata.
+- **Versionamento**: minor = PR verde em `arch-v12` + CHANGELOG + validacao
+  viva; tags sao bloqueadas pelo proxy — marcos viram branch.
 
 ## Como retomar uma sessao (MANUAL)
 
