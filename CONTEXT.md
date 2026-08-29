@@ -6,16 +6,16 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.11.0 | **branch:** arch-v12 | **commit:** 894ca6b Merge PR #22: docs(memoria) — ponte Claude Code validada na máquina do dono
-- **Testes:** 135 funcoes de teste (rode `python scripts/check.py`)
+- **Versao:** v13.12.0 | **branch:** arch-v12 | **commit:** e1cfb49 Merge PR #23: v13.11.0 — LILO ancorado no ambiente conda registrado
+- **Testes:** 139 funcoes de teste (rode `python scripts/check.py`)
 - **Atualizado em:** 2026-08-29
 <!-- /AUTO:estado -->
 
 ## Ultimas entregas (AUTO — topo do CHANGELOG)
 <!-- AUTO:entregas -->
+- v13.12.0 — 2026-08-29 (delegar respeita o interruptor de GPU)
 - v13.11.0 — 2026-08-29 (o LILO no ambiente conda certo)
 - v13.10.0 — 2026-08-28 (o registro MCP à prova de shell)
-- v13.9.0 — 2026-08-27 (conserto: a conexão com o Claude Code)
 <!-- /AUTO:entregas -->
 
 ## Pendencias (MANUAL)
@@ -33,11 +33,14 @@
       (`conectar_claude_code.ps1 -Python ...\envs\datascience\python.exe`)
       + `pip install mcp` la. Sem isso o `shell`/`delegar` quebra em script
       cientifico. (v13.11 ancora o PATH no interpretador registrado.)
-- [ ] Depois disso, decidir com o dono: o MCP `ollama-local`
-      (C:\github\ollama-delegate\server.py, env datascience) ainda agrega
-      algo alem do `delegar`? Falta ver as tools dele.
-- [ ] **v13.11 = friccoes de USO REAL** (terminal, web e Claude Code) que o
-      dono relatar -> correcao + teste de regressao. Foi assim nas v13.9/13.10.
+- [x] DECIDIDO (29/08): manter os DOIS servidores — papeis distintos.
+      `ollama-local` = arbitragem da GPU (status/ligar/desligar com checagem
+      de VRAM, + embeddings); `lilo` = trabalho agentico (delegar com loop,
+      arquivos, shell, ler_pdf, memoria). So `ollama_delegar` x `delegar` se
+      sobrepoem, e o do LILO e mais capaz. v13.12 fecha a lacuna: o delegar
+      avisa quando a GPU foi liberada de proposito (LILO_OLLAMA_SWITCH).
+- [ ] **v13.13 = proximas friccoes de USO REAL** (terminal, web e Claude
+      Code) -> correcao + teste de regressao (padrao das v13.9-v13.12).
 - [ ] GATED ate caso de uso nomeado pelo dono: provider cloud plugavel;
       cientificos alem do ler_pdf (Scholar/RAG).
 - [ ] Reavaliar qwen2.5-coder como LILO_MODEL_FAST se o Ollama corrigir o

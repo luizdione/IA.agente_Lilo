@@ -3,6 +3,27 @@
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v12`).
 
+## v13.12.0 — 2026-08-29 (delegar respeita o interruptor de GPU)
+
+- **Convivência com o servidor de GPU do dono**: ele tem um MCP próprio
+  (`ollama-delegate`) que LIGA/DESLIGA o Ollama para liberar os 12 GB da
+  RTX 3060 quando vai rodar docking/treino. O `delegar` não sabia disso: com
+  o Ollama desligado, o cliente MCP recebia um **traceback de conexão**.
+- **`delegar` agora pré-checa** (`_indisponivel`) e devolve texto claro:
+  *"Ollama offline em <host> — inicie o serviço"*; e, se
+  `LILO_OLLAMA_SWITCH` apontar para o arquivo de estado daquele servidor,
+  a mensagem vira *"o Ollama está DESLIGADO de propósito (motivo: …) — a GPU
+  foi liberada para outro trabalho. Ligue-o antes de delegar (tool
+  `ollama_ligar`)"*. Leitura tolerante (aceita `estado`/`state`/`status`,
+  ignora arquivo ausente ou ilegível) — zero acoplamento duro.
+- Falha **durante** a tarefa delegada também vira string `[ERRO] …` em vez de
+  stack trace subindo pelo protocolo.
+- **`ClienteOllama.ping()` ficou hermético**: com transporte injetado
+  (testes/fakes) responde sem tocar a rede — o fake É o servidor, e um ping
+  real fazia a suíte depender de um Ollama de verdade (pego quando os testes
+  da v13.8 quebraram com a pré-checagem nova).
+- `.env.example`: `LILO_OLLAMA_SWITCH`. Testes: 139 (+4).
+
 ## v13.11.0 — 2026-08-29 (o LILO no ambiente conda certo)
 
 - 🔴 **Fricção real do dono**: os pacotes de bioinformática dele vivem no env

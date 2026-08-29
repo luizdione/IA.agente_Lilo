@@ -73,3 +73,78 @@ def test_delegar_modelo_opcional_vai_no_payload(monkeypatch):
     fake = _com_fake(monkeypatch, [resposta_texto("ok")])
     mcp_servidor.delegar("oi", modelo="qwen3:1.7b")
     assert fake.chamadas[0][1]["model"] == "qwen3:1.7b"
+
+
+# --- v13.12: delegar respeita o interruptor de GPU --------------------------
+class _ClienteFalso:
+    def __init__(self, no_ar: bool):
+        self.no_ar, self.chamou_chat = no_ar, False
+
+    def ping(self):
+        return self.no_ar
+
+    def chat(self, *a, **k):
+        self.chamou_chat = True
+        raise AssertionError("nao deveria chamar o modelo com Ollama offline")
+
+
+def _sem_ollama(monkeypatch):
+    falso = _ClienteFalso(no_ar=False)
+    monkeypatch.setattr(mcp_servidor, "_criar_cliente", lambda: falso)
+    return falso
+
+
+def test_delegar_com_ollama_offline_da_mensagem_clara(monkeypatch):
+    monkeypatch.delenv("LILO_OLLAMA_SWITCH", raising=False)
+    falso = _sem_ollama(monkeypatch)
+    saida = mcp_servidor.delegar("faca algo")
+    assert saida.startswith("[ERRO]") and "offline" in saida
+    assert "ollama serve" in saida
+    assert not falso.chamou_chat, "nem tenta rodar o loop"
+
+
+def test_delegar_avisa_quando_a_gpu_foi_liberada_de_proposito(monkeypatch,
+                                                              tmp_path):
+    """O dono desliga o Ollama p/ usar a GPU (docking/treino): a resposta tem
+    que dizer ISSO, nao um 'offline' generico."""
+    switch = tmp_path / "switch.json"
+    switch.write_text('{"estado": "desligado", "motivo": "docking rodando"}',
+                      encoding="utf-8")
+    monkeypatch.setenv("LILO_OLLAMA_SWITCH", str(switch))
+    _sem_ollama(monkeypatch)
+    saida = mcp_servidor.delegar("faca algo")
+    assert "DESLIGADO de proposito" in saida
+    assert "docking rodando" in saida
+    assert "ollama_ligar" in saida
+
+
+def test_switch_ligado_ou_ilegivel_nao_atrapalha(monkeypatch, tmp_path):
+    monkeypatch.setenv("LILO_OLLAMA_SWITCH", str(tmp_path / "nao_existe.json"))
+    assert mcp_servidor._switch_desligado() is None
+    ligado = tmp_path / "on.json"
+    ligado.write_text('{"estado": "ligado"}', encoding="utf-8")
+    monkeypatch.setenv("LILO_OLLAMA_SWITCH", str(ligado))
+    assert mcp_servidor._switch_desligado() is None
+    lixo = tmp_path / "lixo.json"
+    lixo.write_text("nao sou json", encoding="utf-8")
+    monkeypatch.setenv("LILO_OLLAMA_SWITCH", str(lixo))
+    assert mcp_servidor._switch_desligado() is None
+
+
+def test_delegar_erro_no_meio_vira_texto_nao_traceback(monkeypatch):
+    """Queda de conexao DURANTE a tarefa tambem tem que virar string."""
+    monkeypatch.delenv("LILO_OLLAMA_SWITCH", raising=False)
+
+    class Instavel(_ClienteFalso):
+        def ping(self):
+            return True
+
+    monkeypatch.setattr(mcp_servidor, "_criar_cliente", lambda: Instavel(True))
+
+    def explode(*a, **k):
+        raise ConnectionError("conexao caiu no meio")
+
+    from lilo import agente as _agente
+    monkeypatch.setattr(_agente, "executar_tarefa", explode)
+    saida = mcp_servidor.delegar("faca algo")
+    assert saida.startswith("[ERRO]") and "conexao caiu no meio" in saida

@@ -129,6 +129,11 @@ class ClienteOllama:
         self._stream_transport = stream_transport or _transport_requests_stream
 
     def ping(self) -> bool:
+        """Ollama no ar? Com transporte INJETADO (testes/fakes) responde sem
+        tocar a rede — o cliente fake E o servidor, e um ping real deixaria
+        os testes hermeticos dependendo de um Ollama de verdade."""
+        if self._transport is not _transport_requests:
+            return True
         try:
             r = requests.get(config.ollama_host() + "/api/tags", timeout=2.0)
             return r.status_code == 200
