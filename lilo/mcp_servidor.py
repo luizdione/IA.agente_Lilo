@@ -34,6 +34,7 @@ Dependencia OPCIONAL: pip install mcp.
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -122,6 +123,48 @@ def esquecer(chave: str) -> str:
     return _exec("esquecer", {"chave": chave})
 
 
+def _switch_desligado() -> str | None:
+    """O dono pode ter um servidor externo que LIGA/DESLIGA o Ollama para
+    liberar a VRAM (ex.: o `ollama-delegate` dele). Aponte
+    LILO_OLLAMA_SWITCH para o arquivo de estado (JSON) e o `delegar` sabera
+    dizer que o Ollama foi desligado DE PROPOSITO, em vez de so "offline".
+
+    Retorna "" (desligado, sem motivo), " (motivo: ...)" ou None (ligado /
+    sem interruptor configurado / arquivo ilegivel — nunca levanta).
+    """
+    caminho = config.get_env("LILO_OLLAMA_SWITCH", "").strip()
+    if not caminho:
+        return None
+    try:
+        dados = json.loads(Path(caminho).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(dados, dict):
+        return None
+    estado = str(dados.get("estado") or dados.get("state")
+                 or dados.get("status") or "").strip().lower()
+    if not any(marca in estado for marca in ("deslig", "off", "parad")):
+        return None
+    motivo = str(dados.get("motivo") or dados.get("reason") or "").strip()
+    return " (motivo: %s)" % motivo if motivo else ""
+
+
+def _indisponivel(cliente) -> str | None:
+    """Mensagem CLARA quando nao da para delegar — o cliente MCP recebia um
+    traceback de conexao."""
+    if cliente.ping():
+        return None
+    switch = _switch_desligado()
+    if switch is not None:
+        return ("[ERRO] o Ollama esta DESLIGADO de proposito%s — a GPU foi "
+                "liberada para outro trabalho. Ligue-o antes de delegar "
+                "(a tool ollama_ligar do servidor de GPU, ou `ollama serve`)."
+                % switch)
+    return ("[ERRO] Ollama offline em %s — o agente local nao pode rodar. "
+            "Inicie o servico (`ollama serve`) e tente de novo."
+            % config.ollama_host())
+
+
 def _criar_cliente():
     """Isolado p/ monkeypatch nos testes (padrao _importar_fitz do tools)."""
     from lilo.cliente import ClienteOllama
@@ -142,11 +185,20 @@ def delegar(tarefa: str, modelo: str = "") -> str:
     # Claude Code exporta CLAUDE_PROJECT_DIR p/ servidores stdio; ancora o
     # contexto do agente delegado no projeto certo (o cwd do processo do
     # servidor nao e garantido).
+    cliente = _criar_cliente()
+    impedimento = _indisponivel(cliente)
+    if impedimento:
+        return impedimento
     raiz = Path(os.environ.get("CLAUDE_PROJECT_DIR") or Path.cwd())
     msgs = [{"role": "system", "content": agente.montar_system(raiz)}]
-    resposta, _ = agente.executar_tarefa(
-        tarefa, msgs, _perms(), cliente=_criar_cliente(),
-        ui=agente.UI(), modelo=modelo or None)
+    try:
+        resposta, _ = agente.executar_tarefa(
+            tarefa, msgs, _perms(), cliente=cliente,
+            ui=agente.UI(), modelo=modelo or None)
+    except Exception as e:  # noqa: BLE001 — o cliente MCP quer texto, nao stack
+        extra = _indisponivel(cliente) or ""
+        return "[ERRO] a tarefa delegada falhou (%s: %s). %s" % (
+            type(e).__name__, e, extra)
     return resposta
 
 
