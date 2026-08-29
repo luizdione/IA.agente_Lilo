@@ -6,16 +6,16 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.10.0 | **branch:** arch-v12 | **commit:** 2ee9ac3 Merge PR #21: docs(memoria) — CONTEXT.md pós-v13.10
-- **Testes:** 129 funcoes de teste (rode `python scripts/check.py`)
+- **Versao:** v13.11.0 | **branch:** arch-v12 | **commit:** 894ca6b Merge PR #22: docs(memoria) — ponte Claude Code validada na máquina do dono
+- **Testes:** 135 funcoes de teste (rode `python scripts/check.py`)
 - **Atualizado em:** 2026-08-29
 <!-- /AUTO:estado -->
 
 ## Ultimas entregas (AUTO — topo do CHANGELOG)
 <!-- AUTO:entregas -->
+- v13.11.0 — 2026-08-29 (o LILO no ambiente conda certo)
 - v13.10.0 — 2026-08-28 (o registro MCP à prova de shell)
 - v13.9.0 — 2026-08-27 (conserto: a conexão com o Claude Code)
-- v13.8.0 — 2026-08-27 (LILO dentro do Claude Code: memória + delegar)
 <!-- /AUTO:entregas -->
 
 ## Pendencias (MANUAL)
@@ -28,9 +28,14 @@
       (icone -> lilo web); `pip install PyMuPDF` (tool ler_pdf). Opcional:
       `pip install -e .` (comando `lilo`), `python scripts\limpar_mcp_claude.py`
       (entrada legada no Claude Desktop).
-- [ ] Redundancia a decidir com o dono: ele ja tinha um MCP `ollama-local`
-      (C:\github\ollama-delegate\server.py) que sobrepoe o `delegar` do
-      mcp-serve. Manter os dois ou aposentar o antigo?
+- [ ] **Ambiente do dono**: os pacotes de bioinformatica dele estao em
+      `miniforge3\envs\datascience`. Registrar o LILO com o python DESSE env
+      (`conectar_claude_code.ps1 -Python ...\envs\datascience\python.exe`)
+      + `pip install mcp` la. Sem isso o `shell`/`delegar` quebra em script
+      cientifico. (v13.11 ancora o PATH no interpretador registrado.)
+- [ ] Depois disso, decidir com o dono: o MCP `ollama-local`
+      (C:\github\ollama-delegate\server.py, env datascience) ainda agrega
+      algo alem do `delegar`? Falta ver as tools dele.
 - [ ] **v13.11 = friccoes de USO REAL** (terminal, web e Claude Code) que o
       dono relatar -> correcao + teste de regressao. Foi assim nas v13.9/13.10.
 - [ ] GATED ate caso de uso nomeado pelo dono: provider cloud plugavel;

@@ -3,6 +3,29 @@
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v12`).
 
+## v13.11.0 — 2026-08-29 (o LILO no ambiente conda certo)
+
+- 🔴 **Fricção real do dono**: os pacotes de bioinformática dele vivem no env
+  `miniforge3\envs\datascience`, mas o LILO foi registrado com o python do
+  `base`. O Claude Code sobe o `mcp-serve` **sem ativar conda**, então um
+  `python ...` disparado pela tool `shell` caía no interpretador do PATH
+  herdado — e qualquer script científico quebraria com `ModuleNotFoundError`.
+- **`alinhar_path_do_ambiente()`** (`lilo/mcp_servidor.py`, chamada no
+  `main()`): põe a pasta do interpretador que roda o servidor — e o
+  `Scripts`/`bin` dela — na **frente** do PATH. Move para a frente mesmo se
+  já estivesse listada (senão outro python ganharia a disputa) e é
+  idempotente. **Sem `resolve()`**: `bin/python` de um venv/env é um LINK
+  para o interpretador base, e segui-lo apontaria justamente para o ambiente
+  errado — bug pego pela validação viva.
+- **`conectar_claude_code.ps1 -Python <caminho>`**: escolhe explicitamente o
+  ambiente a registrar (sem a flag, usa o `python` ativo no PATH). O script
+  agora **imprime qual interpretador** foi escolhido, e a dica de erro do
+  `mcp` ausente já vem com o `pip install` daquele ambiente.
+- Testes: 134 (+5) — prioridade no PATH, idempotência, PATH vazio, o
+  symlink de venv e a presença do `-Python`. Validação viva: com um `python`
+  falso na frente do PATH, a tool `shell` do servidor passou a executar o
+  interpretador registrado.
+
 ## v13.10.0 — 2026-08-28 (o registro MCP à prova de shell)
 
 - 🔴 **2ª fricção real do dono**: com o bug do `--env` já corrigido, o

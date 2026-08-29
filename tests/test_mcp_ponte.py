@@ -91,8 +91,11 @@ def test_comando_do_servidor_nao_tem_hifens():
         assert not token.startswith("-"), (
             "token %r comeca com '-': o registro quebra quando o separador "
             "`--` nao sobrevive ao shell" % token)
-    codigo = "\n".join(ln for ln in SCRIPT_PS1.read_text(encoding="utf-8").splitlines()
-                       if not ln.lstrip().startswith("#"))
+    # so o CODIGO que monta o registro conta (comentarios e mensagens de
+    # ajuda podem citar `-m` justamente para explicar o bug)
+    codigo = "\n".join(
+        ln for ln in SCRIPT_PS1.read_text(encoding="utf-8").splitlines()
+        if not ln.lstrip().startswith("#") and "Write-Host" not in ln)
     assert " -m " not in codigo, "nao use `python -m ...` no comando registrado"
 
 
@@ -176,3 +179,82 @@ def test_handshake_real_pelo_servir_mcp():
     assert cmd[1].endswith("servir_mcp.py")
     ok, explicacao, err = diag.handshake(cmd, timeout=45)
     assert ok, "handshake falhou: %s | stderr: %s" % (explicacao, err[-500:])
+
+
+# --- v13.11: o servidor ancora no ambiente do interpretador -----------------
+def test_alinhar_path_poe_o_ambiente_do_interpretador_na_frente():
+    """O Claude Code sobe o servidor SEM ativar conda: sem isso, um `python`
+    disparado pela tool shell cairia noutro ambiente (sem os pacotes do dono)."""
+    import os
+    from pathlib import Path as _P
+
+    ambiente = {"PATH": os.pathsep.join(["/opt/outro", "/opt/mais"])}
+    resultado = mcp_servidor.alinhar_path_do_ambiente(ambiente)
+    partes = resultado.split(os.pathsep)
+    base = _P(sys.executable).parent
+    assert partes[0] == str(base), "o dir do interpretador vem primeiro"
+    assert str(base / ("Scripts" if os.name == "nt" else "bin")) in partes
+    assert partes[-2:] == ["/opt/outro", "/opt/mais"], "PATH herdado preservado"
+
+
+def test_alinhar_path_e_idempotente():
+    import os
+
+    ambiente = {"PATH": "/usr/bin"}
+    primeiro = mcp_servidor.alinhar_path_do_ambiente(ambiente)
+    segundo = mcp_servidor.alinhar_path_do_ambiente(ambiente)
+    assert primeiro == segundo, "chamar de novo nao pode duplicar entradas"
+
+
+def test_alinhar_path_com_path_vazio():
+    import os
+
+    ambiente = {}
+    resultado = mcp_servidor.alinhar_path_do_ambiente(ambiente)
+    assert resultado and not resultado.endswith(os.pathsep)
+
+
+def test_conectar_permite_escolher_o_ambiente():
+    """REGRESSAO v13.11: sem escolher o env, o LILO roda no python errado."""
+    texto = SCRIPT_PS1.read_text(encoding="utf-8")
+    assert re.search(r"^param\(\[string\]\$Python", texto, re.M), (
+        "o script precisa aceitar -Python <caminho> para escolher o ambiente")
+    codigo = "\n".join(ln for ln in texto.splitlines()
+                       if not ln.lstrip().startswith("#"))
+    assert "$pyExe = (Resolve-Path $Python).Path" in codigo, (
+        "o -Python deve virar caminho absoluto antes de registrar")
+    assert "Ambiente do LILO" in codigo, "mostre ao dono qual env foi escolhido"
+
+
+def test_alinhar_path_move_para_a_frente_mesmo_se_ja_estava_no_path():
+    """Se o dir do interpretador ja estava no PATH mas DEPOIS de outro
+    python, ele perderia a disputa — tem que ir para a frente."""
+    import os
+    from pathlib import Path as _P
+
+    base = str(_P(sys.executable).parent)
+    ambiente = {"PATH": os.pathsep.join(["/opt/outro_python", base])}
+    partes = mcp_servidor.alinhar_path_do_ambiente(ambiente).split(os.pathsep)
+    assert partes[0] == base
+    assert partes.count(base) == 1, "sem duplicar"
+    assert "/opt/outro_python" in partes
+
+
+def test_alinhar_path_nao_segue_symlink_do_interpretador(monkeypatch, tmp_path):
+    """Num venv/conda, `bin/python` e um LINK para o interpretador base:
+    seguir o link apontaria o PATH para o ambiente ERRADO (o oposto do que
+    esta funcao existe para fazer)."""
+    import os
+
+    base_real = tmp_path / "base" / "bin"
+    base_real.mkdir(parents=True)
+    (base_real / "python").write_text("#!/bin/sh\n", encoding="utf-8")
+    venv = tmp_path / "meu_env" / "bin"
+    venv.mkdir(parents=True)
+    (venv / "python").symlink_to(base_real / "python")
+
+    monkeypatch.setattr(sys, "executable", str(venv / "python"))
+    ambiente = {"PATH": "/opt/qualquer"}
+    partes = mcp_servidor.alinhar_path_do_ambiente(ambiente).split(os.pathsep)
+    assert partes[0] == str(venv), "tem que ficar no ambiente registrado"
+    assert str(base_real) not in partes, "nao pode cair no ambiente base"

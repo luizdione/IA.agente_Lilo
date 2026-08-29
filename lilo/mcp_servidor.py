@@ -26,9 +26,17 @@ Config no Claude Desktop (claude_desktop_config.json):
                             "args": ["-m", "lilo", "mcp-serve"],
                             "cwd": "C:\\\\github\\\\LILO"}}
 
+O servidor tambem ANCORA o PATH no ambiente do interpretador que o roda
+(v13.11) — registre o LILO com o python do ambiente onde estao os seus
+pacotes, e o que ele rodar usara esse mesmo ambiente.
+
 Dependencia OPCIONAL: pip install mcp.
 """
 from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
 
 from lilo import config, tools
 from lilo.portao import MODOS, Permissoes
@@ -157,7 +165,33 @@ def _criar_servidor():
         return FastMCP("lilo")
 
 
+def alinhar_path_do_ambiente(ambiente: dict | None = None) -> str:
+    """Ancora o servidor no ambiente do interpretador que o executa (v13.11).
+
+    O Claude Code sobe o `mcp-serve` SEM ativar conda/venv: um `python ...`
+    disparado pela tool `shell` cairia no interpretador do PATH herdado —
+    tipicamente OUTRO ambiente, sem os pacotes do usuario (no caso do dono,
+    os de bioinformatica ficam no env `datascience`). Poe a pasta DESTE
+    interpretador (e o Scripts/bin dela) na FRENTE do PATH, entao o que o
+    LILO roda usa o MESMO ambiente com que foi registrado.
+
+    Idempotente. Retorna o PATH resultante.
+    """
+    env = os.environ if ambiente is None else ambiente
+    # SEM resolve(): `bin/python` de um venv/env e um LINK para o interpretador
+    # base — resolver apontaria o PATH justamente para o ambiente errado.
+    base = Path(sys.executable).parent
+    extras = [base, base / ("Scripts" if os.name == "nt" else "bin")]
+    atual = [p for p in (env.get("PATH") or "").split(os.pathsep) if p]
+    alvo = [str(d) for d in extras]
+    # remove ocorrencias antigas antes de prefixar: se o diretorio ja estava
+    # no PATH mas DEPOIS de outro python, ele perderia a disputa.
+    env["PATH"] = os.pathsep.join(alvo + [p for p in atual if p not in alvo])
+    return env["PATH"]
+
+
 def main() -> int:
+    alinhar_path_do_ambiente()
     try:
         srv = _criar_servidor()
     except ImportError:
