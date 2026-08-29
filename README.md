@@ -1,7 +1,7 @@
 # LILO v13 — agente de terminal 100% local
 
 ![Status](https://img.shields.io/badge/status-ativo-brightgreen)
-![Version](https://img.shields.io/badge/version-13.10.0-blue)
+![Version](https://img.shields.io/badge/version-13.11.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-yellow)
 ![Arch](https://img.shields.io/badge/arch-v12-purple)
 
@@ -76,7 +76,13 @@ seus projetos (pré-requisito: `pip install mcp`):
 
 ```powershell
 .\scripts\conectar_claude_code.ps1
+# ou, para o LILO viver num ambiente conda especifico (v13.11):
+.\scripts\conectar_claude_code.ps1 -Python C:\Users\voce\miniforge3\envs\SEU_ENV\python.exe
 ```
+
+**Escolha o ambiente com cuidado**: o LILO roda os seus scripts com o
+interpretador registrado (e ancora o PATH nele). Se os seus pacotes estão num
+env conda, registre o python DELE.
 
 O Claude real passa a ter, em qualquer pasta: **memória persistente
 compartilhada** (`memorizar`/`lembrar`/`esquecer` — o mesmo banco do LILO),
