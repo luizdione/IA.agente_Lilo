@@ -8,6 +8,7 @@ Claude Code pensa do servidor (`claude mcp list/get`) e o fim do log.
 
     python scripts\\diagnosticar_mcp.py              # relatorio completo
     python scripts\\diagnosticar_mcp.py --handshake  # so o teste do servidor
+    python scripts\\diagnosticar_mcp.py --cmd <prog> <args...>   # comando exato
 
 Sai com 0 se o handshake passou; 1 se nao (o conectar_claude_code.ps1 usa
 isso para nao registrar um servidor quebrado).
@@ -61,11 +62,19 @@ def interpretar_resposta(linha: str) -> tuple[bool, str]:
 
 
 # --- handshake real ---------------------------------------------------------
-def handshake(python_exe: str | None = None,
+def comando_padrao() -> list[str]:
+    """O comando dash-free que o conectar_claude_code.ps1 registra quando nao
+    ha `lilo.exe` (v13.10): <python> <repo>/scripts/servir_mcp.py."""
+    return [sys.executable, str(RAIZ / "scripts" / "servir_mcp.py")]
+
+
+def handshake(cmd: list[str] | None = None,
               timeout: float = HANDSHAKE_TIMEOUT_S) -> tuple[bool, str, str]:
-    """Sobe `python -m lilo mcp-serve`, manda `initialize`, le a resposta.
+    """Sobe o servidor MCP, manda `initialize`, le a resposta.
+    `cmd` = a linha de comando EXATA que sera registrada no Claude Code
+    (assim o autoteste valida o mesmo caminho que vai rodar de verdade).
     Retorna (ok, explicacao, stderr_do_servidor)."""
-    cmd = [python_exe or sys.executable, "-m", "lilo", "mcp-serve"]
+    cmd = list(cmd) if cmd else comando_padrao()
     try:
         proc = subprocess.Popen(
             cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -124,7 +133,7 @@ def _versao_pacote(nome: str) -> str:
         return "AUSENTE"
 
 
-def relatorio() -> int:
+def relatorio(cmd_extra: list[str] | None = None) -> int:
     print("=== Diagnostico LILO <-> Claude Code =========================")
     print("Python........: %s" % sys.executable)
     print("Versao Python.: %s" % sys.version.split()[0])
@@ -139,8 +148,10 @@ def relatorio() -> int:
     print("pacote PyMuPDF: %s (opcional, tool ler_pdf)" % _versao_pacote("PyMuPDF"))
     print()
 
-    print("--- handshake com o servidor (python -m lilo mcp-serve) ---")
-    ok, explicacao, err = handshake()
+    cmd = cmd_extra or comando_padrao()
+    print("--- handshake com o servidor ---")
+    print("comando: %s" % " ".join(cmd))
+    ok, explicacao, err = handshake(cmd)
     print("%s %s" % ("[OK]" if ok else "[FALHOU]", explicacao))
     if err.strip():
         print("stderr do servidor (ultimas linhas):")
@@ -173,16 +184,24 @@ def relatorio() -> int:
     return 0 if ok else 1
 
 
+def _extrair_cmd(args: list[str]) -> tuple[list[str], list[str] | None]:
+    """`--cmd <programa> <args...>`: tudo depois de --cmd e a linha do servidor."""
+    if "--cmd" not in args:
+        return args, None
+    i = args.index("--cmd")
+    return args[:i], (args[i + 1:] or None)
+
+
 def main(argv: list[str] | None = None) -> int:
-    args = list(argv if argv is not None else sys.argv[1:])
+    args, cmd = _extrair_cmd(list(argv if argv is not None else sys.argv[1:]))
     if "--handshake" in args:
-        ok, explicacao, err = handshake()
+        ok, explicacao, err = handshake(cmd)
         print("%s %s" % ("[OK]" if ok else "[FALHOU]", explicacao))
         if not ok and err.strip():
             for linha in err.strip().splitlines()[-12:]:
                 print("  | %s" % linha)
         return 0 if ok else 1
-    return relatorio()
+    return relatorio(cmd)
 
 
 if __name__ == "__main__":

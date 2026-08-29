@@ -6,19 +6,16 @@
 # `delegar` — despachar uma tarefa COMPLETA ao agente LILO local (qwen3 na
 # sua GPU): gratis, offline, privado.
 #
-# Pre-requisitos (uma vez, na raiz do repo):
-#   pip install -e .        (o modulo `lilo` importavel de qualquer pasta)
-#   pip install mcp         (protocolo MCP)
+# Pre-requisito (uma vez, na raiz do repo):  pip install mcp
 #
-# v13.9 — o que mudou (a conexao falhava na v13.8):
-#   * ORDEM DOS ARGUMENTOS: a doc do Claude Code exige pelo menos uma opcao
-#     ENTRE `--env` e o nome do servidor; `--env K=V lilo` fazia o `lilo`
-#     ser lido como mais um par de variavel e o `add` falhava.
-#   * Sem $ErrorActionPreference="Stop": no PowerShell 5.1 o stderr de um
-#     comando nativo virava erro terminante e escondia a mensagem util.
-#   * Registra o CAMINHO ABSOLUTO do python que passou no teste (o Claude
-#     Code sobe o servidor com o PATH dele — venv/py launcher quebravam).
-#   * Idempotente: remove um `lilo` antigo antes de registrar.
+# v13.10 — COMANDO A PROVA DE SHELL. O `claude mcp add` recebe o comando do
+# servidor depois de `--`, mas esse separador nem sempre sobrevive ao
+# PowerShell/shim do npm: sumindo ele, o `-m` de `python -m lilo mcp-serve`
+# virava "error: unknown option '-m'". Agora registramos
+# `<python> ...\scripts\servir_mcp.py` — NENHUM token comeca com `-`, entao
+# o registro funciona com ou sem o separador, em qualquer shell.
+# (v13.9 corrigiu a ordem dos argumentos: `--env` e variadico e engolia o
+# nome do servidor se viesse colado nele.)
 #
 # Nao conectou? Rode:  python scripts\diagnosticar_mcp.py
 # Desfazer:            claude mcp remove lilo --scope user
@@ -31,8 +28,8 @@ if (-not $claude) {
     exit 1
 }
 
-# Python: precisa ser o MESMO interpretador que tem lilo+mcp, e vamos gravar
-# o caminho absoluto dele no registro (nao a palavra 'python').
+# O Claude Code sobe o servidor com o PATH DELE: gravamos o caminho absoluto
+# do interpretador que acabamos de testar, nao a palavra 'python'.
 $py = Get-Command python -ErrorAction SilentlyContinue
 if (-not $py) { $py = Get-Command py -ErrorAction SilentlyContinue }
 if (-not $py) {
@@ -41,20 +38,26 @@ if (-not $py) {
     exit 1
 }
 $pyExe = $py.Source
-$checagem = & $pyExe -c "import lilo, mcp; print('ok')" 2>&1
+$checagem = & $pyExe -c "import mcp; print('ok')" 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERRO] 'lilo' e/ou 'mcp' nao importam em $pyExe" -ForegroundColor Red
+    Write-Host "[ERRO] o pacote 'mcp' nao importa em $pyExe" -ForegroundColor Red
     Write-Host $checagem
-    Write-Host "Na raiz do repo rode (um comando por linha):"
-    Write-Host "  pip install -e ."
-    Write-Host "  pip install mcp"
+    Write-Host "Rode:  pip install mcp"
     exit 1
 }
 
-# --- autoteste: o servidor sobe e responde o handshake? ---------------------
+# --- o comando do servidor (SEM nenhum token comecando com '-') -------------
+$servidor = Join-Path $PSScriptRoot "servir_mcp.py"
+if (-not (Test-Path $servidor)) {
+    Write-Host "[ERRO] nao achei $servidor (repo incompleto? rode git pull)" -ForegroundColor Red
+    exit 1
+}
+$cmdServidor = @($pyExe, $servidor)
+
+# --- autoteste: o comando EXATO que vamos registrar responde o handshake? ---
 $diag = Join-Path $PSScriptRoot "diagnosticar_mcp.py"
 if (Test-Path $diag) {
-    & $pyExe $diag --handshake
+    & $pyExe $diag --handshake --cmd @cmdServidor
     if ($LASTEXITCODE -ne 0) {
         Write-Host ""
         Write-Host "[ERRO] o servidor MCP do LILO nao respondeu ao handshake." -ForegroundColor Red
@@ -67,14 +70,19 @@ if (Test-Path $diag) {
 # Idempotencia: um 'lilo' anterior impede o add (ignoramos a saida aqui).
 & $claude.Source mcp remove lilo --scope user 2>&1 | Out-Null
 
-# ORDEM EXIGIDA PELA DOC: --env ... --scope/--transport ... NOME -- comando
-$saida = & $claude.Source mcp add `
-    --env LILO_MCP_SERVE_MODE=accept_edits `
-    --scope user --transport stdio lilo `
-    -- $pyExe -m lilo mcp-serve 2>&1
+# ORDEM EXIGIDA PELA DOC: --env ... (outra opcao) ... NOME -- comando
+$argsAdd = @('mcp', 'add',
+             '--env', 'LILO_MCP_SERVE_MODE=accept_edits',
+             '--scope', 'user',
+             '--transport', 'stdio',
+             'lilo', '--') + $cmdServidor
+$saida = & $claude.Source @argsAdd 2>&1
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERRO] 'claude mcp add' falhou:" -ForegroundColor Red
     Write-Host $saida
+    Write-Host ""
+    Write-Host "Comando tentado:"
+    Write-Host ("  claude " + ($argsAdd -join ' '))
     exit 1
 }
 Write-Host $saida
