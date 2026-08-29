@@ -1,7 +1,7 @@
 # LILO v13 — agente de terminal 100% local
 
 ![Status](https://img.shields.io/badge/status-ativo-brightgreen)
-![Version](https://img.shields.io/badge/version-13.9.0-blue)
+![Version](https://img.shields.io/badge/version-13.10.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-yellow)
 ![Arch](https://img.shields.io/badge/arch-v12-purple)
 
@@ -72,7 +72,7 @@ escrita na allow-list passam; shell pede `auto`; git nunca passa sem grant).
 ## LILO dentro do Claude Code (v13.8)
 
 Uma linha registra o LILO como servidor MCP do Claude Code em **todos** os
-seus projetos:
+seus projetos (pré-requisito: `pip install mcp`):
 
 ```powershell
 .\scripts\conectar_claude_code.ps1

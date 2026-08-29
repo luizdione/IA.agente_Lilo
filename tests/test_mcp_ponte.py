@@ -1,10 +1,14 @@
-"""Testes da v13.9 — diagnostico da ponte MCP + stdout limpo no servidor.
+"""Testes da PONTE MCP (LILO <-> Claude Code) — v13.9 + v13.10.
 
-A v13.8 falhou na maquina do dono por causa da ORDEM dos argumentos do
-`claude mcp add` (a doc exige uma opcao entre `--env` e o nome do servidor)
-e a mensagem util se perdeu. Aqui travamos: (a) as partes puras do
-handshake, (b) a forma do comando gravado no script de conexao, (c) a
-promessa de que o `mcp-serve` nao escreve NADA em stdout antes do protocolo.
+Duas falhas reais na maquina do dono, ambas no comando de registro, ambas
+travadas aqui:
+
+* v13.9 — `--env` e VARIADICO: colado no nome do servidor, o CLI lia `lilo`
+  como mais um par de variavel ("Invalid environment variable format").
+* v13.10 — o separador `--` nem sempre sobrevive ao PowerShell/shim do npm;
+  sem ele, qualquer token com `-` no comando do servidor vira opcao
+  ("unknown option '-m'"). Por isso o comando registrado NAO pode ter
+  hifens — e o teste abaixo garante isso.
 """
 from __future__ import annotations
 
@@ -63,22 +67,57 @@ def test_interpretar_resposta_sem_result():
 
 
 # --- o comando gravado pelo script de conexao -------------------------------
-def test_conectar_usa_a_ordem_documentada_do_claude_mcp_add():
-    """Regressao da causa-raiz: `--env` NAO pode encostar no nome do servidor
-    (a doc le o nome como mais um par de variavel e o add falha)."""
+def _args_add() -> list[str]:
+    """Os elementos literais do array `$argsAdd` do .ps1 (o `claude mcp add`)."""
     texto = SCRIPT_PS1.read_text(encoding="utf-8")
-    # junta as continuacoes de linha (`) para inspecionar o comando inteiro
-    comando = re.sub(r"`\s*\n\s*", " ", texto)
-    m = re.search(r"mcp add (.+?) 2>&1", comando, re.S)
-    assert m, "comando `claude mcp add` nao encontrado no script"
-    args = m.group(1).split()
+    m = re.search(r"\$argsAdd\s*=\s*@\((.*?)\)\s*\+\s*\$cmdServidor",
+                  texto, re.S)
+    assert m, "array $argsAdd nao encontrado no script"
+    return re.findall(r"'([^']*)'", m.group(1))
+
+
+def _cmd_servidor() -> list[str]:
+    """Os elementos de `$cmdServidor` (o comando do servidor propriamente)."""
+    texto = SCRIPT_PS1.read_text(encoding="utf-8")
+    m = re.search(r"\$cmdServidor\s*=\s*@\((.*?)\)", texto, re.S)
+    assert m, "array $cmdServidor nao encontrado no script"
+    return [p.strip() for p in m.group(1).split(",")]
+
+
+def test_comando_do_servidor_nao_tem_hifens():
+    """REGRESSAO v13.10: se o `--` for engolido pelo shell, qualquer token
+    com `-` no comando vira opcao desconhecida no CLI."""
+    for token in _cmd_servidor():
+        assert not token.startswith("-"), (
+            "token %r comeca com '-': o registro quebra quando o separador "
+            "`--` nao sobrevive ao shell" % token)
+    codigo = "\n".join(ln for ln in SCRIPT_PS1.read_text(encoding="utf-8").splitlines()
+                       if not ln.lstrip().startswith("#"))
+    assert " -m " not in codigo, "nao use `python -m ...` no comando registrado"
+
+
+def test_ordem_documentada_do_claude_mcp_add():
+    """REGRESSAO v13.9: `--env` e variadico — precisa de outra OPCAO entre ele
+    e o nome do servidor, senao o nome e lido como variavel."""
+    args = _args_add()
+    assert args[:2] == ["mcp", "add"]
     i_env, i_nome = args.index("--env"), args.index("lilo")
     assert i_env < i_nome, "--env deve vir antes do nome"
     assert i_nome - i_env >= 3, ("precisa de pelo menos uma OPCAO entre --env "
                                  "e o nome do servidor (regra da doc)")
     assert args[i_nome + 1] == "--", "o nome vem logo antes do separador --"
-    assert "$pyExe" in args, "registre o caminho ABSOLUTO do python"
-    assert "python" not in args, "nao registre a palavra 'python' (PATH do filho)"
+    assert args[-1] == "--", "o comando do servidor entra depois do --"
+    assert "--scope" in args and "user" in args  # escopo user = todos projetos
+
+
+def test_registra_python_absoluto_e_o_lancador_dash_free():
+    cmd = _cmd_servidor()
+    assert "$pyExe" in cmd[0], "registre o caminho ABSOLUTO do interpretador"
+    texto = SCRIPT_PS1.read_text(encoding="utf-8")
+    # o 2o elemento e a variavel do lancador; conferimos de onde ela vem
+    padrao = re.escape(cmd[1]) + r"\s*=\s*Join-Path[^\n]*servir_mcp\.py"
+    assert re.search(padrao, texto), (
+        "o comando deve apontar para o scripts/servir_mcp.py")
 
 
 def test_conectar_e_idempotente_e_nao_usa_erroraction_stop():
@@ -89,7 +128,8 @@ def test_conectar_e_idempotente_e_nao_usa_erroraction_stop():
     assert "$ErrorActionPreference" not in codigo, (
         "EAP=Stop transforma stderr de comando nativo em erro terminante no "
         "PowerShell 5.1 e esconde a mensagem util")
-    assert "--scope user" in codigo  # escopo user = todos os projetos
+    assert "--handshake --cmd" in codigo, (
+        "o autoteste precisa validar o MESMO comando que sera registrado")
 
 
 # --- stdout do servidor limpo ------------------------------------------------
@@ -128,9 +168,11 @@ def test_cli_nao_dispara_os_system_no_mcp_serve(monkeypatch):
     assert chamou == [], "os.system nao pode rodar no caminho do mcp-serve"
 
 
-def test_handshake_real_com_o_servidor():
-    """Vivo: sobe o mcp-serve de verdade e faz o handshake (nao precisa de
-    Ollama — so do pacote opcional `mcp`; pula limpo sem ele)."""
+def test_handshake_real_pelo_servir_mcp():
+    """Vivo: o lancador dash-free (servir_mcp.py) sobe o servidor e responde
+    — e o MESMO comando que o .ps1 registra. Pula sem o pacote `mcp`."""
     pytest.importorskip("mcp", reason="pacote opcional 'mcp' nao instalado")
-    ok, explicacao, err = diag.handshake(timeout=45)
+    cmd = diag.comando_padrao()
+    assert cmd[1].endswith("servir_mcp.py")
+    ok, explicacao, err = diag.handshake(cmd, timeout=45)
     assert ok, "handshake falhou: %s | stderr: %s" % (explicacao, err[-500:])

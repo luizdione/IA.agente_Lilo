@@ -6,16 +6,16 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.9.0 | **branch:** arch-v12 | **commit:** 4427acc Merge PR #18: v13.8.0 — LILO dentro do Claude Code (delegar + conexão em 1 linha)
-- **Testes:** 127 funcoes de teste (rode `python scripts/check.py`)
-- **Atualizado em:** 2026-08-28
+- **Versao:** v13.10.0 | **branch:** arch-v12 | **commit:** 1b42edf Merge PR #19: v13.9.0 — conserta a conexão com o Claude Code (ordem dos args do mcp add)
+- **Testes:** 129 funcoes de teste (rode `python scripts/check.py`)
+- **Atualizado em:** 2026-08-29
 <!-- /AUTO:estado -->
 
 ## Ultimas entregas (AUTO — topo do CHANGELOG)
 <!-- AUTO:entregas -->
+- v13.10.0 — 2026-08-28 (o registro MCP à prova de shell)
 - v13.9.0 — 2026-08-27 (conserto: a conexão com o Claude Code)
 - v13.8.0 — 2026-08-27 (LILO dentro do Claude Code: memória + delegar)
-- v13.7.0 — 2026-08-26 (o chat no NAVEGADOR de volta: `lilo web`)
 <!-- /AUTO:entregas -->
 
 ## Pendencias (MANUAL)
@@ -55,7 +55,12 @@
       Script reescrito (ordem correta, sem EAP=Stop que escondia o erro no
       PS 5.1, python ABSOLUTO, idempotente) + scripts/diagnosticar_mcp.py
       (handshake JSON-RPC real) + stdout do mcp-serve blindado.
-- [ ] v13.10: proximas friccoes de USO REAL (terminal, web e Claude Code)
+- [x] v13.10 ENTREGUE (28/08) — 2a FRICCAO REAL: `unknown option '-m'`. O
+      separador `--` do `claude mcp add` nao sobrevive ao PowerShell 5.1/shim
+      do npm. Fix estrutural: comando registrado SEM hifens
+      (<python> scripts\servir_mcp.py); autoteste valida o comando EXATO.
+      Provado ao vivo (sem `--`: forma antiga falha, nova da Connected).
+- [ ] v13.11: proximas friccoes de USO REAL (terminal, web e Claude Code)
       -> correcoes.
 - [ ] Reavaliar qwen2.5-coder como LILO_MODEL_FAST se o template de tools
       for corrigido em Ollama futuro (hoje: familia qwen3).

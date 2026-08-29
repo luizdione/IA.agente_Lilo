@@ -3,6 +3,32 @@
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v12`).
 
+## v13.10.0 — 2026-08-28 (o registro MCP à prova de shell)
+
+- 🔴 **2ª fricção real do dono**: com o bug do `--env` já corrigido, o
+  `claude mcp add` passou a falhar com **`error: unknown option '-m'`**. O
+  separador `--` (que protege argumentos com hífen) **não sobrevive ao
+  PowerShell 5.1 / shim do npm** — sem ele, o `-m` de
+  `python -m lilo mcp-serve` vira opção desconhecida. No bash do container o
+  mesmo comando funcionava: por isso passou na validação e quebrou lá.
+- **Correção estrutural** (em vez de brigar com o parsing de cada shell): o
+  comando registrado não tem **nenhum token começando com `-`** — vira
+  `<python-absoluto> <repo>\scripts\servir_mcp.py`. Assim o resultado é o
+  mesmo com ou sem o separador, em PowerShell 5.1/7, cmd e bash.
+  Reproduzido ao vivo: sem o `--`, a forma antiga responde
+  `unknown option '-m'` e a nova registra e dá `√ Connected`.
+- **`scripts/servir_mcp.py`** (novo, 12 linhas): lançador do MESMO
+  subcomando (irmão do `lilo.bat`/`lilo.ps1`, zero lógica própria) que ainda
+  funciona **sem `pip install -e .`** (põe a raiz do repo no `sys.path`) —
+  o pré-requisito agora é só `pip install mcp`.
+- **Autoteste coerente**: `diagnosticar_mcp.py` ganhou `--cmd` e o script de
+  conexão manda o **comando exato** que vai registrar — acabou o risco de
+  validar um caminho e registrar outro. Falhou o `add`? o script imprime a
+  linha inteira que tentou.
+- Testes: 130 (+3) — `tests/test_v139.py` virou **`tests/test_mcp_ponte.py`**
+  e ganhou a invariante que teria pego este bug (nenhum hífen no comando do
+  servidor), além do handshake vivo pelo próprio `servir_mcp.py`.
+
 ## v13.9.0 — 2026-08-27 (conserto: a conexão com o Claude Code)
 
 - 🔴 **Causa-raiz da falha do `claude mcp add`** (reportada pelo dono):
