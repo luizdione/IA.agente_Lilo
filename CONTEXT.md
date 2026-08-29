@@ -6,7 +6,7 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.10.0 | **branch:** arch-v12 | **commit:** 7d1ac47 Merge PR #20: v13.10.0 — registro MCP à prova de shell (comando sem hífens)
+- **Versao:** v13.10.0 | **branch:** arch-v12 | **commit:** 2ee9ac3 Merge PR #21: docs(memoria) — CONTEXT.md pós-v13.10
 - **Testes:** 129 funcoes de teste (rode `python scripts/check.py`)
 - **Atualizado em:** 2026-08-29
 <!-- /AUTO:estado -->
@@ -20,11 +20,17 @@
 
 ## Pendencias (MANUAL)
 
-- [ ] **Maquina do dono** (pendente): `git pull`; `pip install mcp` (ponte
-      Claude Code) e `pip install PyMuPDF` (ler_pdf);
-      `.\scripts\conectar_claude_code.ps1`; `python scripts\criar_atalho.py`
-      (icone -> lilo web). Opcional: `pip install -e .` (comando `lilo`),
-      `python scripts\limpar_mcp_claude.py` (entrada legada do Desktop).
+- [x] **Ponte Claude Code VALIDADA na maquina do dono (29/08)**: `lilo:
+      C:\Users\luizd\miniforge3\python.exe C:\github\LILO\scripts\servir_mcp.py
+      - Connected`. Fecha a v13.10 (o comando sem hifens sobreviveu ao
+      PowerShell 5.1 real).
+- [ ] **Maquina do dono** (o que falta): `python scripts\criar_atalho.py`
+      (icone -> lilo web); `pip install PyMuPDF` (tool ler_pdf). Opcional:
+      `pip install -e .` (comando `lilo`), `python scripts\limpar_mcp_claude.py`
+      (entrada legada no Claude Desktop).
+- [ ] Redundancia a decidir com o dono: ele ja tinha um MCP `ollama-local`
+      (C:\github\ollama-delegate\server.py) que sobrepoe o `delegar` do
+      mcp-serve. Manter os dois ou aposentar o antigo?
 - [ ] **v13.11 = friccoes de USO REAL** (terminal, web e Claude Code) que o
       dono relatar -> correcao + teste de regressao. Foi assim nas v13.9/13.10.
 - [ ] GATED ate caso de uso nomeado pelo dono: provider cloud plugavel;
