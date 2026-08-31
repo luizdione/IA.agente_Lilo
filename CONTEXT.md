@@ -6,7 +6,7 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.12.0 | **branch:** arch-v12 | **commit:** 91e7139 Merge PR #24: v13.12.0 — delegar respeita o interruptor de GPU
+- **Versao:** v13.12.0 | **branch:** arch-v12 | **commit:** 7673611 Merge PR #25: docs(memoria) — LILO operacional no env datascience
 - **Testes:** 139 funcoes de teste (rode `python scripts/check.py`)
 - **Atualizado em:** 2026-08-31
 <!-- /AUTO:estado -->
@@ -20,20 +20,16 @@
 
 ## Pendencias (MANUAL)
 
-- [x] **Ponte Claude Code VALIDADA na maquina do dono (29/08)**: `lilo:
-      C:\Users\luizd\miniforge3\python.exe C:\github\LILO\scripts\servir_mcp.py
-      - Connected`. Fecha a v13.10 (o comando sem hifens sobreviveu ao
-      PowerShell 5.1 real).
 - [ ] **Maquina do dono** (o que falta): `python scripts\criar_atalho.py`
       (o icone ainda abre o REPL antigo, nao o `lilo web`); `PyMuPDF` no env
       datascience (tool ler_pdf). Opcional: LILO_OLLAMA_SWITCH no .env
       (motivo do desligamento da GPU), `pip install -e .`,
       `python scripts\limpar_mcp_claude.py` (entrada legada do Desktop).
-- [x] **Ambiente CERTO confirmado (29/08)**: `lilo:
+- [x] **PONTE OPERACIONAL na maquina do dono (29/08)**: `lilo:
       ...miniforge3\envs\datascience\python.exe ...\servir_mcp.py - Connected`
-      — mesmo env do `ollama-local`, onde vivem os pacotes de bioinformatica.
-      Fecha a v13.11 na pratica. Falta so o teste de aceite: delegar um
-      `import Bio` e ver a versao (em vez de ModuleNotFoundError).
+      — comando sem hifens sobreviveu ao PowerShell 5.1 (v13.10) E no env
+      com os pacotes de bioinformatica (v13.11). Falta o teste de aceite:
+      delegar um `import Bio` e ver a versao, nao ModuleNotFoundError.
 - [x] DECIDIDO (29/08): manter os DOIS servidores — papeis distintos.
       `ollama-local` = arbitragem da GPU (status/ligar/desligar com checagem
       de VRAM, + embeddings); `lilo` = trabalho agentico (delegar com loop,
