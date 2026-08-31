@@ -6,7 +6,7 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.12.0 | **branch:** arch-v12 | **commit:** 7673611 Merge PR #25: docs(memoria) — LILO operacional no env datascience
+- **Versao:** v13.12.0 | **branch:** arch-v12 | **commit:** 815d6e0 Merge PR #26: docs(memoria) — AUTO atualizado + poda das seções MANUAL
 - **Testes:** 139 funcoes de teste (rode `python scripts/check.py`)
 - **Atualizado em:** 2026-08-31
 <!-- /AUTO:estado -->
@@ -20,11 +20,10 @@
 
 ## Pendencias (MANUAL)
 
-- [ ] **Maquina do dono** (o que falta): `python scripts\criar_atalho.py`
-      (o icone ainda abre o REPL antigo, nao o `lilo web`); `PyMuPDF` no env
-      datascience (tool ler_pdf). Opcional: LILO_OLLAMA_SWITCH no .env
-      (motivo do desligamento da GPU), `pip install -e .`,
-      `python scripts\limpar_mcp_claude.py` (entrada legada do Desktop).
+- [x] **Maquina do dono EM DIA (31/08)**: git pull, icone regravado
+      (`criar_atalho.py` -> `lilo web`) e PyMuPDF no env datascience.
+      Opcionais que sobram: LILO_OLLAMA_SWITCH no .env (motivo do
+      desligamento da GPU), `pip install -e .`, `limpar_mcp_claude.py`.
 - [x] **PONTE OPERACIONAL na maquina do dono (29/08)**: `lilo:
       ...miniforge3\envs\datascience\python.exe ...\servir_mcp.py - Connected`
       — comando sem hifens sobreviveu ao PowerShell 5.1 (v13.10) E no env
