@@ -6,9 +6,9 @@
 
 ## Estado atual (AUTO)
 <!-- AUTO:estado -->
-- **Versao:** v13.12.0 | **branch:** arch-v12 | **commit:** e1cfb49 Merge PR #23: v13.11.0 — LILO ancorado no ambiente conda registrado
+- **Versao:** v13.12.0 | **branch:** arch-v12 | **commit:** 91e7139 Merge PR #24: v13.12.0 — delegar respeita o interruptor de GPU
 - **Testes:** 139 funcoes de teste (rode `python scripts/check.py`)
-- **Atualizado em:** 2026-08-29
+- **Atualizado em:** 2026-08-31
 <!-- /AUTO:estado -->
 
 ## Ultimas entregas (AUTO — topo do CHANGELOG)
@@ -25,14 +25,15 @@
       - Connected`. Fecha a v13.10 (o comando sem hifens sobreviveu ao
       PowerShell 5.1 real).
 - [ ] **Maquina do dono** (o que falta): `python scripts\criar_atalho.py`
-      (icone -> lilo web); `pip install PyMuPDF` (tool ler_pdf). Opcional:
-      `pip install -e .` (comando `lilo`), `python scripts\limpar_mcp_claude.py`
-      (entrada legada no Claude Desktop).
-- [ ] **Ambiente do dono**: os pacotes de bioinformatica dele estao em
-      `miniforge3\envs\datascience`. Registrar o LILO com o python DESSE env
-      (`conectar_claude_code.ps1 -Python ...\envs\datascience\python.exe`)
-      + `pip install mcp` la. Sem isso o `shell`/`delegar` quebra em script
-      cientifico. (v13.11 ancora o PATH no interpretador registrado.)
+      (o icone ainda abre o REPL antigo, nao o `lilo web`); `PyMuPDF` no env
+      datascience (tool ler_pdf). Opcional: LILO_OLLAMA_SWITCH no .env
+      (motivo do desligamento da GPU), `pip install -e .`,
+      `python scripts\limpar_mcp_claude.py` (entrada legada do Desktop).
+- [x] **Ambiente CERTO confirmado (29/08)**: `lilo:
+      ...miniforge3\envs\datascience\python.exe ...\servir_mcp.py - Connected`
+      — mesmo env do `ollama-local`, onde vivem os pacotes de bioinformatica.
+      Fecha a v13.11 na pratica. Falta so o teste de aceite: delegar um
+      `import Bio` e ver a versao (em vez de ModuleNotFoundError).
 - [x] DECIDIDO (29/08): manter os DOIS servidores — papeis distintos.
       `ollama-local` = arbitragem da GPU (status/ligar/desligar com checagem
       de VRAM, + embeddings); `lilo` = trabalho agentico (delegar com loop,
