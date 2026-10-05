@@ -45,7 +45,6 @@ services:
       # --- acesso -----------------------------------------------------------
       WEBUI_AUTH: "True"             # login ligado: ha tools que executam no host
       ENABLE_API_KEYS: "True"        # scripts\bench.py e owui_presets.py usam a chave
-      ENABLE_API_KEY: "True"
       DEFAULT_LOCALE: "pt-BR"
       # --- nada sai da maquina sem pedido -----------------------------------
       ENABLE_COMMUNITY_SHARING: "False"
