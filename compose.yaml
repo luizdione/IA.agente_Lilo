@@ -1,0 +1,58 @@
+# LILO v14 — interface em container. O motor (Ollama, modelo `lilo`) e a ponte
+# lilo-host rodam no HOST; aqui fica so o que e peca pronta do Docker.
+#
+#   .\lilo.ps1 up        (ou: docker compose up -d)
+#
+# A configuracao do Open WebUI vive NESTE arquivo: ENABLE_PERSISTENT_CONFIG=False
+# faz o ambiente vencer o banco, entao ajuste feito no painel de admin nao
+# sobrevive a um restart. Usuarios, conversas e presets ficam no volume.
+name: lilo
+
+services:
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:v0.11.4
+    container_name: lilo_openwebui
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:8080"        # so local; nada exposto na rede
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    mem_limit: 4g
+    volumes:
+      - openwebui_dados:/app/backend/data
+    environment:
+      WEBUI_NAME: "LILO"
+      ENABLE_PERSISTENT_CONFIG: "False"
+      # --- motor: Ollama do host, unico dono da GPU -------------------------
+      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+      ENABLE_OLLAMA_API: "True"
+      ENABLE_OPENAI_API: "False"
+      DEFAULT_MODELS: "lilo:latest"
+      # think:false = regra de velocidade 3 (com thinking o "2+2" leva 6,5 s).
+      # Nunca por aqui opcao de runner (num_ctx, num_gpu...): o contexto vem do
+      # Modelfile do `lilo`, e opcao diferente faz o Ollama recarregar o modelo.
+      DEFAULT_MODEL_PARAMS: '{"think": false}'
+      # --- regra de velocidade 4: nada roda escondido na GPU ----------------
+      # O Ollama atende 1 requisicao por vez; cada geracao de fundo entraria na
+      # fila na frente da proxima pergunta.
+      ENABLE_TITLE_GENERATION: "False"
+      ENABLE_TAGS_GENERATION: "False"
+      ENABLE_FOLLOW_UP_GENERATION: "False"
+      ENABLE_AUTOCOMPLETE_GENERATION: "False"
+      ENABLE_SEARCH_QUERY_GENERATION: "False"
+      ENABLE_RETRIEVAL_QUERY_GENERATION: "False"
+      ENABLE_EVALUATION_ARENA_MODELS: "False"
+      # --- acesso -----------------------------------------------------------
+      WEBUI_AUTH: "True"             # login ligado: ha tools que executam no host
+      ENABLE_API_KEYS: "True"        # scripts\bench.py e owui_presets.py usam a chave
+      ENABLE_API_KEY: "True"
+      DEFAULT_LOCALE: "pt-BR"
+      # --- nada sai da maquina sem pedido -----------------------------------
+      ENABLE_COMMUNITY_SHARING: "False"
+      ENABLE_VERSION_UPDATE_CHECK: "False"
+      ANONYMIZED_TELEMETRY: "False"
+      DO_NOT_TRACK: "True"
+      SCARF_NO_ANALYTICS: "True"
+
+volumes:
+  openwebui_dados:

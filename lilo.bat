@@ -1,11 +1,8 @@
 @echo off
-rem LILO v13 — lancador Windows. Duplo clique = REPL; "lilo.bat "tarefa"" = one-shot.
-chcp 65001 >nul
-setlocal
-cd /d "%~dp0"
-if exist ".venv\Scripts\activate.bat" call ".venv\Scripts\activate.bat"
-python -m lilo %*
+rem LILO v14 - lancador Windows. Duplo clique = abre a interface no navegador.
+rem   lilo.bat status | up | down | warm | bench | gpu-livre [motivo] | gpu-ok
+powershell -NoProfile -File "%~dp0lilo.ps1" %*
 set RC=%ERRORLEVEL%
-rem Sem argumentos (duplo clique): segura a janela p/ ler a saida ao encerrar.
+rem Sem argumentos (duplo clique): segura a janela p/ ler a saida.
 if "%~1"=="" pause
-endlocal & exit /b %RC%
+exit /b %RC%
