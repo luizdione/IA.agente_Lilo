@@ -5,8 +5,9 @@
 
 Alvos:
   ollama  API nativa do Ollama (/api/chat), modelo `lilo`, think desligado.
-  webui   API do Open WebUI (/api/chat/completions) com a chave OWUI_API_KEY do
-          .env — e o caminho real da interface, com tudo o que ela acrescenta.
+  webui   API do Open WebUI (/api/chat/completions) — e o caminho real da
+          interface, com tudo o que ela acrescenta. Sem conta nem chave: o
+          compose roda sem login e o bench pega o token do usuario unico.
 
 Por pergunta mede: tempo ate o 1o token (TTFT), tempo total, tokens de prompt,
 tokens gerados e tok/s. A 1a chamada e aquecimento (carrega o modelo) e fica
@@ -67,6 +68,20 @@ def _env(chave: str) -> str:
             if linha.strip().startswith(f"{chave}="):
                 return linha.split("=", 1)[1].strip().strip('"').strip("'")
     return ""
+
+
+def _token_sem_login(base: str) -> str:
+    """Token do usuario unico do Open WebUI (o compose roda com WEBUI_AUTH=False).
+
+    Nesse modo o /signin ignora e-mail e senha e devolve a sessao do usuario do
+    sistema: nao ha conta para criar nem chave para colar.
+    """
+    try:
+        r = httpx.post(f"{base}/api/v1/auths/signin",
+                       json={"email": "", "password": ""}, timeout=10.0)
+        return r.json().get("token", "") if r.status_code == 200 else ""
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def _ollama(cli: httpx.Client, base: str, modelo: str, pergunta: str,
@@ -176,9 +191,9 @@ def main() -> int:
         cabec, chamar = {}, _ollama
     else:
         base = (a.url or _env("OWUI_URL") or "http://127.0.0.1:3000").rstrip("/")
-        chave = _env("OWUI_API_KEY")
+        chave = _env("OWUI_API_KEY") or _token_sem_login(base)
         if not chave:
-            print("Falta OWUI_API_KEY no .env (Open WebUI > Settings > Account > API Keys).")
+            print(f"Sem acesso ao Open WebUI em {base}: ele esta no ar? (.\\lilo.ps1 status)")
             return 2
         cabec, chamar = {"Authorization": f"Bearer {chave}"}, _webui
 

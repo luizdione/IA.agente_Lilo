@@ -43,8 +43,12 @@ services:
       ENABLE_RETRIEVAL_QUERY_GENERATION: "False"
       ENABLE_EVALUATION_ARENA_MODELS: "False"
       # --- acesso -----------------------------------------------------------
-      WEBUI_AUTH: "True"             # login ligado: ha tools que executam no host
-      ENABLE_API_KEYS: "True"        # scripts\bench.py e owui_presets.py usam a chave
+      # Sem login nem chave (decisao do autor, 2026-10-05): servidor de uso proprio.
+      # O Open WebUI cria sozinho o usuario unico; os scripts pegam o token dele em
+      # /api/v1/auths/signin. Em troca, a porta NUNCA pode ser exposta na rede:
+      # manter o "127.0.0.1:" em ports, ainda mais com tools que executam no host.
+      WEBUI_AUTH: "False"
+      CORS_ALLOW_ORIGIN: "http://localhost:3000;http://127.0.0.1:3000"
       DEFAULT_LOCALE: "pt-BR"
       # --- nada sai da maquina sem pedido -----------------------------------
       ENABLE_COMMUNITY_SHARING: "False"
