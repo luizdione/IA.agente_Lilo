@@ -9,6 +9,8 @@
 #   .\lilo.ps1 convivencia [...]    portoes G1 e de recarga (scripts\convivencia.py)
 #   .\lilo.ps1 presets              cria/atualiza os presets da interface (scripts\owui_presets.py)
 #   .\lilo.ps1 inicio               `up` sem janela, p/ o atalho de inicializacao (log em %LOCALAPPDATA%\LILO\bench)
+#   .\lilo.ps1 ponte [up|down]      ponte lilo-host (MCP HTTP em 127.0.0.1:8790): sobe, para ou mostra o estado
+#   .\lilo.ps1 smoke [...]          smoke da ponte: tools por grupo e token do exec (scripts\mcp_smoke.py)
 #   .\lilo.ps1 gpu-livre [motivo]   reserva a GPU p/ MD, Boltz ou render
 #   .\lilo.ps1 gpu-ok [forcar]      devolve a GPU ao LILO e aquece
 #
@@ -31,6 +33,8 @@ $ArqInterruptor = Join-Path $env:USERPROFILE ".ollama_delegate\switch.json"
 # VRAM livre (MiB) exigida para carregar o modelo: qwen3:14b a 8k ocupa ~9,2-9,8 GB.
 # Abaixo disso ha outro job na GPU e o modelo derramaria para a CPU, disputando VRAM.
 $VramMinima = 9800
+$Ponte   = "http://127.0.0.1:8790"
+$ArqStatusPonte = Join-Path $env:LOCALAPPDATA "LILO\host.status.json"
 
 # ---------------------------------------------------------------- interruptor
 # Mesmo arquivo do MCP ollama-local: um interruptor so para toda a GPU.
@@ -128,6 +132,41 @@ function Read-ParaCache([string]$Arquivo) {
     } finally { $fs.Close() }
 }
 
+# ---------------------------------------------------------------------- ponte
+function Test-Ponte { return (Test-Url "$Ponte/saude") }
+
+function Start-Ponte {
+    # Servidor MCP HTTP no host (conda datascience), sem janela; log em $LogDir.
+    if (Test-Ponte) { return $true }
+    New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+    $serve = Join-Path $Raiz "scripts\lilo_host_serve.py"
+    Start-Process -FilePath $Py -ArgumentList "`"$serve`"" -WorkingDirectory $Raiz -WindowStyle Hidden `
+        -RedirectStandardOutput (Join-Path $LogDir "host.log") -RedirectStandardError (Join-Path $LogDir "host.err.log")
+    if (Wait-Ate { Test-Ponte } 40) { Write-Host "Ponte lilo-host no ar em $Ponte"; return $true }
+    Write-Host "A ponte nao respondeu em $Ponte (ver $LogDir\host.err.log)."
+    return $false
+}
+
+function Stop-Ponte {
+    if (Test-Path $ArqStatusPonte) {
+        try {
+            $st = Get-Content $ArqStatusPonte -Raw | ConvertFrom-Json
+            Stop-Process -Id $st.pid -Force -ErrorAction SilentlyContinue
+        } catch { }
+        Remove-Item $ArqStatusPonte -ErrorAction SilentlyContinue
+    }
+    Write-Host "Ponte lilo-host parada."
+}
+
+function Get-TokenPonte {
+    # Token do grupo exec, que o compose injeta em TOOL_SERVER_CONNECTIONS. Gera se faltar.
+    return "$(& $Py (Join-Path $Raiz "scripts\lilo_host_serve.py") --token 2>$null | Select-Object -Last 1)".Trim()
+}
+
+function Show-Ponte {
+    if (Test-Ponte) { Write-Host "Ponte lilo-host: $Ponte respondendo" } else { Write-Host "Ponte lilo-host: parada" }
+}
+
 # ------------------------------------------------------------------- comandos
 function Invoke-Warm {
     $sw = Get-Interruptor
@@ -178,6 +217,9 @@ function Invoke-Up {
         Write-Host "Esperando o Docker Desktop..."
         if (-not (Wait-Ate { Test-Docker } 180)) { Write-Host "Docker Desktop nao respondeu."; return $false }
     }
+    # A ponte sobe antes da interface e o token do exec entra no compose pelo ambiente.
+    $null = Start-Ponte
+    $env:LILO_HOST_TOKEN = Get-TokenPonte
     docker compose -f $Compose up -d
     $null = Invoke-Warm
     if (-not (Wait-Ate { Test-Url "$WebUI/health" } 120)) {
@@ -204,6 +246,7 @@ function Invoke-Inicio {
 function Invoke-Down {
     docker compose -f $Compose stop
     foreach ($m in (Get-Carregados)) { if ($m -like "${Modelo}*") { & ollama stop $m | Out-Null } }
+    Stop-Ponte
     Write-Host "Interface parada e modelo descarregado. O Ollama segue no ar para as outras ferramentas."
 }
 
@@ -220,6 +263,7 @@ function Show-Status {
     if (Test-Docker) { docker ps -a --filter "name=lilo_openwebui" --format "  {{.Names}}  {{.Status}}" }
     else { Write-Host "  Docker Desktop fora do ar" }
     if (Test-Url "$WebUI/health") { Write-Host "  $WebUI respondendo" } else { Write-Host "  $WebUI sem resposta" }
+    Show-Ponte
     $b = Join-Path $LogDir "bench.jsonl"
     if (Test-Path $b) { Write-Host "Ultimo bench: $(Get-Content $b -Tail 1)" }
 }
@@ -262,11 +306,16 @@ switch ($Comando.ToLower()) {
     "convivencia" { & $Py (Join-Path $Raiz "scripts\convivencia.py") @Resto; exit $LASTEXITCODE }
     "presets"   { & $Py (Join-Path $Raiz "scripts\owui_presets.py") @Resto; exit $LASTEXITCODE }
     "inicio"    { Invoke-Inicio }
+    "ponte"     {
+        $o = "$($Resto | Select-Object -First 1)".ToLower()
+        if ($o -eq "up") { $null = Start-Ponte } elseif ($o -eq "down") { Stop-Ponte } else { Show-Ponte }
+    }
+    "smoke"     { & $Py (Join-Path $Raiz "scripts\mcp_smoke.py") @Resto; exit $LASTEXITCODE }
     "gpu-livre" { Invoke-GpuLivre ($Resto -join " ") }
     "gpu-ok"    { Invoke-GpuOk ("$($Resto | Select-Object -First 1)") }
     default {
         Write-Host "Comando desconhecido: $Comando"
-        Write-Host "Use: abrir | up | down | status | warm | bench | convivencia | presets | inicio | gpu-livre [motivo] | gpu-ok [forcar]"
+        Write-Host "Use: abrir | up | down | status | warm | bench | convivencia | presets | inicio | ponte [up|down] | smoke | gpu-livre [motivo] | gpu-ok [forcar]"
         exit 2
     }
 }

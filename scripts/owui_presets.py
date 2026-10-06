@@ -27,8 +27,13 @@ import httpx
 
 BASE = os.environ.get("LILO_WEBUI", "http://127.0.0.1:3000")
 
-# Ids de tools por preset (chaves de TOOL_SERVER_CONNECTIONS). Vazio ate a F2/F4.
-TOOLS: dict[str, list[str]] = {"lilo-pesquisa": [], "lilo-analise": []}
+# Tools por preset: `server:mcp:<id>` = conexao MCP de TOOL_SERVER_CONNECTIONS
+# (compose.yaml); a Open WebUI expoe cada tool como `<id>_<nome>`. A F4 acrescenta
+# o paper-search ao Pesquisa. Conteudo da internet nunca no mesmo preset que executa.
+TOOLS: dict[str, list[str]] = {
+    "lilo-pesquisa": ["server:mcp:conhecimento"],
+    "lilo-analise": ["server:mcp:analise", "server:mcp:exec", "server:mcp:conhecimento"],
+}
 
 PRESETS = (
     {

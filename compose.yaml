@@ -46,6 +46,16 @@ services:
       ENABLE_SEARCH_QUERY_GENERATION: "False"
       ENABLE_RETRIEVAL_QUERY_GENERATION: "False"
       ENABLE_EVALUATION_ARENA_MODELS: "False"
+      # --- ferramentas: ponte lilo-host no host (F2) --------------------------
+      # Tres servidores MCP (streamable HTTP) em 127.0.0.1:8790 do host, alcancados
+      # por host.docker.internal (o Docker Desktop encaminha ao loopback; medido).
+      # O preset escolhe os grupos por `server:mcp:<id>` (scripts\owui_presets.py).
+      # O token do grupo exec vem do ambiente: `lilo.ps1 up` exporta LILO_HOST_TOKEN
+      # (lido de %LOCALAPPDATA%\LILO\host_token.txt); sem ele o exec responde 401.
+      TOOL_SERVER_CONNECTIONS: >-
+        [{"type":"mcp","url":"http://host.docker.internal:8790/conhecimento/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"conhecimento","name":"LILO conhecimento","description":"Memoria dos projetos, PDF/texto, resumo"}},
+        {"type":"mcp","url":"http://host.docker.internal:8790/analise/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"analise","name":"LILO analise","description":"Estatistica, parsers bio, DOCX"}},
+        {"type":"mcp","url":"http://host.docker.internal:8790/exec/mcp","path":"","auth_type":"bearer","key":"${LILO_HOST_TOKEN:-}","config":{"enable":true},"info":{"id":"exec","name":"LILO exec","description":"Python, R e WSL no host"}}]
       # --- acesso -----------------------------------------------------------
       # Sem login nem chave (decisao do autor, 2026-10-05): servidor de uso proprio.
       # O Open WebUI cria sozinho o usuario unico; os scripts pegam o token dele em
