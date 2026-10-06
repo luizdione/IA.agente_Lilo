@@ -28,6 +28,10 @@ services:
       ENABLE_OLLAMA_API: "True"
       ENABLE_OPENAI_API: "False"
       DEFAULT_MODELS: "lilo:latest"
+      # So o `lilo` e os modelos nuvem (sem VRAM) aparecem na lista (I-0009): escolher
+      # `qwen3:14b` direto recarregaria o mesmo arquivo com outro contexto, e os
+      # embedders nao sao chat. Chave "0" = 1a conexao Ollama (OLLAMA_BASE_URL).
+      OLLAMA_API_CONFIGS: '{"0": {"model_ids": ["lilo:latest", "gpt-oss:20b-cloud", "gpt-oss:120b-cloud", "mistral-large-3:675b-cloud"]}}'
       # think:false = regra de velocidade 3 (com thinking o "2+2" leva 6,5 s).
       # Nunca por aqui opcao de runner (num_ctx, num_gpu...): o contexto vem do
       # Modelfile do `lilo`, e opcao diferente faz o Ollama recarregar o modelo.

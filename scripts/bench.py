@@ -177,6 +177,8 @@ def main() -> int:
                     help="falha se os tokens de prompt passarem disto (0 = nao checa)")
     ap.add_argument("--sem-portao", action="store_true")
     a = ap.parse_args()
+    if a.alvo == "webui" and ":" not in a.modelo:
+        a.modelo += ":latest"  # a interface conhece o modelo pelo nome completo do Ollama
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 

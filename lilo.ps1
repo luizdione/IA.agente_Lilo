@@ -6,6 +6,9 @@
 #   .\lilo.ps1 status               interruptor, modelos na GPU, VRAM, interface
 #   .\lilo.ps1 warm                 poe o modelo na GPU (leitura previa + 1 geracao)
 #   .\lilo.ps1 bench [...]          mede o tempo ate o 1o token (scripts\bench.py)
+#   .\lilo.ps1 convivencia [...]    portoes G1 e de recarga (scripts\convivencia.py)
+#   .\lilo.ps1 presets              cria/atualiza os presets da interface (scripts\owui_presets.py)
+#   .\lilo.ps1 inicio               `up` sem janela, p/ o atalho de inicializacao (log em %LOCALAPPDATA%\LILO\bench)
 #   .\lilo.ps1 gpu-livre [motivo]   reserva a GPU p/ MD, Boltz ou render
 #   .\lilo.ps1 gpu-ok [forcar]      devolve a GPU ao LILO e aquece
 #
@@ -181,7 +184,21 @@ function Invoke-Up {
         Write-Host "A interface ainda nao respondeu em $WebUI."
         return $false
     }
+    # Presets (LILO, Pesquisa, Analise) sao registros no volume da interface:
+    # idempotente, ~1 s, e deixa um volume novo pronto sem clicar em nada.
+    & $Py (Join-Path $Raiz "scripts\owui_presets.py") 2>&1 | Select-Object -First 3 | Out-Host
     return $true
+}
+
+function Invoke-Inicio {
+    # Atalho de inicializacao do Windows (sem janela): tudo vai para o log.
+    New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+    Start-Transcript -Path (Join-Path $LogDir "inicio.log") -Append | Out-Null
+    try {
+        Write-Host "--- $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') lilo.ps1 inicio"
+        $ok = Invoke-Up
+        if ($ok) { Write-Host "Resultado: LILO no ar." } else { Write-Host "Resultado: nao subiu (ver acima)." }
+    } finally { Stop-Transcript | Out-Null }
 }
 
 function Invoke-Down {
@@ -242,11 +259,14 @@ switch ($Comando.ToLower()) {
     "status"    { Show-Status }
     "warm"      { $null = Invoke-Warm }
     "bench"     { & $Py (Join-Path $Raiz "scripts\bench.py") @Resto; exit $LASTEXITCODE }
+    "convivencia" { & $Py (Join-Path $Raiz "scripts\convivencia.py") @Resto; exit $LASTEXITCODE }
+    "presets"   { & $Py (Join-Path $Raiz "scripts\owui_presets.py") @Resto; exit $LASTEXITCODE }
+    "inicio"    { Invoke-Inicio }
     "gpu-livre" { Invoke-GpuLivre ($Resto -join " ") }
     "gpu-ok"    { Invoke-GpuOk ("$($Resto | Select-Object -First 1)") }
     default {
         Write-Host "Comando desconhecido: $Comando"
-        Write-Host "Use: abrir | up | down | status | warm | bench | gpu-livre [motivo] | gpu-ok [forcar]"
+        Write-Host "Use: abrir | up | down | status | warm | bench | convivencia | presets | inicio | gpu-livre [motivo] | gpu-ok [forcar]"
         exit 2
     }
 }
