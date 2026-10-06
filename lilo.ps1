@@ -173,7 +173,7 @@ function Invoke-Indexar([string[]]$Args) {
     $indice = if ($env:LILO_BIBLIOTECA) { $env:LILO_BIBLIOTECA } else { "E:\data\lilo\biblioteca" }
     New-Item -ItemType Directory -Force -Path $indice | Out-Null
     $log = Join-Path $indice "indexar.log"
-    $lista = @("`"$script`"") + $Args
+    $lista = @("-u", "`"$script`"") + $Args   # -u: log sem buffer (stdout redirecionado)
     Start-Process -FilePath $Py -ArgumentList $lista -WorkingDirectory $Raiz -WindowStyle Hidden `
         -RedirectStandardOutput $log -RedirectStandardError (Join-Path $indice "indexar.err.log")
     Write-Host "Indexacao iniciada em segundo plano. Acompanhe:  .\lilo.ps1 indexar status   (log: $log)"
