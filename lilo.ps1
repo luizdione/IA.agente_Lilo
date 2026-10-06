@@ -11,6 +11,7 @@
 #   .\lilo.ps1 inicio               `up` sem janela, p/ o atalho de inicializacao (log em %LOCALAPPDATA%\LILO\bench)
 #   .\lilo.ps1 ponte [up|down]      ponte lilo-host (MCP HTTP em 127.0.0.1:8790): sobe, para ou mostra o estado
 #   .\lilo.ps1 smoke [...]          smoke da ponte: tools por grupo e token do exec (scripts\mcp_smoke.py)
+#   .\lilo.ps1 indexar [...]        indexa a biblioteca de PDFs em 2o plano (log em E:\data\lilo\biblioteca); `indexar status` mostra o progresso
 #   .\lilo.ps1 gpu-livre [motivo]   reserva a GPU p/ MD, Boltz ou render
 #   .\lilo.ps1 gpu-ok [forcar]      devolve a GPU ao LILO e aquece
 #
@@ -163,6 +164,21 @@ function Get-TokenPonte {
     return "$(& $Py (Join-Path $Raiz "scripts\lilo_host_serve.py") --token 2>$null | Select-Object -Last 1)".Trim()
 }
 
+function Invoke-Indexar([string[]]$Args) {
+    # Biblioteca de PDFs (F3): incremental e sob demanda (D-0016). `status`/`falhas` respondem na hora;
+    # o resto vai para segundo plano com log, porque indexar 1.100 PDFs leva dezenas de minutos.
+    $script = Join-Path $Raiz "scripts\indexar_biblioteca.py"
+    $o = "$($Args | Select-Object -First 1)".ToLower()
+    if ($o -eq "status" -or $o -eq "falhas") { & $Py $script "--$o"; return }
+    $indice = if ($env:LILO_BIBLIOTECA) { $env:LILO_BIBLIOTECA } else { "E:\data\lilo\biblioteca" }
+    New-Item -ItemType Directory -Force -Path $indice | Out-Null
+    $log = Join-Path $indice "indexar.log"
+    $lista = @("`"$script`"") + $Args
+    Start-Process -FilePath $Py -ArgumentList $lista -WorkingDirectory $Raiz -WindowStyle Hidden `
+        -RedirectStandardOutput $log -RedirectStandardError (Join-Path $indice "indexar.err.log")
+    Write-Host "Indexacao iniciada em segundo plano. Acompanhe:  .\lilo.ps1 indexar status   (log: $log)"
+}
+
 function Show-Ponte {
     if (Test-Ponte) { Write-Host "Ponte lilo-host: $Ponte respondendo" } else { Write-Host "Ponte lilo-host: parada" }
 }
@@ -311,11 +327,12 @@ switch ($Comando.ToLower()) {
         if ($o -eq "up") { $null = Start-Ponte } elseif ($o -eq "down") { Stop-Ponte } else { Show-Ponte }
     }
     "smoke"     { & $Py (Join-Path $Raiz "scripts\mcp_smoke.py") @Resto; exit $LASTEXITCODE }
+    "indexar"   { Invoke-Indexar $Resto }
     "gpu-livre" { Invoke-GpuLivre ($Resto -join " ") }
     "gpu-ok"    { Invoke-GpuOk ("$($Resto | Select-Object -First 1)") }
     default {
         Write-Host "Comando desconhecido: $Comando"
-        Write-Host "Use: abrir | up | down | status | warm | bench | convivencia | presets | inicio | ponte [up|down] | smoke | gpu-livre [motivo] | gpu-ok [forcar]"
+        Write-Host "Use: abrir | up | down | status | warm | bench | convivencia | presets | inicio | ponte [up|down] | smoke | indexar [status|falhas|...] | gpu-livre [motivo] | gpu-ok [forcar]"
         exit 2
     }
 }

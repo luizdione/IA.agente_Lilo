@@ -24,7 +24,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 
-from . import __version__, bioparsers, docx, estatistica, execucao, projetos, resumir
+from . import __version__, biblioteca, bioparsers, docx, estatistica, execucao, projetos, resumir
 from .comum import PORTA, TRABALHO, gpu_reservada
 
 HOSTS = ["127.0.0.1:*", "localhost:*", "[::1]:*", "host.docker.internal:*"]
@@ -89,6 +89,17 @@ def grupo_conhecimento() -> FastMCP:
         """Resumo de um arquivo feito pelo modelo local `lilo`, opcionalmente guiado por
         uma pergunta. Nao roda com a GPU reservada."""
         return resumir.resumir_arquivo(caminho, pergunta, max_chars)
+
+    @srv.tool()
+    def biblioteca_buscar(consulta: str, n: int = 5) -> str:
+        """Busca hibrida (bge-m3 + BM25) na biblioteca de PDFs do dono (~1.100 artigos):
+        os n documentos mais relevantes, com titulo, pagina, trecho e caminho do PDF."""
+        return _json(biblioteca.buscar(consulta, n))
+
+    @srv.tool()
+    def biblioteca_status() -> str:
+        """Quantos PDFs estao indexados, falhas, trechos e o progresso da indexacao em curso."""
+        return _json(biblioteca.status())
 
     return srv
 
@@ -239,10 +250,21 @@ def criar_app(token: str) -> Starlette:
                              "gpu_reservada": gpu_reservada(), "trabalho": str(TRABALHO),
                              "exec_com_token": bool(token)})
 
+    def aquecer_biblioteca():
+        # O embedder de consulta (bge-m3 na CPU) leva ~30 s para subir dentro do servidor;
+        # carregado em segundo plano no `up`, a 1a busca do dono nao paga esse tempo.
+        if (biblioteca.INDICE / "biblioteca.db").exists():
+            try:
+                biblioteca.embedder_consulta()
+            except Exception:  # noqa: BLE001 — sem modelo local, a 1a busca carrega (ou falha) sozinha
+                pass
+
     @contextlib.asynccontextmanager
     async def vida(_app):
         # Sub-apps montados nao recebem o lifespan da Starlette pai: abrimos
         # os gerenciadores de sessao aqui.
+        import threading
+        threading.Thread(target=aquecer_biblioteca, daemon=True).start()
         async with contextlib.AsyncExitStack() as pilha:
             for srv in grupos.values():
                 await pilha.enter_async_context(srv.session_manager.run())

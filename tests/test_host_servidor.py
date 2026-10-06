@@ -47,7 +47,7 @@ def test_saude_e_grupos(app):
             r = await c.get("/saude")
             assert r.status_code == 200
             d = r.json()
-            assert d["ok"] and d["grupos"] == {"conhecimento": 6, "analise": 10, "exec": 3}
+            assert d["ok"] and d["grupos"] == {"conhecimento": 8, "analise": 10, "exec": 3}
             assert all(n <= 13 for n in d["grupos"].values())  # regra de velocidade 5
     _rodar(go())
 
