@@ -22,16 +22,18 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from pathlib import Path
 
 import httpx
 
+ROOT = Path(__file__).resolve().parent.parent
 BASE = os.environ.get("LILO_WEBUI", "http://127.0.0.1:3000")
 
 # Tools por preset: `server:mcp:<id>` = conexao MCP de TOOL_SERVER_CONNECTIONS
 # (compose.yaml); a Open WebUI expoe cada tool como `<id>_<nome>`. A F4 acrescenta
 # o paper-search ao Pesquisa. Conteudo da internet nunca no mesmo preset que executa.
 TOOLS: dict[str, list[str]] = {
-    "lilo-pesquisa": ["server:mcp:conhecimento"],
+    "lilo-pesquisa": ["server:mcp:conhecimento", "server:mcp:literatura"],
     "lilo-analise": ["server:mcp:analise", "server:mcp:exec", "server:mcp:conhecimento"],
 }
 
@@ -41,14 +43,20 @@ PRESETS = (
         "meta": {"description": "Chat rápido local (qwen3:14b, contexto 8192, sem thinking). "
                                 "Para raciocínio profundo, ligue o thinking na conversa.",
                  "tags": [{"name": "local"}]},
-        "params": {},
+        # O SYSTEM do Modelfile ja pede portugues; o preset repete porque, na interface, um
+        # system do preset substitui o do modelo (e o dono quer PT sempre, mesmo com material em ingles).
+        "params": {"system": "Você é o LILO, assistente local de pesquisa de Luiz Dione. Responda "
+                             "sempre em português do Brasil, mesmo que a pergunta ou o material estejam "
+                             "em inglês, de forma direta e tecnicamente correta. Quando não souber, "
+                             "diga isso em vez de inventar."},
     },
     {
         "id": "lilo-pesquisa", "base_model_id": "lilo:latest", "name": "LILO Pesquisa",
         "meta": {"description": "Biblioteca de PDFs, memória dos projetos, literatura "
                                 "(PubMed etc.) e busca web.",
                  "tags": [{"name": "local"}, {"name": "pesquisa"}]},
-        "params": {"system": "Você é o LILO em modo Pesquisa. Responda em português. Quando a "
+        "params": {"system": "Você é o LILO em modo Pesquisa. Responda sempre em português do Brasil, "
+                             "mesmo que a pergunta ou o material estejam em inglês. Quando a "
                              "pergunta pedir fontes, use biblioteca_buscar (PDFs do dono) e as "
                              "ferramentas de literatura e cite o que encontrar (título, autores, ano, "
                              "página). Se o dono citar uma pasta ou arquivo, use pasta_listar, "
@@ -61,7 +69,8 @@ PRESETS = (
         "meta": {"description": "Estatística, parsers bio e execução de Python, R e WSL no "
                                 "host. Sem internet.",
                  "tags": [{"name": "local"}, {"name": "analise"}]},
-        "params": {"system": "Você é o LILO em modo Análise. Responda em português. Para contas, "
+        "params": {"system": "Você é o LILO em modo Análise. Responda sempre em português do Brasil, "
+                             "mesmo que o material esteja em inglês. Para contas, "
                              "estatística e arquivos use as ferramentas de análise e execução; "
                              "mostre o código ou comando que rodou e o resultado tal como veio. "
                              "Pasta citada pelo dono: pasta_listar, pasta_buscar, ler_texto; "
@@ -89,11 +98,38 @@ PROMPTS = (
 )
 
 
+def prompts_das_skills() -> list[dict]:
+    """Um comando `/<skill>` por skill propria ou de plugin (como no Claude Code) + `/bioinfo`
+    para as 815 da biblioteca (sao demais para o menu). Lidos do catalogo da ponte, no lugar."""
+    import re
+    import sys
+    sys.path.insert(0, str(ROOT))
+    try:
+        from lilo_host import skills
+    except ImportError:
+        return []
+    out = []
+    for it in skills.catalogo().values():
+        if it["origem"] not in ("skills", "plugins"):
+            continue
+        cmd = "/" + re.sub(r"[^a-z0-9_-]", "_", it["pasta_nome"].lower())
+        desc = (it["descricao"][:140] + "...") if len(it["descricao"]) > 140 else it["descricao"]
+        out.append({"command": cmd, "name": "Skill: %s" % it["nome"],
+                    "content": "Use a skill %s (%s) para: [o que eu quero]. Leia-a com skill_ler, siga as "
+                               "instruções dela e, se houver scripts, rode-os com skill_rodar mostrando cada "
+                               "saída. Responda em português." % (it["nome"], desc)})
+    out.append({"command": "/bioinfo", "name": "Skill de bioinformatica (815 na biblioteca)",
+                "content": "Tarefa de bioinformática: [o que eu quero]. Procure a skill certa com "
+                           "skills_listar usando as palavras-chave da tarefa, leia a melhor com skill_ler "
+                           "e siga o roteiro dela; rode scripts com skill_rodar. Responda em português."})
+    return out
+
+
 def aplicar_prompts(cli: httpx.Client) -> None:
     r = cli.get(f"{BASE}/api/v1/prompts/")
     r.raise_for_status()
     existentes = {p["command"]: p for p in r.json()}
-    for p in PROMPTS:
+    for p in list(PROMPTS) + prompts_das_skills():
         form = {"command": p["command"], "name": p["name"], "content": p["content"]}
         if p["command"] in existentes:
             r = cli.post(f"{BASE}/api/v1/prompts/id/{existentes[p['command']]['id']}/update", json=form)

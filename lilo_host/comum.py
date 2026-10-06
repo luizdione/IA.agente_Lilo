@@ -90,5 +90,27 @@ def token_exec(gerar: bool = True) -> str:
     return t
 
 
+ARQ_TOKEN_GATEWAY = LOCAL / "gateway_token.txt"
+GATEWAY = os.environ.get("LILO_GATEWAY", "http://127.0.0.1:8811")
+
+
+def token_gateway(gerar: bool = True) -> str:
+    """Token do Docker MCP Gateway (MCP_GATEWAY_AUTH_TOKEN): o lilo.ps1 sobe o gateway com ele e
+    a ponte o injeta ao encaminhar /literatura/mcp (o gateway so aceita Host localhost)."""
+    t = os.environ.get("MCP_GATEWAY_AUTH_TOKEN", "").strip()
+    if t:
+        return t
+    if ARQ_TOKEN_GATEWAY.exists():
+        t = ARQ_TOKEN_GATEWAY.read_text(encoding="utf-8").strip()
+        if t:
+            return t
+    if not gerar:
+        return ""
+    t = secrets.token_urlsafe(32)
+    ARQ_TOKEN_GATEWAY.parent.mkdir(parents=True, exist_ok=True)
+    ARQ_TOKEN_GATEWAY.write_text(t, encoding="utf-8")
+    return t
+
+
 def erro(msg: str) -> str:
     return "[ERRO] " + msg

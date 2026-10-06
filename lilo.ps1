@@ -12,6 +12,7 @@
 #   .\lilo.ps1 ponte [up|down]      ponte lilo-host (MCP HTTP em 127.0.0.1:8790): sobe, para ou mostra o estado
 #   .\lilo.ps1 smoke [...]          smoke da ponte: tools por grupo e token do exec (scripts\mcp_smoke.py)
 #   .\lilo.ps1 indexar [...]        indexa a biblioteca de PDFs em 2o plano (log em E:\data\lilo\biblioteca); `indexar status` mostra o progresso
+#   .\lilo.ps1 gateway [up|down]    Docker MCP Gateway (paper-search, 127.0.0.1:8811) via `docker mcp gateway run`
 #   .\lilo.ps1 gpu-livre [motivo]   reserva a GPU p/ MD, Boltz ou render
 #   .\lilo.ps1 gpu-ok [forcar]      devolve a GPU ao LILO e aquece
 #
@@ -36,6 +37,11 @@ $ArqInterruptor = Join-Path $env:USERPROFILE ".ollama_delegate\switch.json"
 $VramMinima = 9800
 $Ponte   = "http://127.0.0.1:8790"
 $ArqStatusPonte = Join-Path $env:LOCALAPPDATA "LILO\host.status.json"
+$Gateway = "http://127.0.0.1:8811"
+$ArqPidGateway  = Join-Path $env:LOCALAPPDATA "LILO\gateway.pid"
+$ArqTokenGateway = Join-Path $env:LOCALAPPDATA "LILO\gateway_token.txt"
+# So buscas: o paper-search tem 57 tools, inclusive download_scihub, que fica fora.
+$GatewayTools = "search_pubmed,search_europepmc,search_biorxiv,search_crossref,search_semantic"
 
 # ---------------------------------------------------------------- interruptor
 # Mesmo arquivo do MCP ollama-local: um interruptor so para toda a GPU.
@@ -179,6 +185,49 @@ function Invoke-Indexar([string[]]$Args) {
     Write-Host "Indexacao iniciada em segundo plano. Acompanhe:  .\lilo.ps1 indexar status   (log: $log)"
 }
 
+function Test-Gateway {
+    try { $r = Invoke-WebRequest -Uri "$Gateway/mcp" -UseBasicParsing -TimeoutSec 3; return $true }
+    catch { return ($_.Exception.Response -and [int]$_.Exception.Response.StatusCode -in 400, 401, 405, 406) }
+}
+
+function Get-TokenGateway {
+    if (-not (Test-Path $ArqTokenGateway)) {
+        New-Item -ItemType Directory -Force -Path (Split-Path $ArqTokenGateway) | Out-Null
+        $bytes = New-Object byte[] 32; (New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes($bytes)
+        [IO.File]::WriteAllText($ArqTokenGateway, ([Convert]::ToBase64String($bytes) -replace "[/+=]", "x"), (New-Object Text.UTF8Encoding($false)))
+    }
+    return (Get-Content $ArqTokenGateway -Raw).Trim()
+}
+
+function Start-Gateway {
+    # Literatura (F4): o gateway da Docker roda no host, preso ao loopback, com token; a ponte
+    # lilo-host o encaminha em /literatura/mcp (o gateway so aceita Host localhost).
+    if (Test-Gateway) { return $true }
+    if (-not (Test-Docker)) { Write-Host "Docker Desktop fora do ar: gateway de literatura nao sobe."; return $false }
+    New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+    $env:MCP_GATEWAY_AUTH_TOKEN = Get-TokenGateway
+    $args = @("mcp", "gateway", "run", "--transport", "streaming", "--host", "127.0.0.1", "--port", "8811",
+              "--servers", "paper-search", "--tools", $GatewayTools, "--long-lived")
+    $p = Start-Process -FilePath "docker" -ArgumentList $args -WindowStyle Hidden -PassThru `
+        -RedirectStandardOutput (Join-Path $LogDir "gateway.log") -RedirectStandardError (Join-Path $LogDir "gateway.err.log")
+    Set-Content -Path $ArqPidGateway -Value $p.Id
+    if (Wait-Ate { Test-Gateway } 90) { Write-Host "Gateway de literatura no ar em $Gateway"; return $true }
+    Write-Host "O gateway nao respondeu em $Gateway (ver $LogDir\gateway.err.log)."
+    return $false
+}
+
+function Stop-Gateway {
+    if (Test-Path $ArqPidGateway) {
+        try { Stop-Process -Id ([int](Get-Content $ArqPidGateway -Raw).Trim()) -Force -ErrorAction SilentlyContinue } catch { }
+        Remove-Item $ArqPidGateway -ErrorAction SilentlyContinue
+    }
+    Write-Host "Gateway de literatura parado."
+}
+
+function Show-Gateway {
+    if (Test-Gateway) { Write-Host "Gateway de literatura: $Gateway respondendo" } else { Write-Host "Gateway de literatura: parado" }
+}
+
 function Show-Ponte {
     if (Test-Ponte) { Write-Host "Ponte lilo-host: $Ponte respondendo" } else { Write-Host "Ponte lilo-host: parada" }
 }
@@ -235,6 +284,7 @@ function Invoke-Up {
     }
     # A ponte sobe antes da interface e o token do exec entra no compose pelo ambiente.
     $null = Start-Ponte
+    $null = Start-Gateway
     $env:LILO_HOST_TOKEN = Get-TokenPonte
     docker compose -f $Compose up -d
     $null = Invoke-Warm
@@ -263,6 +313,7 @@ function Invoke-Down {
     docker compose -f $Compose stop
     foreach ($m in (Get-Carregados)) { if ($m -like "${Modelo}*") { & ollama stop $m | Out-Null } }
     Stop-Ponte
+    Stop-Gateway
     Write-Host "Interface parada e modelo descarregado. O Ollama segue no ar para as outras ferramentas."
 }
 
@@ -280,6 +331,7 @@ function Show-Status {
     else { Write-Host "  Docker Desktop fora do ar" }
     if (Test-Url "$WebUI/health") { Write-Host "  $WebUI respondendo" } else { Write-Host "  $WebUI sem resposta" }
     Show-Ponte
+    Show-Gateway
     $b = Join-Path $LogDir "bench.jsonl"
     if (Test-Path $b) { Write-Host "Ultimo bench: $(Get-Content $b -Tail 1)" }
 }
@@ -327,12 +379,16 @@ switch ($Comando.ToLower()) {
         if ($o -eq "up") { $null = Start-Ponte } elseif ($o -eq "down") { Stop-Ponte } else { Show-Ponte }
     }
     "smoke"     { & $Py (Join-Path $Raiz "scripts\mcp_smoke.py") @Resto; exit $LASTEXITCODE }
+    "gateway"   {
+        $o = "$($Resto | Select-Object -First 1)".ToLower()
+        if ($o -eq "up") { $null = Start-Gateway } elseif ($o -eq "down") { Stop-Gateway } else { Show-Gateway }
+    }
     "indexar"   { Invoke-Indexar $Resto }
     "gpu-livre" { Invoke-GpuLivre ($Resto -join " ") }
     "gpu-ok"    { Invoke-GpuOk ("$($Resto | Select-Object -First 1)") }
     default {
         Write-Host "Comando desconhecido: $Comando"
-        Write-Host "Use: abrir | up | down | status | warm | bench | convivencia | presets | inicio | ponte [up|down] | smoke | indexar [status|falhas|...] | gpu-livre [motivo] | gpu-ok [forcar]"
+        Write-Host "Use: abrir | up | down | status | warm | bench | convivencia | presets | inicio | ponte [up|down] | gateway [up|down] | smoke | indexar [status|falhas|...] | gpu-livre [motivo] | gpu-ok [forcar]"
         exit 2
     }
 }

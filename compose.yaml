@@ -31,7 +31,7 @@ services:
       # So o `lilo` e os modelos nuvem (sem VRAM) aparecem na lista (I-0009): escolher
       # `qwen3:14b` direto recarregaria o mesmo arquivo com outro contexto, e os
       # embedders nao sao chat. Chave "0" = 1a conexao Ollama (OLLAMA_BASE_URL).
-      OLLAMA_API_CONFIGS: '{"0": {"model_ids": ["lilo:latest", "gpt-oss:20b-cloud", "gpt-oss:120b-cloud", "mistral-large-3:675b-cloud"]}}'
+      OLLAMA_API_CONFIGS: '{"0": {"model_ids": ["lilo:latest", "lilo-gemma:latest", "gpt-oss:20b-cloud", "gpt-oss:120b-cloud", "mistral-large-3:675b-cloud"]}}'
       # think:false = regra de velocidade 3 (com thinking o "2+2" leva 6,5 s).
       # Nunca por aqui opcao de runner (num_ctx, num_gpu...): o contexto vem do
       # Modelfile do `lilo`, e opcao diferente faz o Ollama recarregar o modelo.
@@ -55,7 +55,8 @@ services:
       TOOL_SERVER_CONNECTIONS: >-
         [{"type":"mcp","url":"http://host.docker.internal:8790/conhecimento/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"conhecimento","name":"LILO conhecimento","description":"Memoria dos projetos, PDF/texto, resumo"}},
         {"type":"mcp","url":"http://host.docker.internal:8790/analise/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"analise","name":"LILO analise","description":"Estatistica, parsers bio, DOCX"}},
-        {"type":"mcp","url":"http://host.docker.internal:8790/exec/mcp","path":"","auth_type":"bearer","key":"${LILO_HOST_TOKEN:-}","config":{"enable":true},"info":{"id":"exec","name":"LILO exec","description":"Python, R e WSL no host"}}]
+        {"type":"mcp","url":"http://host.docker.internal:8790/exec/mcp","path":"","auth_type":"bearer","key":"${LILO_HOST_TOKEN:-}","config":{"enable":true},"info":{"id":"exec","name":"LILO exec","description":"Python, R e WSL no host"}},
+        {"type":"mcp","url":"http://host.docker.internal:8790/literatura/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"literatura","name":"LILO literatura","description":"PubMed, Europe PMC, bioRxiv, Crossref e Semantic Scholar (paper-search via Docker MCP Gateway)"}}]
       # --- acesso -----------------------------------------------------------
       # Sem login nem chave (decisao do autor, 2026-10-05): servidor de uso proprio.
       # O Open WebUI cria sozinho o usuario unico; os scripts pegam o token dele em

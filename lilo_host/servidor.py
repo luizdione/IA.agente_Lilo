@@ -19,9 +19,10 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+import httpx
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Mount, Route
 
 from . import (__version__, biblioteca, bioparsers, docx, estatistica, execucao, pastas, projetos,
@@ -289,15 +290,58 @@ class _TokenExec:
         await self.app(scope, receive, send)
 
 
+_PROXY_CAB = ("content-type", "accept", "mcp-session-id", "last-event-id", "mcp-protocol-version")
+
+
+async def literatura(request: Request) -> Response:
+    """Proxy do Docker MCP Gateway (paper-search): /literatura/mcp -> 127.0.0.1:8811/mcp.
+
+    O gateway recusa qualquer Host que nao seja localhost (anti DNS-rebinding) e exige o
+    token MCP_GATEWAY_AUTH_TOKEN; a ponte reescreve o Host, injeta o token e repassa o
+    streaming (SSE) tal como vem. Se o gateway estiver parado, responde 503.
+    """
+    from .comum import GATEWAY, token_gateway
+    cab = {k: v for k, v in request.headers.items() if k.lower() in _PROXY_CAB}
+    cab["host"] = GATEWAY.split("://", 1)[-1]
+    cab["authorization"] = "Bearer " + token_gateway(gerar=False)
+    corpo = await request.body()
+    cli = httpx.AsyncClient(timeout=httpx.Timeout(120.0, read=600.0))
+    try:
+        req = cli.build_request(request.method, GATEWAY + "/mcp", headers=cab, content=corpo)
+        resp = await cli.send(req, stream=True)
+    except httpx.HTTPError as e:
+        await cli.aclose()
+        return JSONResponse({"erro": "gateway de literatura fora do ar (%s); suba com lilo.ps1 gateway up" % e},
+                            status_code=503)
+    saida = {k: v for k, v in resp.headers.items()
+             if k.lower() in ("content-type", "mcp-session-id", "mcp-protocol-version", "cache-control")}
+
+    async def corpo_resp():
+        try:
+            async for pedaco in resp.aiter_raw():
+                yield pedaco
+        finally:
+            await resp.aclose()
+            await cli.aclose()
+
+    return StreamingResponse(corpo_resp(), status_code=resp.status_code, headers=saida)
+
+
 def criar_app(token: str) -> Starlette:
     grupos = {"conhecimento": grupo_conhecimento(), "analise": grupo_analise(), "exec": grupo_exec()}
     subapps = {nome: srv.streamable_http_app() for nome, srv in grupos.items()}
 
     async def saude(_: Request) -> JSONResponse:
+        from .comum import GATEWAY
         n = {nome: len(await_tools(srv)) for nome, srv in grupos.items()}
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as cli:
+                gw = (await cli.get(GATEWAY + "/mcp")).status_code in (401, 405, 400, 406)
+        except httpx.HTTPError:
+            gw = False
         return JSONResponse({"ok": True, "versao": __version__, "porta": PORTA, "grupos": n,
                              "gpu_reservada": gpu_reservada(), "trabalho": str(TRABALHO),
-                             "exec_com_token": bool(token)})
+                             "exec_com_token": bool(token), "gateway_literatura": gw})
 
     def aquecer_biblioteca():
         # O embedder de consulta (bge-m3 na CPU) leva ~30 s para subir dentro do servidor;
@@ -319,7 +363,8 @@ def criar_app(token: str) -> Starlette:
                 await pilha.enter_async_context(srv.session_manager.run())
             yield
 
-    rotas = [Route("/saude", saude)] + [Mount("/" + nome, app=sub) for nome, sub in subapps.items()]
+    rotas = ([Route("/saude", saude), Route("/literatura/mcp", literatura, methods=["GET", "POST", "DELETE"])]
+             + [Mount("/" + nome, app=sub) for nome, sub in subapps.items()])
     app = Starlette(routes=rotas, lifespan=vida)
     app.state.grupos = grupos
     return _TokenExec(app, token)
