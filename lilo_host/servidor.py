@@ -24,7 +24,8 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 
-from . import __version__, biblioteca, bioparsers, docx, estatistica, execucao, projetos, resumir
+from . import (__version__, biblioteca, bioparsers, docx, estatistica, execucao, pastas, projetos,
+               resumir, skills)
 from .comum import PORTA, TRABALHO, gpu_reservada
 
 HOSTS = ["127.0.0.1:*", "localhost:*", "[::1]:*", "host.docker.internal:*"]
@@ -100,6 +101,37 @@ def grupo_conhecimento() -> FastMCP:
     def biblioteca_status() -> str:
         """Quantos PDFs estao indexados, falhas, trechos e o progresso da indexacao em curso."""
         return _json(biblioteca.status())
+
+    @srv.tool()
+    def skills_listar(filtro: str = "", limite: int = 30) -> str:
+        """Catalogo das skills do dono (Claude Code: proprias, bioinformatica e plugins), lidas
+        no lugar. Sem filtro lista as proprias; com filtro ('qpcr', 'docking', 'git') busca em
+        todas (sao ~850)."""
+        return _json(skills.listar(filtro, limite))
+
+    @srv.tool()
+    def skill_ler(nome: str) -> str:
+        """Instrucoes completas (SKILL.md) e arquivos de uma skill. Siga-as como roteiro; os
+        scripts dela rodam com skill_rodar (preset Analise)."""
+        return skills.ler(nome)
+
+    @srv.tool()
+    def pasta_listar(caminho: str, profundidade: int = 2) -> str:
+        """Arvore de uma pasta do computador (ate 6 niveis) com tamanhos. E assim que o dono
+        "anexa" uma pasta: ele cita o caminho e voce lista, busca (pasta_buscar) e le (ler_texto)."""
+        return pastas.listar(caminho, profundidade)
+
+    @srv.tool()
+    def pasta_buscar(caminho: str, termo: str, extensoes: str = "") -> str:
+        """Procura um termo nos arquivos de texto de uma pasta (arquivo, linha, trecho);
+        `extensoes` como ".py,.md" restringe."""
+        return _json(pastas.buscar(caminho, termo, extensoes))
+
+    @srv.tool()
+    def repos_listar() -> str:
+        """Repositorios git do dono em C:\\GitHub: ramo, arquivos alterados e ultimo commit.
+        Para agir neles use executar_git (preset Analise)."""
+        return _json(pastas.repos_listar())
 
     return srv
 
@@ -214,6 +246,23 @@ def grupo_exec() -> FastMCP:
     def executar_wsl(comando: str, timeout: int = 120) -> str:
         """Roda um comando bash no WSL (Ubuntu)."""
         return execucao.executar_wsl(comando, timeout)
+
+    @srv.tool()
+    def executar_git(repo: str, argumentos: str, timeout: int = 120) -> str:
+        """git num repositorio de C:\\GitHub (nome da pasta ou caminho): status, log, diff, add,
+        commit, checkout -b, pull, push... Operacoes destrutivas (--force, reset --hard,
+        clean -f, branch -D) sao bloqueadas. Mostre a saida como veio."""
+        return execucao.executar_git(repo, argumentos, timeout)
+
+    @srv.tool()
+    def skill_rodar(nome: str, script: str, argumentos: str = "", cwd: str = "", timeout: int = 300) -> str:
+        """Roda um script da pasta de uma skill do dono, ex.: skill_rodar("git_dione",
+        "git_dione_sync.py", "--status", cwd="C:/GitHub/Paper_X"). .py no env datascience,
+        .R, .ps1 ou .sh (WSL). Leia a skill antes (skill_ler) para saber os argumentos."""
+        alvo = skills.script(nome, script)
+        if isinstance(alvo, str):
+            return alvo
+        return execucao.rodar_script(alvo, argumentos, cwd or None, timeout)
 
     return srv
 

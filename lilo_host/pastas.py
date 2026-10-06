@@ -55,11 +55,13 @@ def listar(caminho: str, profundidade: int = 2, limite: int = 300) -> str:
                 return
             if f.name in IGNORAR:
                 continue
+            recuo = "  " * (nivel + 1)
             if f.is_dir():
                 n_dir += 1
-                sub = sum(1 for _ in f.iterdir()) if nivel + 1 >= profundidade else None
-                linhas.append("  " * nivel + f.name + "/" + (" (%d itens)" % sub if sub is not None else ""))
-                if nivel + 1 < profundidade:
+                desce = nivel + 1 < profundidade          # raiz = nivel 0; profundidade 1 = so os filhos
+                sub = None if desce else sum(1 for _ in f.iterdir())
+                linhas.append(recuo + f.name + "/" + ("" if desce else " (%d itens)" % sub))
+                if desce:
                     anda(f, nivel + 1)
             else:
                 n_arq += 1
@@ -68,9 +70,9 @@ def listar(caminho: str, profundidade: int = 2, limite: int = 300) -> str:
                 except OSError:
                     t = 0
                 total += t
-                linhas.append("  " * nivel + "%s  (%s)" % (f.name, _tamanho(t)))
+                linhas.append(recuo + "%s  (%s)" % (f.name, _tamanho(t)))
 
-    anda(p, 1)
+    anda(p, 0)
     cabeca = "%d pastas, %d arquivos listados, %s%s" % (n_dir, n_arq, _tamanho(total),
                                                        "; lista cortada em %d entradas" % limite if cortado else "")
     return linhas[0] + "\n" + cabeca + "\n" + "\n".join(linhas[1:])

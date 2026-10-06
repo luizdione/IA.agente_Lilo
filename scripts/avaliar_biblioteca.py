@@ -19,6 +19,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+# Perguntas e titulos trazem letras gregas: o console cp1252 do Windows nao as imprime.
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 import httpx  # noqa: E402
 

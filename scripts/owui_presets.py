@@ -49,8 +49,11 @@ PRESETS = (
                                 "(PubMed etc.) e busca web.",
                  "tags": [{"name": "local"}, {"name": "pesquisa"}]},
         "params": {"system": "Você é o LILO em modo Pesquisa. Responda em português. Quando a "
-                             "pergunta pedir fontes, use as ferramentas de biblioteca e de "
-                             "literatura e cite o que encontrar (título, autores, ano). Se não "
+                             "pergunta pedir fontes, use biblioteca_buscar (PDFs do dono) e as "
+                             "ferramentas de literatura e cite o que encontrar (título, autores, ano, "
+                             "página). Se o dono citar uma pasta ou arquivo, use pasta_listar, "
+                             "pasta_buscar e ler_texto. Se o pedido casar com uma skill do dono "
+                             "(skills_listar), leia-a com skill_ler e siga as instruções dela. Se não "
                              "encontrar, diga que não encontrou; não invente referências."},
     },
     {
@@ -61,9 +64,44 @@ PRESETS = (
         "params": {"system": "Você é o LILO em modo Análise. Responda em português. Para contas, "
                              "estatística e arquivos use as ferramentas de análise e execução; "
                              "mostre o código ou comando que rodou e o resultado tal como veio. "
-                             "Não invente números."},
+                             "Pasta citada pelo dono: pasta_listar, pasta_buscar, ler_texto; "
+                             "repositório em C:\\GitHub: repos_listar e executar_git (status, log, "
+                             "diff antes de qualquer alteração; commit só com o ok dele). Skills do "
+                             "dono: skills_listar -> skill_ler (siga o SKILL.md como roteiro) -> "
+                             "skill_rodar para os scripts dela. Não invente números."},
     },
 )
+
+# Atalhos da caixa de mensagem (Workspace > Prompts): o dono digita /pasta, /repo ou /skill e
+# preenche o que esta entre colchetes. E o "anexar pasta" possivel na Open WebUI: nao ha
+# upload de diretorio no chat, e como o LILO roda no host, citar o caminho basta.
+PROMPTS = (
+    {"command": "/pasta", "name": "Trabalhar numa pasta",
+     "content": "Trabalhe na pasta [caminho da pasta]: liste-a com pasta_listar, leia com ler_texto "
+                "o que for relevante para [o que eu quero] e me diga o que encontrou antes de agir."},
+    {"command": "/repo", "name": "Trabalhar num repositorio do GitHub",
+     "content": "Trabalhe no repositório [nome da pasta em C:\\GitHub]: use repos_listar e executar_git "
+                "(status, log -5, diff) para me situar e depois [o que eu quero]. Só altere ou faça "
+                "commit depois do meu ok."},
+    {"command": "/skill", "name": "Usar uma skill do dono",
+     "content": "Use a skill [nome da skill] para [o que eu quero]: leia-a com skill_ler, siga as "
+                "instruções e rode os scripts dela com skill_rodar, mostrando cada saída."},
+)
+
+
+def aplicar_prompts(cli: httpx.Client) -> None:
+    r = cli.get(f"{BASE}/api/v1/prompts/")
+    r.raise_for_status()
+    existentes = {p["command"]: p for p in r.json()}
+    for p in PROMPTS:
+        form = {"command": p["command"], "name": p["name"], "content": p["content"]}
+        if p["command"] in existentes:
+            r = cli.post(f"{BASE}/api/v1/prompts/id/{existentes[p['command']]['id']}/update", json=form)
+            acao = "atualizado"
+        else:
+            r = cli.post(f"{BASE}/api/v1/prompts/create", json=form)
+            acao = "criado"
+        print(f"  {p['command']:<14} {acao if r.status_code == 200 else '%d %s' % (r.status_code, r.text[:120])}")
 
 
 def token(cli: httpx.Client) -> str:
@@ -122,6 +160,7 @@ def main() -> int:
             return 0
         for p in PRESETS:
             print(f"  {p['name']:<14} {aplicar(cli, p)}")
+        aplicar_prompts(cli)
         listar(cli)
     return 0
 
