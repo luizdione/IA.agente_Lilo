@@ -61,8 +61,8 @@ def main() -> int:
         try:
             nomes = asyncio.run(_tools(f"{a.url}/{grupo}/mcp"))
             print(f"{grupo}: {len(nomes)} tools -> {', '.join(nomes)}")
-            if not nomes or len(nomes) > 13:
-                falhas.append(f"{grupo}: {len(nomes)} tools (esperado 1..13)")
+            if not nomes or len(nomes) > 14:   # grupos enxutos (regra 5); 14 = conhecimento com pasta_escolher
+                falhas.append(f"{grupo}: {len(nomes)} tools (esperado 1..14)")
         except Exception as e:  # noqa: BLE001
             falhas.append(f"{grupo}: {type(e).__name__}: {e}")
 
