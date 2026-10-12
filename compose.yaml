@@ -26,12 +26,21 @@ services:
       # --- motor: Ollama do host, unico dono da GPU -------------------------
       OLLAMA_BASE_URL: "http://host.docker.internal:11434"
       ENABLE_OLLAMA_API: "True"
-      ENABLE_OPENAI_API: "False"
+      # Claude pela API da Anthropic (compativel com OpenAI): opcao "orquestrador" no seletor.
+      # A chave vem do .env do repo (ANTHROPIC_API_KEY), exportada pelo lilo.ps1 no `up`;
+      # sem chave valida a conexao simplesmente nao lista modelos.
+      ENABLE_OPENAI_API: "True"
+      OPENAI_API_BASE_URLS: "https://api.anthropic.com/v1"
+      OPENAI_API_KEYS: "${ANTHROPIC_API_KEY:-}"
+      OPENAI_API_CONFIGS: '{"0": {"model_ids": ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-4-5-20251001"]}}'
       DEFAULT_MODELS: "lilo:latest"
       # So o `lilo` e os modelos nuvem (sem VRAM) aparecem na lista (I-0009): escolher
       # `qwen3:14b` direto recarregaria o mesmo arquivo com outro contexto, e os
       # embedders nao sao chat. Chave "0" = 1a conexao Ollama (OLLAMA_BASE_URL).
-      OLLAMA_API_CONFIGS: '{"0": {"model_ids": ["lilo:latest", "lilo-gemma:latest", "gpt-oss:20b-cloud", "gpt-oss:120b-cloud", "mistral-large-3:675b-cloud"]}}'
+      # 2026-10-12: qwen2.5-coder:14b (9 GB) entra como alternativa de codigo (troca com o lilo =
+      # recarga de ~11 s). Ficam fora: qwen2.5-coder:32b (19 GB, nao cabe nos 12 GB -> CPU, ~3 tok/s)
+      # e gpt-oss-safeguard:20b (classificador de politicas, nao e modelo de chat).
+      OLLAMA_API_CONFIGS: '{"0": {"model_ids": ["lilo:latest", "lilo-gemma:latest", "qwen2.5-coder:14b", "gpt-oss:20b-cloud", "gpt-oss:120b-cloud", "mistral-large-3:675b-cloud"]}}'
       # think:false = regra de velocidade 3 (com thinking o "2+2" leva 6,5 s).
       # Nunca por aqui opcao de runner (num_ctx, num_gpu...): o contexto vem do
       # Modelfile do `lilo`, e opcao diferente faz o Ollama recarregar o modelo.
@@ -56,7 +65,13 @@ services:
         [{"type":"mcp","url":"http://host.docker.internal:8790/conhecimento/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"conhecimento","name":"LILO conhecimento","description":"Memoria dos projetos, PDF/texto, resumo"}},
         {"type":"mcp","url":"http://host.docker.internal:8790/analise/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"analise","name":"LILO analise","description":"Estatistica, parsers bio, DOCX"}},
         {"type":"mcp","url":"http://host.docker.internal:8790/exec/mcp","path":"","auth_type":"bearer","key":"${LILO_HOST_TOKEN:-}","config":{"enable":true},"info":{"id":"exec","name":"LILO exec","description":"Python, R e WSL no host"}},
-        {"type":"mcp","url":"http://host.docker.internal:8790/literatura/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"literatura","name":"LILO literatura","description":"PubMed, Europe PMC, bioRxiv, Crossref e Semantic Scholar (paper-search via Docker MCP Gateway)"}}]
+        {"type":"mcp","url":"http://host.docker.internal:8790/literatura/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"literatura","name":"LILO literatura","description":"PubMed, Europe PMC, bioRxiv, Crossref e Semantic Scholar (paper-search via Docker MCP Gateway)"}},
+        {"type":"openapi","url":"http://host.docker.internal:8795","path":"openapi.json","auth_type":"bearer","key":"${LILO_HOST_TOKEN:-}","config":{"enable":true},"info":{"id":"desktop","name":"LILO desktop","description":"Desktop Commander no host (arquivos, pastas, busca, processos e PowerShell) via mcpo; sobe com lilo.ps1 desktop up"}},
+        {"type":"mcp","url":"https://pubmed.mcp.claude.com/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"pubmed","name":"PubMed (plugin bio-research)","description":"MCP remoto do plugin bio-research do Claude: busca e leitura no PubMed"}},
+        {"type":"mcp","url":"https://hcls.mcp.claude.com/biorxiv/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"biorxiv","name":"bioRxiv (plugin bio-research)","description":"MCP remoto: preprints bioRxiv/medRxiv"}},
+        {"type":"mcp","url":"https://hcls.mcp.claude.com/chembl/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"chembl","name":"ChEMBL (plugin bio-research)","description":"MCP remoto: compostos, alvos, bioatividade, mecanismos, ADMET"}},
+        {"type":"mcp","url":"https://hcls.mcp.claude.com/clinical_trials/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"ensaios","name":"Ensaios clinicos (plugin bio-research)","description":"MCP remoto: ClinicalTrials.gov"}},
+        {"type":"mcp","url":"https://mcp.platform.opentargets.org/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"opentargets","name":"Open Targets","description":"MCP publico da plataforma Open Targets (gene-doenca-farmaco)"}}]
       # --- acesso -----------------------------------------------------------
       # Sem login nem chave (decisao do autor, 2026-10-05): servidor de uso proprio.
       # O Open WebUI cria sozinho o usuario unico; os scripts pegam o token dele em

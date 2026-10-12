@@ -35,6 +35,19 @@ BASE = os.environ.get("LILO_WEBUI", "http://127.0.0.1:3000")
 TOOLS: dict[str, list[str]] = {
     "lilo-pesquisa": ["server:mcp:conhecimento", "server:mcp:literatura"],
     "lilo-analise": ["server:mcp:analise", "server:mcp:exec", "server:mcp:conhecimento"],
+    # Servidor OpenAPI (mcpo) e `server:<id>`, sem o `mcp:`; as tools viram `tool_<nome>_post`.
+    "lilo-desktop": ["server:desktop", "server:mcp:conhecimento"],
+    # MCPs remotos dos plugins bio-research do Claude que aceitam conexao sem login (12/10/2026):
+    # ChEMBL, ensaios clinicos e Open Targets. PubMed/bioRxiv do plugin ja estao cobertos pelo
+    # paper-search (literatura). Preset separado para nao estourar o contexto de 8k do lilo.
+    "lilo-bio": ["server:mcp:chembl", "server:mcp:ensaios", "server:mcp:opentargets"],
+    # Orquestrador na nuvem (Claude Sonnet 5.5 pela API da Anthropic): mesmas tools do Analise.
+    # Regra mantida: conteudo da internet nunca no mesmo preset que executa codigo.
+    "lilo-orquestrador": ["server:mcp:conhecimento", "server:mcp:analise", "server:mcp:exec"],
+    # Pesquisa com o Claude: biblioteca + literatura + os MCPs bio dos plugins (contexto de 200k).
+    "lilo-pesquisa-claude": ["server:mcp:conhecimento", "server:mcp:literatura", "server:mcp:pubmed",
+                             "server:mcp:biorxiv", "server:mcp:chembl", "server:mcp:ensaios",
+                             "server:mcp:opentargets"],
 }
 
 PRESETS = (
@@ -79,14 +92,67 @@ PRESETS = (
                              "dono: skills_listar -> skill_ler (siga o SKILL.md como roteiro) -> "
                              "skill_rodar para os scripts dela. Não invente números."},
     },
+    {
+        "id": "lilo-desktop", "base_model_id": "lilo:latest", "name": "LILO Desktop",
+        "meta": {"description": "Desktop Commander: arquivos, pastas, busca, processos e PowerShell "
+                                "no computador do dono. Sem internet.",
+                 "tags": [{"name": "local"}, {"name": "desktop"}]},
+        "params": {"system": "Você é o LILO em modo Desktop e tem acesso ao computador do dono pelas "
+                             "ferramentas do Desktop Commander (tool_*): tool_list_directory_post, "
+                             "tool_read_file_post, tool_write_file_post, tool_edit_block_post, "
+                             "tool_start_search_post, tool_start_process_post (PowerShell) e "
+                             "tool_read_process_output_post. Responda sempre em português do Brasil. "
+                             "Pasta ou arquivo citado pelo dono: use o caminho exatamente como ele deu. "
+                             "Antes de criar, alterar ou mover qualquer coisa, diga o que vai fazer; "
+                             "mostre comandos e saídas tal como vieram. Para memória dos projetos, PDFs e "
+                             "skills do dono use as ferramentas de conhecimento. Não invente caminhos."},
+    },
+    {
+        "id": "lilo-bio", "base_model_id": "lilo:latest", "name": "LILO Bio",
+        "meta": {"description": "ChEMBL, ensaios clínicos (ClinicalTrials.gov) e Open Targets pelos "
+                                "MCPs dos plugins do Claude. Sem execução de código.",
+                 "tags": [{"name": "local"}, {"name": "bio"}]},
+        "params": {"system": "Você é o LILO em modo Bio. Responda sempre em português do Brasil, mesmo "
+                             "que o material esteja em inglês. Use as ferramentas de ChEMBL (compostos, "
+                             "alvos, bioatividade), ensaios clínicos e Open Targets (gene-doença) e cite "
+                             "os identificadores que vierem (ChEMBL ID, NCT, Ensembl). Se não encontrar, "
+                             "diga; não invente dados."},
+    },
+    {
+        "id": "lilo-orquestrador", "base_model_id": "claude-sonnet-5-5", "name": "LILO Orquestrador (Claude)",
+        "meta": {"description": "Claude Sonnet 5.5 pela API da Anthropic com as ferramentas da ponte "
+                                "(memória, biblioteca, skills, estatística, Python/R/WSL, git). Para "
+                                "tarefas longas e em etapas. Custa tokens.",
+                 "tags": [{"name": "nuvem"}, {"name": "orquestrador"}]},
+        "params": {"system": "Você é o LILO Orquestrador: planeja e executa tarefas em etapas no computador "
+                             "do dono usando as ferramentas disponíveis (memória dos projetos, biblioteca de "
+                             "PDFs, skills, pastas, repositórios git, estatística, Python, R e WSL). Responda "
+                             "sempre em português do Brasil. Comece com um plano curto, execute passo a passo, "
+                             "mostre comandos e saídas tal como vieram e feche com o que foi feito e o que "
+                             "falta. Skills do dono: skills_listar -> skill_ler (siga o SKILL.md) -> "
+                             "skill_rodar. Commit só com o ok dele. Não invente números nem caminhos."},
+    },
+    {
+        "id": "lilo-pesquisa-claude", "base_model_id": "claude-sonnet-5-5", "name": "LILO Pesquisa (Claude)",
+        "meta": {"description": "Claude Sonnet 5.5 com biblioteca de PDFs, literatura (paper-search), "
+                                "PubMed, bioRxiv, ChEMBL, ensaios clínicos e Open Targets. Sem execução. "
+                                "Custa tokens.",
+                 "tags": [{"name": "nuvem"}, {"name": "pesquisa"}]},
+        "params": {"system": "Você é o LILO em modo Pesquisa com o Claude. Responda sempre em português do "
+                             "Brasil. Para fontes use biblioteca_buscar (PDFs do dono) e as ferramentas de "
+                             "literatura e dos bancos biomédicos; cite título, autores, ano e identificador "
+                             "(PMID, DOI, ChEMBL ID, NCT). Se não encontrar, diga; não invente referências."},
+    },
 )
 
 # Atalhos da caixa de mensagem (Workspace > Prompts): o dono digita /pasta, /repo ou /skill e
 # preenche o que esta entre colchetes. E o "anexar pasta" possivel na Open WebUI: nao ha
 # upload de diretorio no chat, e como o LILO roda no host, citar o caminho basta.
 PROMPTS = (
-    {"command": "/pasta", "name": "Trabalhar numa pasta",
-     "content": "Trabalhe na pasta [caminho da pasta]: liste-a com pasta_listar, leia com ler_texto "
+    # "Anexar pasta": no Explorer, Ctrl+Shift+C (ou Shift+clique direito > Copiar como caminho) e
+    # digite /pasta - a interface cola o caminho da area de transferencia ({{CLIPBOARD}}).
+    {"command": "/pasta", "name": "Anexar pasta (copie o caminho no Explorer e digite /pasta)",
+     "content": "Trabalhe na pasta {{CLIPBOARD}}: liste-a com pasta_listar, leia com ler_texto "
                 "o que for relevante para [o que eu quero] e me diga o que encontrou antes de agir."},
     {"command": "/repo", "name": "Trabalhar num repositorio do GitHub",
      "content": "Trabalhe no repositório [nome da pasta em C:\\GitHub]: use repos_listar e executar_git "

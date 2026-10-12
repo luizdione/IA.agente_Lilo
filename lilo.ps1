@@ -43,6 +43,12 @@ $ArqTokenGateway = Join-Path $env:LOCALAPPDATA "LILO\gateway_token.txt"
 # So buscas: o paper-search tem 57 tools, inclusive download_scihub, que fica fora.
 $GatewayTools = "search_pubmed,search_europepmc,search_biorxiv,search_crossref,search_semantic"
 $ArqCatalogoGateway = Join-Path $HOME ".docker\mcp\catalogs\lilo.yaml"   # scripts\gateway_catalogo.py
+# Desktop Commander (o mesmo que o Claude usa nesta maquina) atras do mcpo, o proxy MCP->OpenAPI
+# da propria Open WebUI: so loopback, chave = token da ponte. Guardas (comandos bloqueados,
+# pastas permitidas) sao as do ~/.claude-server-commander/config.json.
+$Desktop = "http://127.0.0.1:8795"
+$ArqPidDesktop = Join-Path $env:LOCALAPPDATA "LILO\desktop.pid"
+$DesktopCmd = @("npx", "-y", "@wonderwhy-er/desktop-commander@latest")
 
 # ---------------------------------------------------------------- interruptor
 # Mesmo arquivo do MCP ollama-local: um interruptor so para toda a GPU.
@@ -237,6 +243,54 @@ function Show-Gateway {
     if (Test-Gateway) { Write-Host "Gateway de literatura: $Gateway respondendo" } else { Write-Host "Gateway de literatura: parado" }
 }
 
+function Get-EnvArquivo([string]$Chave) {
+    # Le UMA chave do .env do repo (nunca o imprime nem o move).
+    $arq = Join-Path $Raiz ".env"
+    if (-not (Test-Path $arq)) { return "" }
+    foreach ($l in Get-Content $arq) {
+        if ($l -match "^\s*$Chave\s*=\s*(.*)$") { return $Matches[1].Trim().Trim('"').Trim("'") }
+    }
+    return ""
+}
+
+function Test-Desktop([string]$Tok) {
+    try {
+        $r = Invoke-WebRequest -Uri "$Desktop/openapi.json" -Headers @{ Authorization = "Bearer $Tok" } -UseBasicParsing -TimeoutSec 3
+        return ($r.StatusCode -eq 200)
+    } catch { return $false }
+}
+
+function Start-Desktop {
+    # Desktop Commander no host, atras do mcpo (MCP stdio -> OpenAPI), so loopback, chave = token
+    # da ponte (a interface entra com o mesmo Bearer do grupo exec). O npx resolve e cacheia o pacote.
+    $tok = Get-TokenPonte
+    if (Test-Desktop $tok) { return $true }
+    $mcpo = Join-Path (Split-Path $Py) "mcpo.exe"
+    if (-not (Test-Path $mcpo)) { Write-Host "mcpo nao esta no env do projeto ($mcpo): pip install mcpo"; return $false }
+    if (-not (Get-Command npx -ErrorAction SilentlyContinue)) { Write-Host "npx (Node.js) nao encontrado: Desktop Commander nao sobe."; return $false }
+    New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+    $args = @("--host", "127.0.0.1", "--port", "8795", "--api-key", $tok, "--") + $DesktopCmd
+    $p = Start-Process -FilePath $mcpo -ArgumentList $args -WindowStyle Hidden -PassThru `
+        -RedirectStandardOutput (Join-Path $LogDir "desktop.log") -RedirectStandardError (Join-Path $LogDir "desktop.err.log")
+    Set-Content -Path $ArqPidDesktop -Value $p.Id
+    if (Wait-Ate { Test-Desktop $tok } 120) { Write-Host "Desktop Commander no ar em $Desktop (mcpo)"; return $true }
+    Write-Host "O Desktop Commander nao respondeu em $Desktop (ver $LogDir\desktop.err.log)."
+    return $false
+}
+
+function Stop-Desktop {
+    if (Test-Path $ArqPidDesktop) {
+        # mcpo -> npx -> node: matar a arvore, senao o Desktop Commander fica orfao na porta.
+        try { & taskkill /PID ([int](Get-Content $ArqPidDesktop -Raw).Trim()) /T /F 2>$null | Out-Null } catch { }
+        Remove-Item $ArqPidDesktop -ErrorAction SilentlyContinue
+    }
+    Write-Host "Desktop Commander parado."
+}
+
+function Show-Desktop {
+    if (Test-Desktop (Get-TokenPonte)) { Write-Host "Desktop Commander: $Desktop respondendo (mcpo)" } else { Write-Host "Desktop Commander: parado" }
+}
+
 function Show-Ponte {
     if (Test-Ponte) { Write-Host "Ponte lilo-host: $Ponte respondendo" } else { Write-Host "Ponte lilo-host: parada" }
 }
@@ -295,6 +349,9 @@ function Invoke-Up {
     $null = Start-Ponte
     $null = Start-Gateway
     $env:LILO_HOST_TOKEN = Get-TokenPonte
+    # Claude na interface (OPENAI_API_KEYS do compose): a chave sai do .env do repo, sem passar
+    # por arquivo versionado nem pela tela.
+    $env:ANTHROPIC_API_KEY = Get-EnvArquivo "ANTHROPIC_API_KEY"
     docker compose -f $Compose up -d
     $null = Invoke-Warm
     if (-not (Wait-Ate { Test-Url "$WebUI/health" } 120)) {
@@ -341,6 +398,7 @@ function Show-Status {
     if (Test-Url "$WebUI/health") { Write-Host "  $WebUI respondendo" } else { Write-Host "  $WebUI sem resposta" }
     Show-Ponte
     Show-Gateway
+    Show-Desktop
     $b = Join-Path $LogDir "bench.jsonl"
     if (Test-Path $b) { Write-Host "Ultimo bench: $(Get-Content $b -Tail 1)" }
 }
@@ -392,12 +450,16 @@ switch ($Comando.ToLower()) {
         $o = "$($Resto | Select-Object -First 1)".ToLower()
         if ($o -eq "up") { $null = Start-Gateway } elseif ($o -eq "down") { Stop-Gateway } else { Show-Gateway }
     }
+    "desktop"   {
+        $o = "$($Resto | Select-Object -First 1)".ToLower()
+        if ($o -eq "up") { $null = Start-Desktop } elseif ($o -eq "down") { Stop-Desktop } else { Show-Desktop }
+    }
     "indexar"   { Invoke-Indexar $Resto }
     "gpu-livre" { Invoke-GpuLivre ($Resto -join " ") }
     "gpu-ok"    { Invoke-GpuOk ("$($Resto | Select-Object -First 1)") }
     default {
         Write-Host "Comando desconhecido: $Comando"
-        Write-Host "Use: abrir | up | down | status | warm | bench | convivencia | presets | inicio | ponte [up|down] | gateway [up|down] | smoke | indexar [status|falhas|...] | gpu-livre [motivo] | gpu-ok [forcar]"
+        Write-Host "Use: abrir | up | down | status | warm | bench | convivencia | presets | inicio | ponte [up|down] | gateway [up|down] | desktop [up|down] | smoke | indexar [status|falhas|...] | gpu-livre [motivo] | gpu-ok [forcar]"
         exit 2
     }
 }

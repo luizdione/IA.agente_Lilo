@@ -22,8 +22,9 @@ o legado v12 em `v12.15-legado`.
 | Peça | O que é | Onde |
 |---|---|---|
 | **Motor** | Ollama 0.35+ com o modelo derivado `lilo` (`ollama/Modelfile.lilo`: qwen3:14b Q4_K_M, contexto 8192, SYSTEM em PT). Alternativa `lilo-gemma` (gemma4:12b). | host, GPU |
-| **Interface** | Open WebUI em Docker Compose (`compose.yaml`), `127.0.0.1:3000`, sem login, lista só `lilo` + modelos de nuvem; presets **LILO**, **LILO Pesquisa**, **LILO Análise** e atalhos `/pasta`, `/repo`, `/skill`, `/<skill>`. | container |
+| **Interface** | Open WebUI em Docker Compose (`compose.yaml`), `127.0.0.1:3000`, sem login. Seletor: `lilo`, `lilo-gemma`, `qwen2.5-coder:14b`, 3 modelos de nuvem do Ollama e **Claude** (Sonnet 5.5, Opus 5.5, Haiku 4.5 pela API da Anthropic, chave no `.env`). Presets: **LILO**, **LILO Pesquisa**, **LILO Análise**, **LILO Desktop**, **LILO Bio**, **LILO Orquestrador (Claude)**, **LILO Pesquisa (Claude)**. Atalhos `/pasta` (cola o caminho copiado no Explorer), `/repo`, `/skill` e um `/<skill>` por skill do dono. | container |
 | **Ponte `lilo-host`** | Pacote `lilo_host/` (FastMCP, streamable HTTP) em `127.0.0.1:8790` com 3 grupos: `conhecimento` (13 tools), `analise` (10), `exec` (5, token obrigatório) e o proxy `/literatura/mcp` para o Docker MCP Gateway (`paper-search`, só busca). | host, conda `datascience` |
+| **Plugins do Claude** | MCPs remotos do plugin bio-research que aceitam conexão sem login, ligados direto na interface: PubMed, bioRxiv, ChEMBL, ensaios clínicos e Open Targets. **Desktop Commander** (o mesmo do Claude) no host atrás do `mcpo`, só loopback, com token: `lilo.ps1 desktop up`. | container / host |
 
 Regras de velocidade que o código obedece: um só modelo de chat, chamado **sem opções
 de runner** (opção diferente = recarga); `think:false` por padrão; nada roda escondido
@@ -41,8 +42,14 @@ impede qualquer carga (`lilo.ps1 gpu-livre` / `gpu-ok`).
 
 Outros comandos: `abrir` (navegador) · `warm` · `convivencia` (lilo + embeddings na GPU) ·
 `presets` · `inicio` (atalho de inicialização do Windows) · `ponte [up|down]` ·
-`gateway [up|down]` · `smoke` (tools de cada grupo) · `indexar [status|falhas]`
-(biblioteca de PDFs, incremental) · `gpu-livre [motivo]` · `gpu-ok`.
+`gateway [up|down]` · `desktop [up|down]` (Desktop Commander via mcpo) · `smoke` (tools de
+cada grupo) · `indexar [status|falhas]` (biblioteca de PDFs, incremental) · `gpu-livre [motivo]` ·
+`gpu-ok`.
+
+Regra dos presets: **conteúdo da internet nunca fica no mesmo preset que executa código**
+(Pesquisa/Bio/Pesquisa-Claude não executam; Análise/Desktop/Orquestrador não têm web). Presets
+com muitas tools só sobre o Claude (contexto 200k); no `lilo` (8k) cada preset fica abaixo de
+~30 tools, porque os schemas entram no prompt (o Ollama reaproveita o cache a partir da 2ª mensagem).
 
 Requisitos: Windows 11, Docker Desktop, Ollama, conda `datascience` (Python 3.11 com
 `mcp`, `httpx`, `sentence-transformers`, `chromadb`, `pingouin`, `pymupdf`, `psutil`,
