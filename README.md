@@ -22,9 +22,9 @@ o legado v12 em `v12.15-legado`.
 | Peça | O que é | Onde |
 |---|---|---|
 | **Motor** | Ollama 0.35+ com o modelo derivado `lilo` (`ollama/Modelfile.lilo`: qwen3:14b Q4_K_M, contexto 8192, SYSTEM em PT). Alternativa `lilo-gemma` (gemma4:12b). | host, GPU |
-| **Interface** | Open WebUI em Docker Compose (`compose.yaml`), `127.0.0.1:3000`, sem login. Seletor: `lilo`, `lilo-gemma`, `qwen2.5-coder:14b`, 3 modelos de nuvem do Ollama e **Claude** (Sonnet 5.5, Opus 5.5, Haiku 4.5 pela API da Anthropic, chave no `.env`). Presets: **LILO**, **LILO Pesquisa**, **LILO Análise**, **LILO Desktop**, **LILO Bio**, **LILO Orquestrador (Claude)**, **LILO Pesquisa (Claude)**. Atalhos `/pasta` (cola o caminho copiado no Explorer), `/repo`, `/skill` e um `/<skill>` por skill do dono. | container |
+| **Interface** | Open WebUI em Docker Compose (`compose.yaml`), `127.0.0.1:3000`, sem login. Seletor: `lilo`, `lilo-gemma`, `qwen2.5-coder:14b`, 3 modelos de nuvem do Ollama e **Claude** (Sonnet 5.5, Opus 5.5, Haiku 4.5 pela API da Anthropic, chave no `.env`). Presets: **LILO**, **LILO Pesquisa**, **LILO Análise**, **LILO Desktop**, **LILO Orquestrador (Claude)**, **LILO Pesquisa (Claude)**. Atalhos `/pasta` (cola o caminho copiado no Explorer), `/repo`, `/skill` e um `/<skill>` por skill do dono. | container |
 | **Ponte `lilo-host`** | Pacote `lilo_host/` (FastMCP, streamable HTTP) em `127.0.0.1:8790` com 3 grupos: `conhecimento` (13 tools), `analise` (10), `exec` (5, token obrigatório) e o proxy `/literatura/mcp` para o Docker MCP Gateway (`paper-search`, só busca). | host, conda `datascience` |
-| **Plugins do Claude** | MCPs remotos do plugin bio-research que aceitam conexão sem login, ligados direto na interface: PubMed, bioRxiv, ChEMBL, ensaios clínicos e Open Targets. **Desktop Commander** (o mesmo do Claude) no host atrás do `mcpo`, só loopback, com token: `lilo.ps1 desktop up`. | container / host |
+| **Plugins do Claude** | MCPs remotos do plugin bio-research que aceitam conexão sem login, ligados direto na interface: PubMed, bioRxiv, ChEMBL, ensaios clínicos e Open Targets (só no preset Pesquisa (Claude): seus schemas somam 4 k tokens e são buscados a cada mensagem, o que custa 3,7 s de 1º token no modelo local). **Desktop Commander** (o mesmo do Claude) no host atrás do `mcpo`, só loopback, com token: `lilo.ps1 desktop up`. | container / host |
 
 Regras de velocidade que o código obedece: um só modelo de chat, chamado **sem opções
 de runner** (opção diferente = recarga); `think:false` por padrão; nada roda escondido
@@ -47,9 +47,10 @@ cada grupo) · `indexar [status|falhas]` (biblioteca de PDFs, incremental) · `g
 `gpu-ok`.
 
 Regra dos presets: **conteúdo da internet nunca fica no mesmo preset que executa código**
-(Pesquisa/Bio/Pesquisa-Claude não executam; Análise/Desktop/Orquestrador não têm web). Presets
+(Pesquisa/Pesquisa-Claude não executam; Análise/Desktop/Orquestrador não têm web). Presets
 com muitas tools só sobre o Claude (contexto 200k); no `lilo` (8k) cada preset fica abaixo de
-~30 tools, porque os schemas entram no prompt (o Ollama reaproveita o cache a partir da 2ª mensagem).
+~30 tools locais, porque os schemas entram no prompt (o Ollama reaproveita o cache a partir da
+2ª mensagem; medido: Pesquisa 18 tools = 1º token 0,37 s, Análise 28 tools = 0,53 s).
 
 Requisitos: Windows 11, Docker Desktop, Ollama, conda `datascience` (Python 3.11 com
 `mcp`, `httpx`, `sentence-transformers`, `chromadb`, `pingouin`, `pymupdf`, `psutil`,

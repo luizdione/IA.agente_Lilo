@@ -37,10 +37,9 @@ TOOLS: dict[str, list[str]] = {
     "lilo-analise": ["server:mcp:analise", "server:mcp:exec", "server:mcp:conhecimento"],
     # Servidor OpenAPI (mcpo) e `server:<id>`, sem o `mcp:`; as tools viram `tool_<nome>_post`.
     "lilo-desktop": ["server:desktop", "server:mcp:conhecimento"],
-    # MCPs remotos dos plugins bio-research do Claude que aceitam conexao sem login (12/10/2026):
-    # ChEMBL, ensaios clinicos e Open Targets. PubMed/bioRxiv do plugin ja estao cobertos pelo
-    # paper-search (literatura). Preset separado para nao estourar o contexto de 8k do lilo.
-    "lilo-bio": ["server:mcp:chembl", "server:mcp:ensaios", "server:mcp:opentargets"],
+    # MCPs remotos dos plugins bio-research do Claude (PubMed, bioRxiv, ChEMBL, ensaios clinicos,
+    # Open Targets) so no Claude: no `lilo` um preset com 3 deles media TTFT p50 3,7 s (schemas de
+    # 4.098 tokens buscados nos servidores remotos a cada mensagem) e reprovou no bench de 12/10.
     # Orquestrador na nuvem (Claude Sonnet 5.5 pela API da Anthropic): mesmas tools do Analise.
     # Regra mantida: conteudo da internet nunca no mesmo preset que executa codigo.
     "lilo-orquestrador": ["server:mcp:conhecimento", "server:mcp:analise", "server:mcp:exec"],
@@ -49,6 +48,9 @@ TOOLS: dict[str, list[str]] = {
                              "server:mcp:biorxiv", "server:mcp:chembl", "server:mcp:ensaios",
                              "server:mcp:opentargets"],
 }
+
+# Presets que ja existiram e devem sumir da interface (apagados a cada rodada, se existirem).
+OBSOLETOS = ("lilo-bio",)   # reprovou no bench de 12/10 (TTFT p50 3,7 s com 3 MCPs remotos)
 
 PRESETS = (
     {
@@ -106,17 +108,6 @@ PRESETS = (
                              "Antes de criar, alterar ou mover qualquer coisa, diga o que vai fazer; "
                              "mostre comandos e saídas tal como vieram. Para memória dos projetos, PDFs e "
                              "skills do dono use as ferramentas de conhecimento. Não invente caminhos."},
-    },
-    {
-        "id": "lilo-bio", "base_model_id": "lilo:latest", "name": "LILO Bio",
-        "meta": {"description": "ChEMBL, ensaios clínicos (ClinicalTrials.gov) e Open Targets pelos "
-                                "MCPs dos plugins do Claude. Sem execução de código.",
-                 "tags": [{"name": "local"}, {"name": "bio"}]},
-        "params": {"system": "Você é o LILO em modo Bio. Responda sempre em português do Brasil, mesmo "
-                             "que o material esteja em inglês. Use as ferramentas de ChEMBL (compostos, "
-                             "alvos, bioatividade), ensaios clínicos e Open Targets (gene-doença) e cite "
-                             "os identificadores que vierem (ChEMBL ID, NCT, Ensembl). Se não encontrar, "
-                             "diga; não invente dados."},
     },
     {
         "id": "lilo-orquestrador", "base_model_id": "claude-sonnet-5-5", "name": "LILO Orquestrador (Claude)",
@@ -277,6 +268,10 @@ def main() -> int:
             return 0
         for p in PRESETS:
             print(f"  {p['name']:<14} {aplicar(cli, p)}")
+        for id_ in OBSOLETOS:
+            if existe(cli, id_):
+                r = cli.post(f"{BASE}/api/v1/models/model/delete", json={"id": id_})  # POST com corpo
+                print(f"  {id_:<14} {'removido' if r.status_code == 200 else '%d %s' % (r.status_code, r.text[:120])}")
         aplicar_prompts(cli)
         listar(cli)
     return 0
