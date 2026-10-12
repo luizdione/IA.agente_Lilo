@@ -98,9 +98,13 @@ PROMPTS = (
 )
 
 
+MARCA_SKILL = "Skill: "   # prefixo do nome = prompt gerado daqui (e o que a poda reconhece)
+
+
 def prompts_das_skills() -> list[dict]:
-    """Um comando `/<skill>` por skill propria ou de plugin (como no Claude Code) + `/bioinfo`
-    para as 815 da biblioteca (sao demais para o menu). Lidos do catalogo da ponte, no lugar."""
+    """Um comando `/<skill>` por skill propria (como no Claude Code) + as do plugin `bioinfo`
+    + `/bioinfo` para as 815 da biblioteca (sao demais para o menu). Lidos do catalogo da
+    ponte, no lugar. Skills de plugins alheios (ory-*, doctor, reindex...) ficam de fora."""
     import re
     import sys
     sys.path.insert(0, str(ROOT))
@@ -110,11 +114,14 @@ def prompts_das_skills() -> list[dict]:
         return []
     out = []
     for it in skills.catalogo().values():
-        if it["origem"] not in ("skills", "plugins"):
+        pasta = it["pasta_nome"].lower()
+        if not (it["origem"] == "skills" or (it["origem"] == "plugins" and pasta.startswith("bioinfo"))):
             continue
-        cmd = "/" + re.sub(r"[^a-z0-9_-]", "_", it["pasta_nome"].lower())
+        cmd = "/" + re.sub(r"[^a-z0-9_-]", "_", pasta)
+        if cmd == "/bioinfo":           # o roteador do plugin: coberto pelo /bioinfo fixo abaixo
+            continue
         desc = (it["descricao"][:140] + "...") if len(it["descricao"]) > 140 else it["descricao"]
-        out.append({"command": cmd, "name": "Skill: %s" % it["nome"],
+        out.append({"command": cmd, "name": MARCA_SKILL + it["nome"],
                     "content": "Use a skill %s (%s) para: [o que eu quero]. Leia-a com skill_ler, siga as "
                                "instruções dela e, se houver scripts, rode-os com skill_rodar mostrando cada "
                                "saída. Responda em português." % (it["nome"], desc)})
@@ -129,7 +136,8 @@ def aplicar_prompts(cli: httpx.Client) -> None:
     r = cli.get(f"{BASE}/api/v1/prompts/")
     r.raise_for_status()
     existentes = {p["command"]: p for p in r.json()}
-    for p in list(PROMPTS) + prompts_das_skills():
+    desejados = list(PROMPTS) + prompts_das_skills()
+    for p in desejados:
         form = {"command": p["command"], "name": p["name"], "content": p["content"]}
         if p["command"] in existentes:
             r = cli.post(f"{BASE}/api/v1/prompts/id/{existentes[p['command']]['id']}/update", json=form)
@@ -138,6 +146,13 @@ def aplicar_prompts(cli: httpx.Client) -> None:
             r = cli.post(f"{BASE}/api/v1/prompts/create", json=form)
             acao = "criado"
         print(f"  {p['command']:<14} {acao if r.status_code == 200 else '%d %s' % (r.status_code, r.text[:120])}")
+    # Poda: so o que este script gerou (nome "Skill: ...") e que deixou de existir ou de ser
+    # desejado. Prompts criados a mao na interface nao tem a marca e ficam.
+    manter = {p["command"] for p in desejados}
+    for cmd, p in existentes.items():
+        if cmd not in manter and str(p.get("name", "")).startswith(MARCA_SKILL):
+            r = cli.delete(f"{BASE}/api/v1/prompts/id/{p['id']}/delete")
+            print(f"  {cmd:<14} {'removido' if r.status_code == 200 else '%d %s' % (r.status_code, r.text[:120])}")
 
 
 def token(cli: httpx.Client) -> str:

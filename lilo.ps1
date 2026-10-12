@@ -42,6 +42,7 @@ $ArqPidGateway  = Join-Path $env:LOCALAPPDATA "LILO\gateway.pid"
 $ArqTokenGateway = Join-Path $env:LOCALAPPDATA "LILO\gateway_token.txt"
 # So buscas: o paper-search tem 57 tools, inclusive download_scihub, que fica fora.
 $GatewayTools = "search_pubmed,search_europepmc,search_biorxiv,search_crossref,search_semantic"
+$ArqCatalogoGateway = Join-Path $HOME ".docker\mcp\catalogs\lilo.yaml"   # scripts\gateway_catalogo.py
 
 # ---------------------------------------------------------------- interruptor
 # Mesmo arquivo do MCP ollama-local: um interruptor so para toda a GPU.
@@ -205,8 +206,14 @@ function Start-Gateway {
     if (Test-Gateway) { return $true }
     if (-not (Test-Docker)) { Write-Host "Docker Desktop fora do ar: gateway de literatura nao sobe."; return $false }
     New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+    # O gateway 0.43 le o catalogo de ARQUIVO (~/.docker/mcp/catalogs/); sem ele sobe com 0 tools.
+    if (-not (Test-Path $ArqCatalogoGateway)) {
+        & $Py (Join-Path $Raiz "scripts\gateway_catalogo.py") 2>&1 | Select-Object -Last 2 | Out-Host
+        if (-not (Test-Path $ArqCatalogoGateway)) { Write-Host "Sem catalogo do gateway: literatura nao sobe."; return $false }
+    }
     $env:MCP_GATEWAY_AUTH_TOKEN = Get-TokenGateway
     $args = @("mcp", "gateway", "run", "--transport", "streaming", "--host", "127.0.0.1", "--port", "8811",
+              "--catalog", (Split-Path $ArqCatalogoGateway -Leaf),
               "--servers", "paper-search", "--tools", $GatewayTools, "--long-lived")
     $p = Start-Process -FilePath "docker" -ArgumentList $args -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput (Join-Path $LogDir "gateway.log") -RedirectStandardError (Join-Path $LogDir "gateway.err.log")
@@ -218,7 +225,9 @@ function Start-Gateway {
 
 function Stop-Gateway {
     if (Test-Path $ArqPidGateway) {
-        try { Stop-Process -Id ([int](Get-Content $ArqPidGateway -Raw).Trim()) -Force -ErrorAction SilentlyContinue } catch { }
+        # `docker mcp` e um plugin da CLI: o gateway de verdade e um FILHO (docker-mcp.exe); matar so
+        # o pai deixa a porta 8811 ocupada por um orfao sem catalogo -> taskkill com a arvore inteira.
+        try { & taskkill /PID ([int](Get-Content $ArqPidGateway -Raw).Trim()) /T /F 2>$null | Out-Null } catch { }
         Remove-Item $ArqPidGateway -ErrorAction SilentlyContinue
     }
     Write-Host "Gateway de literatura parado."

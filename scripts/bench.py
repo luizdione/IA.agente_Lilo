@@ -117,11 +117,15 @@ def _ollama(cli: httpx.Client, base: str, modelo: str, pergunta: str,
 
 
 def _webui(cli: httpx.Client, base: str, modelo: str, pergunta: str,
-           max_tokens: int | None) -> dict:
+           max_tokens: int | None, tool_ids: list[str] | None = None) -> dict:
     corpo: dict = {"model": modelo, "stream": True,
                    "messages": [{"role": "user", "content": pergunta}]}
     if max_tokens:
         corpo["max_tokens"] = max_tokens
+    if tool_ids:
+        # E o que a tela faz com um preset: manda as tools dele (meta.toolIds) em cada mensagem.
+        # Sem isto o bench de um preset mede so o system prompt, nao o custo das tools.
+        corpo["tool_ids"] = tool_ids
     t0 = time.perf_counter()
     ttft = None
     pensou = False
@@ -177,8 +181,12 @@ def main() -> int:
                     help="falha se os tokens de prompt passarem disto (0 = nao checa)")
     ap.add_argument("--sem-portao", action="store_true")
     a = ap.parse_args()
-    if a.alvo == "webui" and ":" not in a.modelo:
-        a.modelo += ":latest"  # a interface conhece o modelo pelo nome completo do Ollama
+    tool_ids: list[str] | None = None
+    if a.alvo == "webui":
+        from owui_presets import TOOLS  # presets com tools (lilo-pesquisa, lilo-analise): id puro + tool_ids
+        tool_ids = TOOLS.get(a.modelo)
+        if ":" not in a.modelo and not tool_ids:
+            a.modelo += ":latest"  # a interface conhece o modelo pelo nome completo do Ollama
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -197,7 +205,10 @@ def main() -> int:
         if not chave:
             print(f"Sem acesso ao Open WebUI em {base}: ele esta no ar? (.\\lilo.ps1 status)")
             return 2
-        cabec, chamar = {"Authorization": f"Bearer {chave}"}, _webui
+        cabec = {"Authorization": f"Bearer {chave}"}
+
+        def chamar(cli, base, modelo, pergunta, max_tokens):
+            return _webui(cli, base, modelo, pergunta, max_tokens, tool_ids)
 
     linhas: list[dict] = []
     try:

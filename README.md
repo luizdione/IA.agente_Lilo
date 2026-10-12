@@ -1,127 +1,102 @@
-# LILO v13 — agente de terminal 100% local
+# LILO v14 — assistente local de pesquisa (Ollama + Open WebUI + ponte MCP)
 
 ![Status](https://img.shields.io/badge/status-ativo-brightgreen)
-![Version](https://img.shields.io/badge/version-13.12.0-blue)
+![Version](https://img.shields.io/badge/version-14.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-yellow)
-![Arch](https://img.shields.io/badge/arch-v12-purple)
+![GPU](https://img.shields.io/badge/GPU-RTX%203060%2012GB-76b900)
 
-**LILO** renasceu: um agente de IA no terminal, estilo Claude Code, rodando
-**100% offline** sobre **Ollama** (RTX 3060). Ele **gerencia, escreve, conserta
-e cria projetos** com acesso real ao computador — arquivos e shell — atrás de
-um portão de permissões.
+**LILO** (Local Intelligent LLM Orchestrator) é o assistente de pesquisa do autor
+(bioinformática e ciência de dados), **100% local**: um modelo de chat residente na
+RTX 3060, uma interface de chat pronta (Open WebUI em container) e uma **ponte MCP no
+host** que dá ao modelo as ferramentas do dono — biblioteca de PDFs, estatística,
+Python/R/WSL, memória dos projetos, skills do Claude, repositórios git e literatura
+(PubMed e afins). O diálogo é sempre em português.
 
-A plataforma anterior (v12.x: dashboard Streamlit, MCP server, API HTTP,
-10 subagentes, ~42k linhas) foi **demolida por decisão do dono** — virou uma
-colcha de retalhos sem a capacidade central (não havia tool-calling nativo em
-lugar nenhum). Tudo está preservado no branch **`v12.15-legado`**:
-`git show v12.15-legado:<caminho>` recupera qualquer arquivo.
+A v14 nasceu de um critério único, medido: **"2+2" tem de responder na hora**
+(1º token em menos de 1 s). Tudo o que entra passa por `lilo.ps1 bench`.
+A geração anterior (v13, agente de terminal) está no branch `marco/v13.12-terminal`;
+o legado v12 em `v12.15-legado`.
 
-## O que é o núcleo v13
+## Arquitetura (três peças, nenhuma reinventada)
 
-- **Um binário**: `lilo` (REPL interativo ou `lilo "tarefa"`), com **resposta
-  em streaming** no terminal — e **`lilo web`** (v13.7), o MESMO agente num
-  chat no navegador (`http://localhost:8100`, só 127.0.0.1): confirmações do
-  portão viram botões e a conversa persiste no mesmo SQLite (`lilo -c` retoma
-  no terminal o que começou no navegador).
-- **Um loop agêntico** com tool-calling nativo do Ollama (`/api/chat` + `tools`).
-- **Onze tools**: `ler`, `ler_pdf` (artigos/manuais, dep. opcional PyMuPDF),
-  `escrever`, `editar`, `listar`, `buscar`, `shell`,
-  `memorizar`/`lembrar`/`esquecer` (memória persistente entre sessões) e
-  `mcp` (servidores MCP externos, allow-list `LILO_MCP`, dep. opcional) —
-  todas atrás de um único choke-point com portão de permissões
-  (modos `plan` / `ask` / `accept_edits` / `auto`; *never-commit-unless-asked*).
-- **Memória**: sessões em SQLite (fora do OneDrive, `%LOCALAPPDATA%\LILO`) +
-  contexto do projeto lido de `LILO.md`/`CLAUDE.md`/`CONTEXT.md` do diretório.
-- **Zero nuvem, zero framework**: dependências de runtime = `requests`
-  (+ `python-dotenv`).
+| Peça | O que é | Onde |
+|---|---|---|
+| **Motor** | Ollama 0.35+ com o modelo derivado `lilo` (`ollama/Modelfile.lilo`: qwen3:14b Q4_K_M, contexto 8192, SYSTEM em PT). Alternativa `lilo-gemma` (gemma4:12b). | host, GPU |
+| **Interface** | Open WebUI em Docker Compose (`compose.yaml`), `127.0.0.1:3000`, sem login, lista só `lilo` + modelos de nuvem; presets **LILO**, **LILO Pesquisa**, **LILO Análise** e atalhos `/pasta`, `/repo`, `/skill`, `/<skill>`. | container |
+| **Ponte `lilo-host`** | Pacote `lilo_host/` (FastMCP, streamable HTTP) em `127.0.0.1:8790` com 3 grupos: `conhecimento` (13 tools), `analise` (10), `exec` (5, token obrigatório) e o proxy `/literatura/mcp` para o Docker MCP Gateway (`paper-search`, só busca). | host, conda `datascience` |
+
+Regras de velocidade que o código obedece: um só modelo de chat, chamado **sem opções
+de runner** (opção diferente = recarga); `think:false` por padrão; nada roda escondido
+na GPU; a GPU é do dono — o interruptor `~/.ollama_delegate/switch.json` em `off`
+impede qualquer carga (`lilo.ps1 gpu-livre` / `gpu-ok`).
 
 ## Como rodar
 
-```cmd
-pip install -r requirements.txt
-copy .env.example .env        # ajuste LILO_ALLOW e o modelo
-python -m lilo "sua tarefa"   # one-shot
-python -m lilo                # REPL
-python -m lilo web            # chat no navegador (localhost:8100)
-python scripts\criar_atalho.py  # ícone na área de trabalho → navegador
-python scripts\check.py       # saúde do código (sintaxe + pyflakes + pytest)
-```
-
-O ícone da área de trabalho abre o `lilo web` (a janela PowerShell que fica
-atrás é o servidor). Prefere só terminal? `python scripts\criar_atalho.py
---terminal` regrava o atalho para o REPL.
-
-Requisitos: Python 3.11+, [Ollama](https://ollama.com) ≥ 0.9 com um modelo
-com suporte a tools (default: `qwen3:14b` — a família qwen2.5-coder tem o
-template de tool-calling quebrado no Ollama 0.32.x; o smoke detecta e avisa).
-
-## LILO no Claude Desktop (servidor MCP, v13.4)
-
-O mesmo binário serve as tools ao Claude Desktop (`pip install mcp` antes):
-
-```jsonc
-// %APPDATA%\Claude\claude_desktop_config.json
-"mcpServers": {"lilo": {"command": "python",
-                        "args": ["-m", "lilo", "mcp-serve"],
-                        "cwd": "C:\\github\\LILO"}}
-```
-
-Modo do servidor: `LILO_MCP_SERVE_MODE` (default `accept_edits` — leituras e
-escrita na allow-list passam; shell pede `auto`; git nunca passa sem grant).
-
-## LILO dentro do Claude Code (v13.8)
-
-Uma linha registra o LILO como servidor MCP do Claude Code em **todos** os
-seus projetos (pré-requisito: `pip install mcp`):
-
 ```powershell
-.\scripts\conectar_claude_code.ps1
-# ou, para o LILO viver num ambiente conda especifico (v13.11):
-.\scripts\conectar_claude_code.ps1 -Python C:\Users\voce\miniforge3\envs\SEU_ENV\python.exe
+.\lilo.ps1 up          # ponte + gateway de literatura + interface + aquecimento + presets
+.\lilo.ps1 status      # interruptor, modelos na GPU, interface, ponte, gateway, último bench
+.\lilo.ps1 bench       # portão: TTFT p95 < 1 s e >= 25 tok/s (alvos: --alvo ollama|webui)
+.\lilo.ps1 down
 ```
 
-**Escolha o ambiente com cuidado**: o LILO roda os seus scripts com o
-interpretador registrado (e ancora o PATH nele). Se os seus pacotes estão num
-env conda, registre o python DELE.
+Outros comandos: `abrir` (navegador) · `warm` · `convivencia` (lilo + embeddings na GPU) ·
+`presets` · `inicio` (atalho de inicialização do Windows) · `ponte [up|down]` ·
+`gateway [up|down]` · `smoke` (tools de cada grupo) · `indexar [status|falhas]`
+(biblioteca de PDFs, incremental) · `gpu-livre [motivo]` · `gpu-ok`.
 
-O Claude real passa a ter, em qualquer pasta: **memória persistente
-compartilhada** (`memorizar`/`lembrar`/`esquecer` — o mesmo banco do LILO),
-**`ler_pdf`** e **`delegar`** — despachar uma tarefa completa ao agente LILO
-local (loop + tools + portão sobre a sua GPU): grátis, offline, privado.
-Expectativa honesta: o modelo local é bem mais fraco que o Claude — delegue
-tarefas simples/privadas/em lote. Desfazer: `claude mcp remove --scope user
-lilo`.
+Requisitos: Windows 11, Docker Desktop, Ollama, conda `datascience` (Python 3.11 com
+`mcp`, `httpx`, `sentence-transformers`, `chromadb`, `pingouin`, `pymupdf`, `psutil`,
+`pyyaml`), R e WSL para as tools de execução. Segredos e caminhos locais ficam no
+`.env` (nunca versionado; modelo em `.env.example`).
 
-Não conectou? `python scripts\diagnosticar_mcp.py` diz a causa exata — ele
-faz um handshake JSON-RPC real com o servidor e mostra o que o Claude Code
-enxerga (`claude mcp list/get`).
+## Ferramentas da ponte
 
-## Claude Code nos seus modelos Ollama (ponte inversa)
+- **conhecimento** — memória dos projetos (`.project-memory/`), `ler_pdf`, `ler_texto`,
+  `resumir_arquivo`, `biblioteca_buscar`/`biblioteca_status` (1.121 PDFs: bge-m3 + Chroma +
+  FTS5 com fusão RRF, índice em `E:\data\lilo\biblioteca`), `skills_listar`/`skill_ler`
+  (848 skills do Claude lidas no lugar, sem cópia), `pasta_listar`/`pasta_buscar`,
+  `repos_listar` (repositórios de `C:\GitHub`).
+- **analise** — `estat_*` (pingouin/statsmodels, conferidos contra o R), `bio_parse_log`,
+  `docx_ler`/`docx_escrever`.
+- **exec** — `executar_python`, `executar_r`, `executar_wsl`, `executar_git` (só em
+  `C:\GitHub`, deny-list de comandos destrutivos), `skill_rodar`. Exige Bearer token,
+  timeout e pasta própria (`E:\data\lilo\trabalho`); conteúdo da internet nunca fica
+  no mesmo preset que executa código.
+- **literatura** — `search_pubmed`, `search_europepmc`, `search_biorxiv`,
+  `search_crossref`, `search_semantic` (Docker MCP Gateway, catálogo mínimo gerado por
+  `scripts/gateway_catalogo.py`).
 
-O Ollama expõe um endpoint compatível com a API da Anthropic — dá para rodar
-o **Claude Code CLI** sobre os seus modelos locais (nada sai da máquina):
+O Claude Code também usa os grupos `conhecimento` e `analise` por HTTP
+(`scripts/conectar_claude_code.ps1`).
 
-```powershell
-.\scripts\claude_ollama.ps1            # default qwen3:14b
-.\scripts\claude_ollama.ps1 qwen3:4b   # ou outro modelo instalado
-```
+## Portões medidos (RTX 3060, GPU quieta)
 
-Expectativa honesta: modelos de 4–14B são muito mais fracos que o Claude —
-use para tarefas simples/privadas; o LILO continua sendo o agente nativo.
+| Portão | Resultado |
+|---|---|
+| G0 Ollama | TTFT p95 0,07 s · 33 tok/s |
+| G1 convivência | lilo + bge-m3 + jina 100 % na GPU · "2+2" < 0,1 s |
+| G2 interface | TTFT p95 0,11 s · 32 tok/s · 1 chamada por mensagem |
+| G3 ponte | 55 testes · interface executou Python, R e WSL |
+| G4 biblioteca | item conhecido no top-5: 97 % (EN) / 83 % (PT) · busca p95 0,56 s |
+| G5 literatura | 5 tools · 1ª busca PubMed 3,9 s · seguintes 1,1 s |
 
-## Regra anti-inchaço (a lição do legado)
-
-> Funcionalidade nova entra como **TOOL atrás do loop e do choke-point** —
-> nunca como novo entry point, serviço, dashboard ou subagente.
-> Um binário: `lilo`. Cloud, RAG, Scholar e MCP só voltam como tools (v13.x).
+Bake-off (`scripts/bakeoff_tools.py` + `bench.py` + `avaliar_biblioteca.py --idioma pt`):
+qwen3:14b tem o 1º token 3× mais rápido e escolha de tool 16/16; gemma4:12b gera 40–55 %
+mais rápido. A base continua qwen3:14b; `lilo-gemma` fica no seletor da interface.
 
 ## Estrutura
 
 ```
-lilo/            pacote do agente (cliente Ollama, loop, tools, portão, sessões, CLI)
-scripts/         check.py (saúde) · memoria_projeto.py (CONTEXT.md) · smoke_lilo.py (teste vivo)
-tests/           suíte hermética (FakeOllama, sem rede)
-docs/versoes/    CHANGELOG.md
+lilo.ps1            operação (up/down/status/bench/...), Windows PowerShell 5.1
+compose.yaml        Open WebUI (lista de modelos, conexões MCP, presets via API)
+ollama/             Modelfile.lilo, Modelfile.lilo-gemma
+lilo_host/          ponte MCP: servidor.py (3 grupos + proxy), biblioteca, estatistica,
+                    execucao, skills, pastas, projetos, resumir, docx, bioparsers, comum
+scripts/            bench.py · owui_presets.py · lilo_host_serve.py · mcp_smoke.py ·
+                    indexar_biblioteca.py · avaliar_biblioteca.py · bakeoff_tools.py ·
+                    gateway_catalogo.py · convivencia.py · criar_atalho.py
+tests/              test_host_*.py (ponte, sem GPU)
+lilo/               núcleo da v13 (agente de terminal) — a retirar na F5
 ```
 
-Estado vivo do projeto: **`CONTEXT.md`** (raiz).
+Memória viva do projeto (fora do repo): `OneDrive\...\Projetos\IA.agente\.project-memory\`.
