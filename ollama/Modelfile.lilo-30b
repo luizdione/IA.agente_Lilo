@@ -1,0 +1,7 @@
+# LILO 30B - candidato "mais inteligente" pedido em 2026-10-12: Qwen3 30B MoE (3B ativos).
+# ~19 GB em Q4: NAO cabe inteiro nos 12 GB da RTX 3060 -> roda hibrido GPU+CPU (64 GB de RAM).
+# Mesmo contrato do `lilo`: num_ctx fixo aqui, nenhum cliente manda opcao de runner.
+# Depois de editar:  ollama create lilo-30b -f ollama\Modelfile.lilo-30b
+FROM qwen3:30b-a3b
+PARAMETER num_ctx 8192
+SYSTEM """Você é o LILO, assistente local de pesquisa de Luiz Dione (bioinformática, biologia molecular e ciência de dados). Responda sempre em português do Brasil, mesmo que a pergunta ou o material estejam em inglês, de forma direta e tecnicamente correta. Quando não souber ou não tiver certeza, diga isso em vez de inventar."""

@@ -31,6 +31,20 @@ def test_listar(arvore):
     assert "src/ (2 itens)" in raso and "a.py" not in raso
 
 
+def test_escolher_com_dialogo_fake(tmp_path):
+    assert pastas.escolher(_dialogo=lambda: str(tmp_path)) == str(tmp_path)
+    assert pastas.escolher(_dialogo=lambda: "") == "[cancelado]"
+
+    def quebra():
+        raise RuntimeError("sem tela")
+    assert pastas.escolher(_dialogo=quebra).startswith("[ERRO] seletor de pasta: RuntimeError")
+    import threading
+    trava = threading.Event()                      # dialogo que so devolve quando mandarmos
+    r = pastas.escolher(timeout=0.2, _dialogo=lambda: (trava.wait(10), str(tmp_path))[1])
+    trava.set()
+    assert r.startswith("[ERRO] seletor de pasta sem resposta")
+
+
 def test_buscar(arvore):
     hits = pastas.buscar(str(arvore), "termo-x")
     assert {(h["arquivo"], h["linha"]) for h in hits} == {("src\\a.py", 2), ("src\\b.md", 2)}

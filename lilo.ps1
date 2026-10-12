@@ -243,6 +243,37 @@ function Show-Gateway {
     if (Test-Gateway) { Write-Host "Gateway de literatura: $Gateway respondendo" } else { Write-Host "Gateway de literatura: parado" }
 }
 
+function Update-CaBundle {
+    # O Kaspersky inspeciona HTTPS com raiz propria (confiada so pelo Windows); o Linux do container
+    # a recusa e a Claude falha com CERTIFICATE_VERIFY_FAILED. Bundle montado no compose
+    # (SSL_CERT_FILE) = certifi do container + raizes do Kaspersky. Idempotente.
+    $dir = Join-Path $env:LOCALAPPDATA "LILO"
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    $certifi = Join-Path $dir "certifi.pem"
+    $bundle = Join-Path $dir "ca-bundle.pem"
+    if (-not (Test-Path $certifi)) {
+        docker cp lilo_openwebui:/usr/local/lib/python3.11/site-packages/certifi/cacert.pem $certifi 2>$null | Out-Null
+        if (-not (Test-Path $certifi)) {
+            docker run --rm --entrypoint cat ghcr.io/open-webui/open-webui:v0.11.4 /usr/local/lib/python3.11/site-packages/certifi/cacert.pem | Out-File -Encoding ascii $certifi
+        }
+    }
+    if (-not (Test-Path $certifi)) { Write-Host "Sem certifi.pem: bundle de CAs nao gerado."; return }
+    $extras = @(Get-ChildItem Cert:\CurrentUser\Root, Cert:\LocalMachine\Root -ErrorAction SilentlyContinue |
+                Where-Object { $_.Subject -match "Kaspersky" } | Sort-Object Thumbprint -Unique)
+    $pem = @(Get-Content $certifi)
+    foreach ($c in $extras) {
+        $pem += "# " + $c.Subject
+        $pem += "-----BEGIN CERTIFICATE-----"
+        $pem += ([Convert]::ToBase64String($c.RawData, "InsertLineBreaks") -split "`r?`n")
+        $pem += "-----END CERTIFICATE-----"
+    }
+    $novo = ($pem -join "`n") + "`n"
+    if (-not (Test-Path $bundle) -or ((Get-Content $bundle -Raw) -ne $novo)) {
+        [IO.File]::WriteAllText($bundle, $novo, (New-Object Text.UTF8Encoding($false)))
+    }
+    Write-Host "Bundle de CAs do container: $($extras.Count) raiz(es) extra(s) ($bundle)"
+}
+
 function Get-EnvArquivo([string]$Chave) {
     # Le UMA chave do .env do repo (nunca o imprime nem o move).
     $arq = Join-Path $Raiz ".env"
@@ -352,6 +383,7 @@ function Invoke-Up {
     # Claude na interface (OPENAI_API_KEYS do compose): a chave sai do .env do repo, sem passar
     # por arquivo versionado nem pela tela.
     $env:ANTHROPIC_API_KEY = Get-EnvArquivo "ANTHROPIC_API_KEY"
+    Update-CaBundle
     docker compose -f $Compose up -d
     $null = Invoke-Warm
     if (-not (Wait-Ate { Test-Url "$WebUI/health" } 120)) {
@@ -361,6 +393,8 @@ function Invoke-Up {
     # Presets (LILO, Pesquisa, Analise) sao registros no volume da interface:
     # idempotente, ~1 s, e deixa um volume novo pronto sem clicar em nada.
     & $Py (Join-Path $Raiz "scripts\owui_presets.py") 2>&1 | Select-Object -First 3 | Out-Host
+    # Filtros da interface (botoes da caixa de mensagem e valves do painel direito).
+    & $Py (Join-Path $Raiz "scripts\owui_funcoes.py") 2>&1 | Select-Object -First 5 | Out-Host
     return $true
 }
 
@@ -439,7 +473,11 @@ switch ($Comando.ToLower()) {
     "warm"      { $null = Invoke-Warm }
     "bench"     { & $Py (Join-Path $Raiz "scripts\bench.py") @Resto; exit $LASTEXITCODE }
     "convivencia" { & $Py (Join-Path $Raiz "scripts\convivencia.py") @Resto; exit $LASTEXITCODE }
-    "presets"   { & $Py (Join-Path $Raiz "scripts\owui_presets.py") @Resto; exit $LASTEXITCODE }
+    "presets"   {
+        & $Py (Join-Path $Raiz "scripts\owui_presets.py") @Resto
+        & $Py (Join-Path $Raiz "scripts\owui_funcoes.py") @Resto
+        exit $LASTEXITCODE
+    }
     "inicio"    { Invoke-Inicio }
     "ponte"     {
         $o = "$($Resto | Select-Object -First 1)".ToLower()

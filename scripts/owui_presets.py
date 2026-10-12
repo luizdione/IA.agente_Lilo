@@ -52,6 +52,10 @@ TOOLS: dict[str, list[str]] = {
 # Presets que ja existiram e devem sumir da interface (apagados a cada rodada, se existirem).
 OBSOLETOS = ("lilo-bio",)   # reprovou no bench de 12/10 (TTFT p50 3,7 s com 3 MCPs remotos)
 
+PRESETS_SYSTEM_PT = ("Você é o LILO, assistente local de pesquisa de Luiz Dione. Responda sempre em "
+                     "português do Brasil, mesmo que a pergunta ou o material estejam em inglês, de forma "
+                     "direta e tecnicamente correta. Quando não souber, diga isso em vez de inventar.")
+
 PRESETS = (
     {
         "id": "lilo:latest", "base_model_id": None, "name": "LILO",
@@ -64,6 +68,30 @@ PRESETS = (
                              "sempre em português do Brasil, mesmo que a pergunta ou o material estejam "
                              "em inglês, de forma direta e tecnicamente correta. Quando não souber, "
                              "diga isso em vez de inventar."},
+    },
+    # Bases hibridas (pedido do autor, 12/10): nao cabem nos 12 GB; escolher uma descarrega o lilo.
+    # Sao os proprios modelos do Ollama renomeados (como o "LILO"), sem tools.
+    {
+        "id": "lilo-30b:latest", "base_model_id": None, "name": "LILO 30B · híbrido",
+        "meta": {"description": "qwen3:30b-a3b (MoE, 3B ativos; 18 GB Q4). Mais inteligente que o 14b; "
+                                "roda parte na CPU: ver velocidade medida no README. Trocar de modelo "
+                                "descarrega o lilo (~11 s para voltar).",
+                 "tags": [{"name": "local"}, {"name": "hibrido"}]},
+        "params": {"system": PRESETS_SYSTEM_PT},
+    },
+    {
+        "id": "lilo-32b:latest", "base_model_id": None, "name": "LILO 32B · híbrido",
+        "meta": {"description": "qwen2.5:32b instruct (20 GB Q4; ~55% na GPU). Lento: ver velocidade "
+                                "medida no README. Não pensa (qwen2.5).",
+                 "tags": [{"name": "local"}, {"name": "hibrido"}]},
+        "params": {"system": PRESETS_SYSTEM_PT},
+    },
+    {
+        "id": "lilo-oss:latest", "base_model_id": None, "name": "LILO OSS · híbrido",
+        "meta": {"description": "gpt-oss:20b (MXFP4, 14 GB; ~80% na GPU). Raciocínio nativo. Ver "
+                                "velocidade medida no README.",
+                 "tags": [{"name": "local"}, {"name": "hibrido"}]},
+        "params": {"system": PRESETS_SYSTEM_PT},
     },
     {
         "id": "lilo-pesquisa", "base_model_id": "lilo:latest", "name": "LILO Pesquisa",
@@ -140,9 +168,13 @@ PRESETS = (
 # preenche o que esta entre colchetes. E o "anexar pasta" possivel na Open WebUI: nao ha
 # upload de diretorio no chat, e como o LILO roda no host, citar o caminho basta.
 PROMPTS = (
-    # "Anexar pasta": no Explorer, Ctrl+Shift+C (ou Shift+clique direito > Copiar como caminho) e
-    # digite /pasta - a interface cola o caminho da area de transferencia ({{CLIPBOARD}}).
-    {"command": "/pasta", "name": "Anexar pasta (copie o caminho no Explorer e digite /pasta)",
+    # "Anexar pasta": /pasta faz o modelo abrir o seletor de pasta do Windows (tool pasta_escolher,
+    # na tela do dono); /pasta_colada usa o caminho copiado no Explorer (Ctrl+Shift+C -> {{CLIPBOARD}}).
+    {"command": "/pasta", "name": "Escolher pasta (abre o seletor do Windows)",
+     "content": "Abra o seletor de pasta com pasta_escolher e trabalhe na pasta escolhida: liste-a com "
+                "pasta_listar, leia com ler_texto o que for relevante para [o que eu quero] e me diga o "
+                "que encontrou antes de agir."},
+    {"command": "/pasta_colada", "name": "Pasta colada (copie o caminho no Explorer e digite /pasta_colada)",
      "content": "Trabalhe na pasta {{CLIPBOARD}}: liste-a com pasta_listar, leia com ler_texto "
                 "o que for relevante para [o que eu quero] e me diga o que encontrou antes de agir."},
     {"command": "/repo", "name": "Trabalhar num repositorio do GitHub",

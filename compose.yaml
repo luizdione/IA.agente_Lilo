@@ -20,8 +20,13 @@ services:
     mem_limit: 4g
     volumes:
       - openwebui_dados:/app/backend/data
+      # Bundle de CAs = certifi + raiz do Kaspersky (gerado pelo lilo.ps1 no `up`): sem ele a
+      # inspecao HTTPS do antivirus derruba a Claude com CERTIFICATE_VERIFY_FAILED.
+      - "${LOCALAPPDATA}/LILO/ca-bundle.pem:/etc/ssl/certs/lilo-ca-bundle.pem:ro"
     environment:
       WEBUI_NAME: "LILO"
+      SSL_CERT_FILE: "/etc/ssl/certs/lilo-ca-bundle.pem"
+      REQUESTS_CA_BUNDLE: "/etc/ssl/certs/lilo-ca-bundle.pem"
       ENABLE_PERSISTENT_CONFIG: "False"
       # --- motor: Ollama do host, unico dono da GPU -------------------------
       OLLAMA_BASE_URL: "http://host.docker.internal:11434"
@@ -32,7 +37,7 @@ services:
       ENABLE_OPENAI_API: "True"
       OPENAI_API_BASE_URLS: "https://api.anthropic.com/v1"
       OPENAI_API_KEYS: "${ANTHROPIC_API_KEY:-}"
-      OPENAI_API_CONFIGS: '{"0": {"model_ids": ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-4-5-20251001"]}}'
+      OPENAI_API_CONFIGS: '{"0": {"model_ids": ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5"]}}'
       DEFAULT_MODELS: "lilo:latest"
       # So o `lilo` e os modelos nuvem (sem VRAM) aparecem na lista (I-0009): escolher
       # `qwen3:14b` direto recarregaria o mesmo arquivo com outro contexto, e os
@@ -40,7 +45,9 @@ services:
       # 2026-10-12: qwen2.5-coder:14b (9 GB) entra como alternativa de codigo (troca com o lilo =
       # recarga de ~11 s). Ficam fora: qwen2.5-coder:32b (19 GB, nao cabe nos 12 GB -> CPU, ~3 tok/s)
       # e gpt-oss-safeguard:20b (classificador de politicas, nao e modelo de chat).
-      OLLAMA_API_CONFIGS: '{"0": {"model_ids": ["lilo:latest", "lilo-gemma:latest", "qwen2.5-coder:14b", "gpt-oss:20b-cloud", "gpt-oss:120b-cloud", "mistral-large-3:675b-cloud"]}}'
+      # 2026-10-12 (pedido do autor): lilo-30b (qwen3:30b-a3b), lilo-32b (qwen2.5:32b) e lilo-oss
+      # (gpt-oss:20b) sao HIBRIDOS GPU+CPU (nao cabem nos 12 GB); escolher um deles descarrega o lilo.
+      OLLAMA_API_CONFIGS: '{"0": {"model_ids": ["lilo:latest", "lilo-gemma:latest", "lilo-30b:latest", "lilo-32b:latest", "lilo-oss:latest", "qwen2.5-coder:14b", "gpt-oss:20b-cloud", "gpt-oss:120b-cloud", "mistral-large-3:675b-cloud"]}}'
       # think:false = regra de velocidade 3 (com thinking o "2+2" leva 6,5 s).
       # Nunca por aqui opcao de runner (num_ctx, num_gpu...): o contexto vem do
       # Modelfile do `lilo`, e opcao diferente faz o Ollama recarregar o modelo.

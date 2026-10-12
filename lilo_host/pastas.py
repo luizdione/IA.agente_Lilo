@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -119,6 +120,43 @@ def _git(repo: Path, *args: str) -> str:
         return r.stdout.strip() if r.returncode == 0 else ""
     except (OSError, subprocess.TimeoutExpired):
         return ""
+
+
+def escolher(titulo: str = "LILO: escolha a pasta", inicial: str = "", timeout: int = 120,
+             _dialogo=None) -> str:
+    """Abre o seletor de pasta NATIVO do Windows no host e devolve o caminho escolhido.
+
+    E o "selecionar diretorio" que a Open WebUI nao tem: a ponte roda na sessao do dono, entao a
+    janela aparece na tela dele. Devolve "[cancelado]" se ele fechar sem escolher; [ERRO] se a
+    janela nao responder em `timeout` s. `_dialogo` e so para teste (funcao que devolve o caminho).
+    """
+    resultado: dict = {}
+
+    def _abrir():
+        try:
+            if _dialogo is not None:
+                resultado["caminho"] = _dialogo() or ""
+                return
+            import tkinter as tk
+            from tkinter import filedialog
+            raiz = tk.Tk()
+            raiz.withdraw()
+            raiz.attributes("-topmost", True)
+            resultado["caminho"] = filedialog.askdirectory(
+                title=titulo, initialdir=(inicial or None), parent=raiz, mustexist=True) or ""
+            raiz.destroy()
+        except Exception as e:  # noqa: BLE001
+            resultado["erro"] = "%s: %s" % (type(e).__name__, e)
+
+    t = threading.Thread(target=_abrir, daemon=True)
+    t.start()
+    t.join(timeout)
+    if t.is_alive():
+        return erro("seletor de pasta sem resposta em %d s" % timeout)
+    if "erro" in resultado:
+        return erro("seletor de pasta: " + resultado["erro"])
+    caminho = resultado.get("caminho", "")
+    return str(Path(caminho)) if caminho else "[cancelado]"
 
 
 def repos_listar(raiz: Path | None = None) -> list[dict]:

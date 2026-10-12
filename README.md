@@ -46,6 +46,31 @@ Outros comandos: `abrir` (navegador) · `warm` · `convivencia` (lilo + embeddin
 cada grupo) · `indexar [status|falhas]` (biblioteca de PDFs, incremental) · `gpu-livre [motivo]` ·
 `gpu-ok`.
 
+### Controles da caixa de mensagem (como no Claude)
+
+- **Seletor de modelo** (botão "LILO ▾" à direita da caixa): a base local (`lilo` = qwen3:14b),
+  `lilo-gemma`, os híbridos `lilo-30b` / `lilo-32b` / `lilo-oss`, os modelos de nuvem do Ollama e
+  o Claude; e os presets com ferramentas.
+- **Botão "Integrações"** (ícone ao lado do "+"): cinco interruptores do LILO, cada um com engrenagem:
+  - **Escolha Automática de Parâmetros** (engrenagem → nível): `baixo` (rápido, sem pensar, 512 tokens),
+    `medio` (padrão), `alto` (pensa), `extra`, `maximo` (pensa e revisa), `ultracode` (código em etapas
+    com testes). É a "profundidade de raciocínio"; ajusta temperature, top_p, num_predict e `think`
+    (ou `reasoning_effort` no Claude) de uma vez, sem tocar em `num_ctx`.
+  - **Pensar fundo**: atalho para o nível `alto` nesta conversa.
+  - **Modo de agir** (engrenagem → modo): `automatico` (tools do preset), `manual` (só leitura; pede
+    confirmação antes de alterar), `aceitar_edicoes` (lê e edita arquivos; sem shell, processo ou git),
+    `plano` (nenhuma tool) e `ignorar_permissoes` (tudo, sem perguntar). Os modos restringem de verdade
+    as tools enviadas ao modelo; fronteira honesta: a Open WebUI não tem diálogo de aprovação por
+    chamada, então "manual" = restrição + instrução.
+  - **Plano**: atalho para o modo `plano`.
+  - **Pasta de trabalho** (engrenagem → caminho): o LILO trabalha nessa pasta; vazio = ele abre o
+    seletor de pasta do Windows (`pasta_escolher`). `/pasta` na caixa faz o mesmo; `/pasta_colada`
+    usa o caminho copiado no Explorer.
+- **Painel "Controles"** (ícone no canto superior direito): "Parâmetros Avançados" continua sendo a
+  escolha manual, parâmetro a parâmetro.
+- **Grupos de trabalho** na barra lateral: "Pastas" → "+" cria uma pasta; arraste o chat para dentro;
+  no "..." da pasta, "Editar" dá prompt do sistema e conhecimento ao grupo. Há uma pasta de exemplo.
+
 Regra dos presets: **conteúdo da internet nunca fica no mesmo preset que executa código**
 (Pesquisa/Pesquisa-Claude não executam; Análise/Desktop/Orquestrador não têm web). Presets
 com muitas tools só sobre o Claude (contexto 200k); no `lilo` (8k) cada preset fica abaixo de
@@ -54,8 +79,12 @@ com muitas tools só sobre o Claude (contexto 200k); no `lilo` (8k) cada preset 
 
 Requisitos: Windows 11, Docker Desktop, Ollama, conda `datascience` (Python 3.11 com
 `mcp`, `httpx`, `sentence-transformers`, `chromadb`, `pingouin`, `pymupdf`, `psutil`,
-`pyyaml`), R e WSL para as tools de execução. Segredos e caminhos locais ficam no
+`pyyaml`, `mcpo`), R e WSL para as tools de execução. Segredos e caminhos locais ficam no
 `.env` (nunca versionado; modelo em `.env.example`).
+
+Antivírus que inspeciona HTTPS (Kaspersky): o `up` exporta a raiz dele do Windows para
+`%LOCALAPPDATA%\LILO\ca-bundle.pem`, montado no container como `SSL_CERT_FILE`; sem isso a
+Claude falha com `CERTIFICATE_VERIFY_FAILED` de dentro do container.
 
 ## Ferramentas da ponte
 

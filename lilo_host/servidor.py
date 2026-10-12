@@ -134,6 +134,13 @@ def grupo_conhecimento() -> FastMCP:
         Para agir neles use executar_git (preset Analise)."""
         return _json(pastas.repos_listar())
 
+    @srv.tool()
+    def pasta_escolher(titulo: str = "LILO: escolha a pasta") -> str:
+        """Abre o seletor de pasta do Windows na tela do dono e devolve o caminho escolhido
+        (ou "[cancelado]"). Use quando ele pedir para escolher/selecionar uma pasta ou diretorio;
+        depois trabalhe nela com pasta_listar, pasta_buscar e ler_texto."""
+        return pastas.escolher(titulo)
+
     return srv
 
 
