@@ -18,7 +18,8 @@ def _trabalho(tmp_path, monkeypatch):
 
 def test_python_do_env():
     r = execucao.executar_python("import sys, os\nprint('ola', sys.version_info[:2], os.getcwd())")
-    assert "[exit=0" in r and "ola (3, 11)" in r
+    # A ponte roda o Python do proprio processo (sys.executable): 3.11 no datascience, 3.12 no CI.
+    assert "[exit=0" in r and f"ola {sys.version_info[:2]}" in r
     assert "trabalho" in r  # cwd padrao = pasta de trabalho da ponte
     assert not list(execucao.TRABALHO.glob("_lilo_*"))  # temporario removido
 

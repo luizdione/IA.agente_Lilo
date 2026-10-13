@@ -46,9 +46,11 @@ def test_escolher_com_dialogo_fake(tmp_path):
 
 
 def test_buscar(arvore):
+    import os
+    a, b = os.path.join("src", "a.py"), os.path.join("src", "b.md")   # separador do SO (CI roda em Linux)
     hits = pastas.buscar(str(arvore), "termo-x")
-    assert {(h["arquivo"], h["linha"]) for h in hits} == {("src\\a.py", 2), ("src\\b.md", 2)}
-    assert [h["arquivo"] for h in pastas.buscar(str(arvore), "termo-x", extensoes=".md")] == ["src\\b.md"]
+    assert {(h["arquivo"], h["linha"]) for h in hits} == {(a, 2), (b, 2)}
+    assert [h["arquivo"] for h in pastas.buscar(str(arvore), "termo-x", extensoes=".md")] == [b]
     assert pastas.buscar(str(arvore), "") == []
 
 
