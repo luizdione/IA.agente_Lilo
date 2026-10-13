@@ -31,23 +31,22 @@ services:
       # --- motor: Ollama do host, unico dono da GPU -------------------------
       OLLAMA_BASE_URL: "http://host.docker.internal:11434"
       ENABLE_OLLAMA_API: "True"
-      # Claude pela API da Anthropic (compativel com OpenAI): opcao "orquestrador" no seletor.
-      # A chave vem do .env do repo (ANTHROPIC_API_KEY), exportada pelo lilo.ps1 no `up`;
-      # sem chave valida a conexao simplesmente nao lista modelos.
+      # Claude pela API da Anthropic (compativel com OpenAI): base dos presets "LILO Orquestrador
+      # (Claude)" e "LILO Pesquisa (Claude)". A chave vem do .env do repo (ANTHROPIC_API_KEY),
+      # exportada pelo lilo.ps1 no `up`; sem chave valida a conexao simplesmente nao lista modelos.
+      # D-0022: so o Sonnet 5.5 na whitelist, e a base em si fica oculta (OCULTOS em owui_presets.py).
       ENABLE_OPENAI_API: "True"
       OPENAI_API_BASE_URLS: "https://api.anthropic.com/v1"
       OPENAI_API_KEYS: "${ANTHROPIC_API_KEY:-}"
-      OPENAI_API_CONFIGS: '{"0": {"model_ids": ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5"]}}'
+      OPENAI_API_CONFIGS: '{"0": {"model_ids": ["claude-sonnet-5-5"]}}'
       DEFAULT_MODELS: "lilo:latest"
-      # So o `lilo` e os modelos nuvem (sem VRAM) aparecem na lista (I-0009): escolher
-      # `qwen3:14b` direto recarregaria o mesmo arquivo com outro contexto, e os
-      # embedders nao sao chat. Chave "0" = 1a conexao Ollama (OLLAMA_BASE_URL).
-      # 2026-10-12: qwen2.5-coder:14b (9 GB) entra como alternativa de codigo (troca com o lilo =
-      # recarga de ~11 s). Ficam fora: qwen2.5-coder:32b (19 GB, nao cabe nos 12 GB -> CPU, ~3 tok/s)
-      # e gpt-oss-safeguard:20b (classificador de politicas, nao e modelo de chat).
-      # 2026-10-12 (pedido do autor): lilo-30b (qwen3:30b-a3b), lilo-32b (qwen2.5:32b) e lilo-oss
-      # (gpt-oss:20b) sao HIBRIDOS GPU+CPU (nao cabem nos 12 GB); escolher um deles descarrega o lilo.
-      OLLAMA_API_CONFIGS: '{"0": {"model_ids": ["lilo:latest", "lilo-gemma:latest", "lilo-30b:latest", "lilo-32b:latest", "lilo-oss:latest", "qwen2.5-coder:14b", "gpt-oss:20b-cloud", "gpt-oss:120b-cloud", "mistral-large-3:675b-cloud"]}}'
+      # Seletor ENXUTO (D-0022, 12/10): so o `lilo` entra pela whitelist; os presets nascem dele pela
+      # API (scripts/owui_presets.py). Escolher `qwen3:14b` direto recarregaria o mesmo arquivo com
+      # outro contexto (I-0009), e os embedders nao sao chat. Chave "0" = 1a conexao Ollama.
+      # Fora do seletor, mas no disco para medicao: lilo-gemma, os hibridos lilo-30b/32b/oss (nao
+      # cabem nos 12 GB; escolher um descarrega o lilo), qwen2.5-coder:14b e os modelos de nuvem do
+      # Ollama. Uma base nova ("LILO Forte") so entra aqui depois de passar no bench.
+      OLLAMA_API_CONFIGS: '{"0": {"model_ids": ["lilo:latest"]}}'
       # think:false = regra de velocidade 3 (com thinking o "2+2" leva 6,5 s).
       # Nunca por aqui opcao de runner (num_ctx, num_gpu...): o contexto vem do
       # Modelfile do `lilo`, e opcao diferente faz o Ollama recarregar o modelo.

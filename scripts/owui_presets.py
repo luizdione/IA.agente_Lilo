@@ -7,15 +7,16 @@ Sem login (D-0015): o token vem de /api/v1/auths/signin sem senha. Preset e um
 registro de modelo no volume da interface (sobrevive a restart); a configuracao
 em si (lista de modelos, geracoes de fundo, think:false) vive no compose.yaml.
 
-Presets do plano v14:
-  LILO           o proprio `lilo:latest`, so renomeado. Sem tools, sem thinking:
-                 e o caminho do "2+2".
-  LILO Pesquisa  `lilo-pesquisa` sobre o `lilo`: biblioteca, memoria dos projetos,
-                 literatura e busca web (tools ligadas na F2 e na F4).
-  LILO Analise   `lilo-analise` sobre o `lilo`: estatistica, parsers bio, Python,
-                 R e WSL no host; SEM web (tools ligadas na F2). Conteudo da
-                 internet nunca fica no mesmo preset que executa codigo.
-As tools entram aqui, em TOOLS, quando a ponte lilo-host existir.
+Seletor ENXUTO (D-0022, 2026-10-12: o autor se perdeu em ~20 entradas). So cinco presets:
+  LILO                        o proprio `lilo:latest` renomeado, com as tools locais (age por padrao).
+  LILO Pesquisa               sobre o `lilo`: biblioteca, memoria, literatura (internet). Nao executa.
+  LILO Desktop                sobre o `lilo`: Desktop Commander (arquivos e processos do Windows).
+  LILO Orquestrador (Claude)  Sonnet 5.5 + tools locais: planeja e executa em etapas.
+  LILO Pesquisa (Claude)      Sonnet 5.5 + literatura + MCPs bio (PubMed, bioRxiv, ChEMBL...).
+Tudo o mais fica fora do seletor: modelos crus saem pela whitelist do compose.yaml e a base do
+Claude por um registro inativo (OCULTOS). Bases hibridas (lilo-30b/32b/oss) e lilo-gemma continuam
+no Ollama para medicao; uma base nova ("LILO Forte") so entra se passar no bench.
+Regra mantida: conteudo da internet nunca fica no mesmo preset que executa codigo.
 """
 from __future__ import annotations
 
@@ -39,12 +40,7 @@ TOOLS: dict[str, list[str]] = {
     # age por padrao - mesmas tools do Analise. Sem tool o modelo so pode dizer que nao consegue.
     # O "Modo de agir" (filtro) restringe quando o dono quiser; Pesquisa e o unico com internet.
     "lilo:latest": AGENTE,
-    "lilo-gemma:latest": AGENTE,
-    "lilo-30b:latest": AGENTE,
-    "lilo-32b:latest": AGENTE,
-    "lilo-oss:latest": AGENTE,
     "lilo-pesquisa": ["server:mcp:conhecimento", "server:mcp:literatura"],
-    "lilo-analise": AGENTE,
     # Servidor OpenAPI (mcpo) e `server:<id>`, sem o `mcp:`; as tools viram `tool_<nome>_post`.
     "lilo-desktop": ["server:desktop", "server:mcp:conhecimento"],
     # MCPs remotos dos plugins bio-research do Claude (PubMed, bioRxiv, ChEMBL, ensaios clinicos,
@@ -60,7 +56,16 @@ TOOLS: dict[str, list[str]] = {
 }
 
 # Presets que ja existiram e devem sumir da interface (apagados a cada rodada, se existirem).
-OBSOLETOS = ("lilo-bio",)   # reprovou no bench de 12/10 (TTFT p50 3,7 s com 3 MCPs remotos)
+OBSOLETOS = (
+    "lilo-bio",          # reprovou no bench de 12/10 (TTFT p50 3,7 s com 3 MCPs remotos)
+    "lilo-analise",      # D-0022: o LILO ja tem as mesmas tools (D-0021); preset redundante
+    "lilo-gemma:latest", "lilo-30b:latest", "lilo-32b:latest", "lilo-oss:latest",   # D-0022: fora do seletor
+)
+
+# Bases que os presets usam mas que NAO devem aparecer soltas no seletor: registro inativo sobre o
+# proprio id (e o que o "olho" do painel de administracao faz; utils/models.py remove o base da
+# lista quando is_active e falso, mas o preset que o tem como base_model_id continua funcionando).
+OCULTOS = ("claude-sonnet-5-5",)
 
 PRESETS_SYSTEM_PT = ("Você é o LILO, assistente local de pesquisa de Luiz Dione. Responda sempre em "
                      "português do Brasil, mesmo que a pergunta ou o material estejam em inglês, de forma "
@@ -87,39 +92,9 @@ PRESETS = (
         # system do preset substitui o do modelo (e o dono quer PT sempre, mesmo com material em ingles).
         "params": {"system": SYSTEM_AGENTE},
     },
-    {
-        "id": "lilo-gemma:latest", "base_model_id": None, "name": "LILO Gemma",
-        "meta": {"description": "gemma4:12b (8 GB): gera 40-55% mais rápido que o qwen3:14b, 1º token 0,2 s, "
-                                "tem visão. Mesmas ferramentas do LILO.",
-                 "tags": [{"name": "local"}]},
-        "params": {"system": SYSTEM_AGENTE},
-    },
-    # Bases hibridas (pedido do autor, 12/10): nao cabem nos 12 GB; escolher uma descarrega o lilo.
-    # Sao os proprios modelos do Ollama renomeados (como o "LILO"), com as mesmas tools (AGENTE).
-    {
-        "id": "lilo-30b:latest", "base_model_id": None, "name": "LILO 30B · híbrido",
-        "meta": {"description": "qwen3:30b-a3b (MoE, 3B ativos; 18 GB Q4, parte na CPU). Variante PENSANTE: use "
-                                "com 'Pensar fundo' ligado (senão o raciocínio vaza no texto). Medido 12/10: 27 "
-                                "tok/s, tools 8/8, '2+2' em 9 s pensando. Trocar de modelo descarrega o lilo.",
-                 "tags": [{"name": "local"}, {"name": "hibrido"}]},
-        "params": {"system": SYSTEM_AGENTE},
-    },
-    {
-        "id": "lilo-32b:latest", "base_model_id": None, "name": "LILO 32B · híbrido",
-        "meta": {"description": "qwen2.5:32b instruct (20 GB Q4; ~55% na GPU). Medido 12/10: 1º token 2,7 s e "
-                                "só 2,7 tok/s - inviável nesta placa para conversa; tools 8/8, código 3/3. "
-                                "Não pensa (qwen2.5).",
-                 "tags": [{"name": "local"}, {"name": "hibrido"}]},
-        "params": {"system": SYSTEM_AGENTE},
-    },
-    {
-        "id": "lilo-oss:latest", "base_model_id": None, "name": "LILO OSS · híbrido",
-        "meta": {"description": "gpt-oss:20b (MXFP4, 14 GB; ~80% na GPU). Sempre raciocina antes de responder "
-                                "(ignora think:false; aceita low/medium/high). Medido 12/10: 1º token 1 a 3,6 s, "
-                                "43 tok/s, tools 8/8, código 3/3 em 13 s.",
-                 "tags": [{"name": "local"}, {"name": "hibrido"}]},
-        "params": {"system": SYSTEM_AGENTE},
-    },
+    # Bases hibridas (lilo-30b/32b/oss) e lilo-gemma sairam do seletor em 12/10 (D-0022): medidas,
+    # nenhuma passou no portao; continuam no Ollama. "LILO Forte" (qwen3:30b-a3b-instruct-2507, em
+    # Modelfile.lilo-30b) entra aqui, com AGENTE e na whitelist do compose, so se passar no bench.
     {
         "id": "lilo-pesquisa", "base_model_id": "lilo:latest", "name": "LILO Pesquisa",
         "meta": {"description": "Biblioteca de PDFs, memória dos projetos, literatura "
@@ -133,21 +108,6 @@ PRESETS = (
                              "pasta_buscar e ler_texto. Se o pedido casar com uma skill do dono "
                              "(skills_listar), leia-a com skill_ler e siga as instruções dela. Se não "
                              "encontrar, diga que não encontrou; não invente referências."},
-    },
-    {
-        "id": "lilo-analise", "base_model_id": "lilo:latest", "name": "LILO Análise",
-        "meta": {"description": "Estatística, parsers bio e execução de Python, R e WSL no "
-                                "host. Sem internet.",
-                 "tags": [{"name": "local"}, {"name": "analise"}]},
-        "params": {"system": "Você é o LILO em modo Análise. Responda sempre em português do Brasil, "
-                             "mesmo que o material esteja em inglês. Para contas, "
-                             "estatística e arquivos use as ferramentas de análise e execução; "
-                             "mostre o código ou comando que rodou e o resultado tal como veio. "
-                             "Pasta citada pelo dono: pasta_listar, pasta_buscar, ler_texto; "
-                             "repositório em C:\\GitHub: repos_listar e executar_git (status, log, "
-                             "diff antes de qualquer alteração; commit só com o ok dele). Skills do "
-                             "dono: skills_listar -> skill_ler (siga o SKILL.md como roteiro) -> "
-                             "skill_rodar para os scripts dela. Não invente números."},
     },
     {
         "id": "lilo-desktop", "base_model_id": "lilo:latest", "name": "LILO Desktop",
@@ -303,6 +263,17 @@ def aplicar(cli: httpx.Client, preset: dict) -> str:
     return acao
 
 
+def ocultar(cli: httpx.Client, id_: str) -> str:
+    """Registro inativo sobre o proprio id do modelo base (OCULTOS): some do seletor, continua
+    servindo os presets que o tem como base_model_id."""
+    form = {"id": id_, "base_model_id": None, "name": id_, "meta": {}, "params": {}, "is_active": False}
+    if existe(cli, id_):
+        r = cli.post(f"{BASE}/api/v1/models/model/update", params={"id": id_}, json=form)
+    else:
+        r = cli.post(f"{BASE}/api/v1/models/create", json=form)
+    return "oculto" if r.status_code == 200 else f"{r.status_code} {r.text[:120]}"
+
+
 def listar(cli: httpx.Client) -> None:
     r = cli.get(f"{BASE}/api/models")
     r.raise_for_status()
@@ -327,6 +298,8 @@ def main() -> int:
             return 0
         for p in PRESETS:
             print(f"  {p['name']:<14} {aplicar(cli, p)}")
+        for id_ in OCULTOS:
+            print(f"  {id_:<14} {ocultar(cli, id_)}")
         for id_ in OBSOLETOS:
             if existe(cli, id_):
                 r = cli.post(f"{BASE}/api/v1/models/model/delete", json={"id": id_})  # POST com corpo

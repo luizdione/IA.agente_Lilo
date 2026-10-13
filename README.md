@@ -21,9 +21,9 @@ o legado v12 em `v12.15-legado`.
 
 | Peça | O que é | Onde |
 |---|---|---|
-| **Motor** | Ollama 0.35+ com o modelo derivado `lilo` (`ollama/Modelfile.lilo`: qwen3:14b Q4_K_M, contexto 8192, SYSTEM em PT). Alternativa `lilo-gemma` (gemma4:12b). | host, GPU |
-| **Interface** | Open WebUI em Docker Compose (`compose.yaml`), `127.0.0.1:3000`, sem login. Seletor: `lilo`, `lilo-gemma`, `qwen2.5-coder:14b`, 3 modelos de nuvem do Ollama e **Claude** (Sonnet 5.5, Opus 5.5, Haiku 4.5 pela API da Anthropic, chave no `.env`). Presets: **LILO**, **LILO Pesquisa**, **LILO Análise**, **LILO Desktop**, **LILO Orquestrador (Claude)**, **LILO Pesquisa (Claude)**. Atalhos `/pasta` (cola o caminho copiado no Explorer), `/repo`, `/skill` e um `/<skill>` por skill do dono. | container |
-| **Ponte `lilo-host`** | Pacote `lilo_host/` (FastMCP, streamable HTTP) em `127.0.0.1:8790` com 3 grupos: `conhecimento` (13 tools), `analise` (10), `exec` (5, token obrigatório) e o proxy `/literatura/mcp` para o Docker MCP Gateway (`paper-search`, só busca). | host, conda `datascience` |
+| **Motor** | Ollama 0.35+ com o modelo derivado `lilo` (`ollama/Modelfile.lilo`: qwen3:14b Q4_K_M, contexto 8192, SYSTEM em PT). Candidata a base forte: `lilo-30b` (qwen3:30b-a3b-instruct-2507, híbrido GPU+CPU), que só entra no seletor se passar no bench. | host, GPU |
+| **Interface** | Open WebUI em Docker Compose (`compose.yaml`), `127.0.0.1:3000`, sem login. Seletor enxuto (D-0022): só cinco presets, **LILO**, **LILO Pesquisa**, **LILO Desktop**, **LILO Orquestrador (Claude)** e **LILO Pesquisa (Claude)**; os modelos crus ficam fora pela whitelist do `compose.yaml` e a base `claude-sonnet-5-5` (API da Anthropic, chave no `.env`) por um registro inativo. Atalhos `/pasta` (abre o seletor de pasta), `/pasta_colada`, `/repo`, `/skill` e um `/<skill>` por skill do dono. | container |
+| **Ponte `lilo-host`** | Pacote `lilo_host/` (FastMCP, streamable HTTP) em `127.0.0.1:8790` com 3 grupos: `conhecimento` (14 tools), `analise` (10), `exec` (5, token obrigatório) e o proxy `/literatura/mcp` para o Docker MCP Gateway (`paper-search`, só busca). | host, conda `datascience` |
 | **Plugins do Claude** | MCPs remotos do plugin bio-research que aceitam conexão sem login, ligados direto na interface: PubMed, bioRxiv, ChEMBL, ensaios clínicos e Open Targets (só no preset Pesquisa (Claude): seus schemas somam 4 k tokens e são buscados a cada mensagem, o que custa 3,7 s de 1º token no modelo local). **Desktop Commander** (o mesmo do Claude) no host atrás do `mcpo`, só loopback, com token: `lilo.ps1 desktop up`. | container / host |
 
 Regras de velocidade que o código obedece: um só modelo de chat, chamado **sem opções
@@ -48,9 +48,8 @@ cada grupo) · `indexar [status|falhas]` (biblioteca de PDFs, incremental) · `g
 
 ### Controles da caixa de mensagem (como no Claude)
 
-- **Seletor de modelo** (botão "LILO ▾" à direita da caixa): a base local (`lilo` = qwen3:14b),
-  `lilo-gemma`, os híbridos `lilo-30b` / `lilo-32b` / `lilo-oss`, os modelos de nuvem do Ollama e
-  o Claude; e os presets com ferramentas.
+- **Seletor de modelo** (botão "LILO ▾" à direita da caixa): os cinco presets, nada mais. Qual
+  usar: tabela "Qual LILO usar", abaixo.
 - **Botão "Integrações"** (ícone ao lado do "+"): cinco interruptores do LILO, cada um com engrenagem:
   - **Escolha Automática de Parâmetros** (engrenagem → nível): `baixo` (rápido, sem pensar, 512 tokens),
     `medio` (padrão), `alto` (pensa), `extra`, `maximo` (pensa e revisa), `ultracode` (código em etapas
@@ -71,14 +70,28 @@ cada grupo) · `indexar [status|falhas]` (biblioteca de PDFs, incremental) · `g
 - **Grupos de trabalho** na barra lateral: "Pastas" → "+" cria uma pasta; arraste o chat para dentro;
   no "..." da pasta, "Editar" dá prompt do sistema e conhecimento ao grupo. Há uma pasta de exemplo.
 
-**Todo preset local age por padrão** (LILO, LILO Gemma, 30B, 32B, OSS e Análise têm as mesmas
-ferramentas: memória, biblioteca, pastas, estatística, Python, R, WSL, git e skills); sem elas o
-modelo só pode dizer que "não consegue acessar arquivos". Use o "Modo de agir" para restringir.
-Regra dos presets: **conteúdo da internet nunca fica no mesmo preset que executa código**
-(Pesquisa/Pesquisa-Claude não executam; os demais não têm web). Presets
-com muitas tools só sobre o Claude (contexto 200k); no `lilo` (8k) cada preset fica abaixo de
-~30 tools locais, porque os schemas entram no prompt (o Ollama reaproveita o cache a partir da
-2ª mensagem; medido: Pesquisa 18 tools = 1º token 0,37 s, Análise 28 tools = 0,53 s).
+**O LILO age por padrão** (memória, biblioteca, pastas, estatística, Python, R, WSL, git e skills);
+sem ferramentas o modelo só pode dizer que "não consegue acessar arquivos". Use o "Modo de agir"
+para restringir. Regra dos presets: **conteúdo da internet nunca fica no mesmo preset que executa
+código** (Pesquisa/Pesquisa-Claude não executam; os demais não têm web). Presets com muitas tools
+só sobre o Claude (contexto 200k); no `lilo` (8k) cada preset fica abaixo de ~30 tools locais,
+porque os schemas entram no prompt (o Ollama reaproveita o cache a partir da 2ª mensagem; medido:
+Pesquisa 18 tools = 1º token 0,37 s, 28 tools locais = 0,53 s).
+
+### Qual LILO usar
+
+| Tarefa | Preset |
+|---|---|
+| Rodar ou depurar script Python/R, estatística, gráfico, ler planilha ou PDF, git, skills | **LILO** |
+| Buscar artigos, conferir uma referência, qualquer coisa que precise de internet | **LILO Pesquisa** |
+| Revisão de literatura séria: PubMed, bioRxiv, ChEMBL, ensaios clínicos, Open Targets | **LILO Pesquisa (Claude)** |
+| Projeto em várias etapas, "faça a análise inteira", pipeline de ponta a ponta | **LILO Orquestrador (Claude)** |
+| Arquivos e processos do Windows fora das pastas de projeto (`lilo.ps1 desktop up` antes) | **LILO Desktop** |
+
+O "LILO que pensa e distribui" é o Orquestrador (Claude): planeja, divide em etapas e executa cada
+uma com as ferramentas locais. Nenhum preset delega a outro modelo (a ponte não tem tool de
+delegação). Os controles valem em todos: **Pensar fundo** para problema difícil, **Plano** para só
+planejar, **Modo de agir** como freio.
 
 Requisitos: Windows 11, Docker Desktop, Ollama, conda `datascience` (Python 3.11 com
 `mcp`, `httpx`, `sentence-transformers`, `chromadb`, `pingouin`, `pymupdf`, `psutil`,
@@ -122,7 +135,7 @@ O Claude Code também usa os grupos `conhecimento` e `analise` por HTTP
 
 Bake-off (`scripts/bakeoff_tools.py` + `bench.py` + `avaliar_biblioteca.py --idioma pt`):
 qwen3:14b tem o 1º token 3× mais rápido e escolha de tool 16/16; gemma4:12b gera 40–55 %
-mais rápido. A base continua qwen3:14b; `lilo-gemma` fica no seletor da interface.
+mais rápido. A base continua qwen3:14b; `lilo-gemma` fica no Ollama, fora do seletor (D-0022).
 
 Bases híbridas (12/10, GPU quieta; `bench --sem-portao`, `bakeoff_tools --caminho ollama`,
 `bakeoff_codigo`): os três não cabem inteiros nos 12 GB e rodam parte na CPU.
@@ -138,16 +151,18 @@ Nota: a tag `qwen3:30b-a3b` do Ollama é a variante **pensante**: com `think:fal
 raciocínio como texto em inglês antes da resposta (por isso o 0/3 no código, que é o extrator
 achando prosa); com o raciocínio ligado ("Pensar fundo") a resposta sai limpa, mas "2+2" leva
 9 s e um código 60 s. Para uma base 30B rápida e sem raciocínio a tag certa é
-`qwen3:30b-a3b-instruct-2507` (não baixada). O `lilo-32b` é inviável nesta placa (2,7 tok/s) e o
-`gpt-oss:20b` sempre raciocina (ignora `think:false`; aceita `low`/`medium`/`high`, que a
-Escolha Automática de Parâmetros já manda). O padrão continua o `lilo`.
+`qwen3:30b-a3b-instruct-2507-q4_K_M` (baixada em 12/10; `Modelfile.lilo-30b` já aponta para ela e
+o `lilo-30b` só vira o preset "LILO Forte" se passar no bench). O `lilo-32b` é inviável nesta placa
+(2,7 tok/s) e o `gpt-oss:20b` sempre raciocina (ignora `think:false`; aceita `low`/`medium`/`high`,
+que a Escolha Automática de Parâmetros já manda). O padrão continua o `lilo`. Desde 12/10 (D-0022)
+nenhum híbrido aparece no seletor: continuam no Ollama só para medição.
 
 ## Estrutura
 
 ```
 lilo.ps1            operação (up/down/status/bench/...), Windows PowerShell 5.1
 compose.yaml        Open WebUI (lista de modelos, conexões MCP, presets via API)
-ollama/             Modelfile.lilo, Modelfile.lilo-gemma
+ollama/             Modelfile.lilo (o seletor), Modelfile.lilo-gemma|30b|32b|oss (bases fora dele)
 lilo_host/          ponte MCP: servidor.py (3 grupos + proxy), biblioteca, estatistica,
                     execucao, skills, pastas, projetos, resumir, docx, bioparsers, comum
 scripts/            bench.py · owui_presets.py · lilo_host_serve.py · mcp_smoke.py ·

@@ -1,11 +1,12 @@
-# LILO 30B - candidato "mais inteligente" pedido em 2026-10-12: Qwen3 30B MoE (3B ativos).
-# ~19 GB em Q4: NAO cabe inteiro nos 12 GB da RTX 3060 -> roda hibrido GPU+CPU (64 GB de RAM).
-# MEDIDO 12/10: a tag qwen3:30b-a3b do Ollama e a variante PENSANTE: com think:false o raciocinio
-# vaza como texto (em ingles) antes da resposta; com think:true a resposta sai limpa, mas "2+2"
-# leva ~9 s e um codigo ~60 s. Para uma base rapida sem raciocinio, a tag certa seria
-# qwen3:30b-a3b-instruct-2507 (nao baixada). Use este modelo com "Pensar fundo" ligado.
+# LILO Forte (candidata) - base 30B pedida em 2026-10-12: Qwen3-30B-A3B-Instruct-2507 (MoE, 3B
+# ativos, SEM modo pensante). A tag `qwen3:30b-a3b`, medida 12/10, e a variante PENSANTE: com
+# think:false o raciocinio vazava como texto em ingles antes da resposta; com think:true "2+2"
+# levava ~9 s. A tag instruct-2507 so existe com sufixo de quantizacao no Ollama (q4_K_M/q8_0/fp16).
+# ~18 GB em Q4_K_M: NAO cabe inteiro nos 12 GB da RTX 3060 -> roda hibrido GPU+CPU (64 GB de RAM).
+# So entra no seletor da interface (preset "LILO Forte", D-0022) se passar no bench com GPU quieta:
+#   .\lilo.ps1 bench --alvo ollama --modelo lilo-30b --sem-portao   (+ bakeoff_tools / bakeoff_codigo)
 # Mesmo contrato do `lilo`: num_ctx fixo aqui, nenhum cliente manda opcao de runner.
 # Depois de editar:  ollama create lilo-30b -f ollama\Modelfile.lilo-30b
-FROM qwen3:30b-a3b
+FROM qwen3:30b-a3b-instruct-2507-q4_K_M
 PARAMETER num_ctx 8192
 SYSTEM """Você é o LILO, assistente local de pesquisa de Luiz Dione (bioinformática, biologia molecular e ciência de dados). Responda sempre em português do Brasil, mesmo que a pergunta ou o material estejam em inglês, de forma direta e tecnicamente correta. Quando não souber ou não tiver certeza, diga isso em vez de inventar."""
