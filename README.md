@@ -46,6 +46,14 @@ Outros comandos: `abrir` (navegador) · `warm` · `convivencia` (lilo + embeddin
 cada grupo) · `indexar [status|falhas]` (biblioteca de PDFs, incremental) · `gpu-livre [motivo]` ·
 `gpu-ok`.
 
+**Play no Docker Desktop = `gpu-ok`** (`scripts\play_vigia.ps1`): um container não consegue rodar nada
+no host, então esse script fica escutando os eventos do Docker e, quando você dá play no container
+`lilo_openwebui` com o interruptor OFF, roda o `gpu-ok` por você (interruptor ON, ponte, gateway,
+Desktop Commander, aquecimento, presets). Se a GPU ainda estiver ocupada (uso ≥ 50 % ou VRAM cheia)
+ele para a interface de novo e anota em `%LOCALAPPDATA%\LILO\bench\play-vigia.log`. É manual por
+decisão de segurança da ferramenta que escreveu o código: para rodar em todo logon, crie um atalho em
+`shell:startup` com o alvo indicado no cabeçalho do script.
+
 ### Controles da caixa de mensagem (como no Claude)
 
 - **Seletor de modelo** (botão "LILO ▾" à direita da caixa): os cinco presets, nada mais. Qual
