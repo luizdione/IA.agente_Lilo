@@ -35,6 +35,12 @@ def test_profundidade_mapeia_niveis_e_nunca_toca_no_runner():
     assert out["messages"][0]["content"].count("Modo código") == 1   # nao duplica
     out = f.inlet({"model": "lilo", "messages": []}, __user__=None, __model__=None)
     assert out["options"]["num_predict"] == 1536 and out["think"] is False   # padrao = medio
+    out = f.inlet({"model": "lilo-oss:latest", "messages": []},
+                  __user__={"valves": f.UserValves(nivel="baixo")}, __model__={"owned_by": "ollama"})
+    assert out["think"] == "low" and out["options"]["think"] == "low"        # gpt-oss: niveis
+    out = f.inlet({"model": "lilo-oss:latest", "messages": []},
+                  __user__={"valves": f.UserValves(nivel="alto")}, __model__={"owned_by": "ollama"})
+    assert out["think"] == "high"
 
 
 def test_modo_restringe_tools_de_verdade():

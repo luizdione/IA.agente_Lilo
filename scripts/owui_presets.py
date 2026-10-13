@@ -73,23 +73,25 @@ PRESETS = (
     # Sao os proprios modelos do Ollama renomeados (como o "LILO"), sem tools.
     {
         "id": "lilo-30b:latest", "base_model_id": None, "name": "LILO 30B · híbrido",
-        "meta": {"description": "qwen3:30b-a3b (MoE, 3B ativos; 18 GB Q4). Mais inteligente que o 14b; "
-                                "roda parte na CPU: ver velocidade medida no README. Trocar de modelo "
-                                "descarrega o lilo (~11 s para voltar).",
+        "meta": {"description": "qwen3:30b-a3b (MoE, 3B ativos; 18 GB Q4, parte na CPU). Variante PENSANTE: use "
+                                "com 'Pensar fundo' ligado (senão o raciocínio vaza no texto). Medido 12/10: 27 "
+                                "tok/s, tools 8/8, '2+2' em 9 s pensando. Trocar de modelo descarrega o lilo.",
                  "tags": [{"name": "local"}, {"name": "hibrido"}]},
         "params": {"system": PRESETS_SYSTEM_PT},
     },
     {
         "id": "lilo-32b:latest", "base_model_id": None, "name": "LILO 32B · híbrido",
-        "meta": {"description": "qwen2.5:32b instruct (20 GB Q4; ~55% na GPU). Lento: ver velocidade "
-                                "medida no README. Não pensa (qwen2.5).",
+        "meta": {"description": "qwen2.5:32b instruct (20 GB Q4; ~55% na GPU). Medido 12/10: 1º token 2,7 s e "
+                                "só 2,7 tok/s - inviável nesta placa para conversa; tools 8/8, código 3/3. "
+                                "Não pensa (qwen2.5).",
                  "tags": [{"name": "local"}, {"name": "hibrido"}]},
         "params": {"system": PRESETS_SYSTEM_PT},
     },
     {
         "id": "lilo-oss:latest", "base_model_id": None, "name": "LILO OSS · híbrido",
-        "meta": {"description": "gpt-oss:20b (MXFP4, 14 GB; ~80% na GPU). Raciocínio nativo. Ver "
-                                "velocidade medida no README.",
+        "meta": {"description": "gpt-oss:20b (MXFP4, 14 GB; ~80% na GPU). Sempre raciocina antes de responder "
+                                "(ignora think:false; aceita low/medium/high). Medido 12/10: 1º token 1 a 3,6 s, "
+                                "43 tok/s, tools 8/8, código 3/3 em 13 s.",
                  "tags": [{"name": "local"}, {"name": "hibrido"}]},
         "params": {"system": PRESETS_SYSTEM_PT},
     },

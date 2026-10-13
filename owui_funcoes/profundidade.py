@@ -57,10 +57,15 @@ def aplicar_nivel(body: dict, nivel: str, modelo: Optional[dict]) -> dict:
         opts = body.setdefault("options", {}) or {}
         # DEFAULT_MODEL_PARAMS (think:false) chega em options e e copiado para o campo `think` do
         # pedido depois dos filtros: por isso o valor entra nos dois lugares.
+        # gpt-oss nao aceita think:false (raciocina sempre): recebe o nivel low/medium/high.
+        alvo = str(body.get("model") or "") + " " + str((modelo or {}).get("id") or "")
+        think = p["think"]
+        if "oss" in alvo.lower():
+            think = {"low": "low", "medium": "low", "high": "high"}[p["esforco"]]
         opts.update({"temperature": p["temperature"], "top_p": p["top_p"], "num_predict": p["max_tokens"],
-                     "think": p["think"]})
+                     "think": think})
         body["options"] = opts
-        body["think"] = p["think"]          # lilo = qwen3, gemma4 e gpt-oss pensam; qwen2.5 ignora
+        body["think"] = think               # lilo = qwen3, gemma4 pensam; qwen2.5 ignora
     if p["extra"]:
         injetar_system(body, p["extra"])
     return body

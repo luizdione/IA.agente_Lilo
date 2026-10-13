@@ -33,8 +33,10 @@ class Filter:
             body["reasoning_effort"] = "high"
         else:
             opts = body.setdefault("options", {}) or {}
+            alvo = str(body.get("model") or "") + " " + str((__model__ or {}).get("id") or "")
+            think = "high" if "oss" in alvo.lower() else True     # gpt-oss usa niveis, nao booleano
             opts.update({"temperature": ALTO["temperature"], "top_p": ALTO["top_p"], "num_predict": ALTO["max_tokens"],
-                         "think": True})      # tambem em options: e de la que a interface copia o `think`
+                         "think": think})     # tambem em options: e de la que a interface copia o `think`
             body["options"] = opts
-            body["think"] = True
+            body["think"] = think
         return body
