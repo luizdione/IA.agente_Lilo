@@ -71,8 +71,11 @@ cada grupo) · `indexar [status|falhas]` (biblioteca de PDFs, incremental) · `g
 - **Grupos de trabalho** na barra lateral: "Pastas" → "+" cria uma pasta; arraste o chat para dentro;
   no "..." da pasta, "Editar" dá prompt do sistema e conhecimento ao grupo. Há uma pasta de exemplo.
 
+**Todo preset local age por padrão** (LILO, LILO Gemma, 30B, 32B, OSS e Análise têm as mesmas
+ferramentas: memória, biblioteca, pastas, estatística, Python, R, WSL, git e skills); sem elas o
+modelo só pode dizer que "não consegue acessar arquivos". Use o "Modo de agir" para restringir.
 Regra dos presets: **conteúdo da internet nunca fica no mesmo preset que executa código**
-(Pesquisa/Pesquisa-Claude não executam; Análise/Desktop/Orquestrador não têm web). Presets
+(Pesquisa/Pesquisa-Claude não executam; os demais não têm web). Presets
 com muitas tools só sobre o Claude (contexto 200k); no `lilo` (8k) cada preset fica abaixo de
 ~30 tools locais, porque os schemas entram no prompt (o Ollama reaproveita o cache a partir da
 2ª mensagem; medido: Pesquisa 18 tools = 1º token 0,37 s, Análise 28 tools = 0,53 s).

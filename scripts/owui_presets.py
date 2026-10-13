@@ -32,9 +32,19 @@ BASE = os.environ.get("LILO_WEBUI", "http://127.0.0.1:3000")
 # Tools por preset: `server:mcp:<id>` = conexao MCP de TOOL_SERVER_CONNECTIONS
 # (compose.yaml); a Open WebUI expoe cada tool como `<id>_<nome>`. A F4 acrescenta
 # o paper-search ao Pesquisa. Conteudo da internet nunca no mesmo preset que executa.
+AGENTE = ["server:mcp:analise", "server:mcp:exec", "server:mcp:conhecimento"]   # age no host, sem internet
+
 TOOLS: dict[str, list[str]] = {
+    # 2026-10-12 (queixa do autor: "LILO 32B disse que nao pode executar nada"): TODO preset local
+    # age por padrao - mesmas tools do Analise. Sem tool o modelo so pode dizer que nao consegue.
+    # O "Modo de agir" (filtro) restringe quando o dono quiser; Pesquisa e o unico com internet.
+    "lilo:latest": AGENTE,
+    "lilo-gemma:latest": AGENTE,
+    "lilo-30b:latest": AGENTE,
+    "lilo-32b:latest": AGENTE,
+    "lilo-oss:latest": AGENTE,
     "lilo-pesquisa": ["server:mcp:conhecimento", "server:mcp:literatura"],
-    "lilo-analise": ["server:mcp:analise", "server:mcp:exec", "server:mcp:conhecimento"],
+    "lilo-analise": AGENTE,
     # Servidor OpenAPI (mcpo) e `server:<id>`, sem o `mcp:`; as tools viram `tool_<nome>_post`.
     "lilo-desktop": ["server:desktop", "server:mcp:conhecimento"],
     # MCPs remotos dos plugins bio-research do Claude (PubMed, bioRxiv, ChEMBL, ensaios clinicos,
@@ -56,28 +66,43 @@ PRESETS_SYSTEM_PT = ("Você é o LILO, assistente local de pesquisa de Luiz Dion
                      "português do Brasil, mesmo que a pergunta ou o material estejam em inglês, de forma "
                      "direta e tecnicamente correta. Quando não souber, diga isso em vez de inventar.")
 
+# System de quem AGE: o modelo tem ferramentas e deve usa-las em vez de dizer que nao consegue.
+SYSTEM_AGENTE = (PRESETS_SYSTEM_PT +
+                 " Você TEM ferramentas e deve usá-las: executar_python, executar_r e executar_wsl rodam "
+                 "código no computador do dono; executar_git age nos repositórios de C:\\GitHub (status, log, "
+                 "diff antes de alterar; commit só com o ok dele); pasta_escolher abre o seletor de pasta, "
+                 "pasta_listar/pasta_buscar/ler_texto leem pastas e arquivos; biblioteca_buscar consulta os "
+                 "PDFs; estat_* faz estatística; skills_listar -> skill_ler -> skill_rodar seguem as skills "
+                 "do dono. Quando ele pedir uma tarefa, execute-a passo a passo com as ferramentas, mostrando "
+                 "cada comando e saída tal como vieram; nunca responda que não pode acessar arquivos ou rodar "
+                 "código. Só o que exige internet está fora deste preset (use o LILO Pesquisa).")
+
 PRESETS = (
     {
         "id": "lilo:latest", "base_model_id": None, "name": "LILO",
-        "meta": {"description": "Chat rápido local (qwen3:14b, contexto 8192, sem thinking). "
-                                "Para raciocínio profundo, ligue o thinking na conversa.",
+        "meta": {"description": "qwen3:14b, contexto 8192, rápido. Age no computador: Python, R, WSL, git, "
+                                "pastas, PDFs, estatística e skills. Para pensar, ligue 'Pensar fundo'.",
                  "tags": [{"name": "local"}]},
         # O SYSTEM do Modelfile ja pede portugues; o preset repete porque, na interface, um
         # system do preset substitui o do modelo (e o dono quer PT sempre, mesmo com material em ingles).
-        "params": {"system": "Você é o LILO, assistente local de pesquisa de Luiz Dione. Responda "
-                             "sempre em português do Brasil, mesmo que a pergunta ou o material estejam "
-                             "em inglês, de forma direta e tecnicamente correta. Quando não souber, "
-                             "diga isso em vez de inventar."},
+        "params": {"system": SYSTEM_AGENTE},
+    },
+    {
+        "id": "lilo-gemma:latest", "base_model_id": None, "name": "LILO Gemma",
+        "meta": {"description": "gemma4:12b (8 GB): gera 40-55% mais rápido que o qwen3:14b, 1º token 0,2 s, "
+                                "tem visão. Mesmas ferramentas do LILO.",
+                 "tags": [{"name": "local"}]},
+        "params": {"system": SYSTEM_AGENTE},
     },
     # Bases hibridas (pedido do autor, 12/10): nao cabem nos 12 GB; escolher uma descarrega o lilo.
-    # Sao os proprios modelos do Ollama renomeados (como o "LILO"), sem tools.
+    # Sao os proprios modelos do Ollama renomeados (como o "LILO"), com as mesmas tools (AGENTE).
     {
         "id": "lilo-30b:latest", "base_model_id": None, "name": "LILO 30B · híbrido",
         "meta": {"description": "qwen3:30b-a3b (MoE, 3B ativos; 18 GB Q4, parte na CPU). Variante PENSANTE: use "
                                 "com 'Pensar fundo' ligado (senão o raciocínio vaza no texto). Medido 12/10: 27 "
                                 "tok/s, tools 8/8, '2+2' em 9 s pensando. Trocar de modelo descarrega o lilo.",
                  "tags": [{"name": "local"}, {"name": "hibrido"}]},
-        "params": {"system": PRESETS_SYSTEM_PT},
+        "params": {"system": SYSTEM_AGENTE},
     },
     {
         "id": "lilo-32b:latest", "base_model_id": None, "name": "LILO 32B · híbrido",
@@ -85,7 +110,7 @@ PRESETS = (
                                 "só 2,7 tok/s - inviável nesta placa para conversa; tools 8/8, código 3/3. "
                                 "Não pensa (qwen2.5).",
                  "tags": [{"name": "local"}, {"name": "hibrido"}]},
-        "params": {"system": PRESETS_SYSTEM_PT},
+        "params": {"system": SYSTEM_AGENTE},
     },
     {
         "id": "lilo-oss:latest", "base_model_id": None, "name": "LILO OSS · híbrido",
@@ -93,7 +118,7 @@ PRESETS = (
                                 "(ignora think:false; aceita low/medium/high). Medido 12/10: 1º token 1 a 3,6 s, "
                                 "43 tok/s, tools 8/8, código 3/3 em 13 s.",
                  "tags": [{"name": "local"}, {"name": "hibrido"}]},
-        "params": {"system": PRESETS_SYSTEM_PT},
+        "params": {"system": SYSTEM_AGENTE},
     },
     {
         "id": "lilo-pesquisa", "base_model_id": "lilo:latest", "name": "LILO Pesquisa",

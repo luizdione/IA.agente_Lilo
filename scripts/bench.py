@@ -183,10 +183,10 @@ def main() -> int:
     a = ap.parse_args()
     tool_ids: list[str] | None = None
     if a.alvo == "webui":
-        from owui_presets import TOOLS  # presets com tools (lilo-pesquisa, lilo-analise): id puro + tool_ids
-        tool_ids = TOOLS.get(a.modelo)
-        if ":" not in a.modelo and not tool_ids:
+        from owui_presets import TOOLS  # a tela manda as tools do preset (meta.toolIds) em cada mensagem
+        if ":" not in a.modelo and a.modelo not in TOOLS:
             a.modelo += ":latest"  # a interface conhece o modelo pelo nome completo do Ollama
+        tool_ids = TOOLS.get(a.modelo)  # inclui `lilo:latest` (desde 12/10 todo preset local tem tools)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
