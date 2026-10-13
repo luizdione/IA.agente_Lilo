@@ -1,6 +1,6 @@
 # LILO v14 - dependencias da ponte lilo_host e dos scripts (conda `datascience`, Python 3.11).
 # Instalar o que faltar:  pip install -r requirements.txt
-mcp>=1.12                     # FastMCP, streamable HTTP, TransportSecuritySettings
+mcp>=1.12,<2                  # FastMCP, streamable HTTP, TransportSecuritySettings (2.x renomeou a API)
 httpx>=0.27
 numpy>=1.26
 pandas>=2.0

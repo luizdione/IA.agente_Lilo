@@ -4,7 +4,7 @@
 # importe pacote fora desta lista falha com ModuleNotFoundError: adicione o pacote aqui.
 pytest>=8.0
 pyflakes>=3.0
-mcp>=1.12
+mcp>=1.12,<2       # 2.x renomeou FastMCP -> MCPServer; a ponte usa a API 1.x (datascience tem 1.27)
 httpx>=0.27
 numpy>=1.26
 pandas>=2.0
