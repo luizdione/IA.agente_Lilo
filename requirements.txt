@@ -1,4 +1,14 @@
-# LILO v13 — dependencias de RUNTIME (minimas por design)
-# Instalar: pip install -r requirements.txt
-requests>=2.31.0
-python-dotenv>=1.0.0
+# LILO v14 - dependencias da ponte lilo_host e dos scripts (conda `datascience`, Python 3.11).
+# Instalar o que faltar:  pip install -r requirements.txt
+mcp>=1.12                     # FastMCP, streamable HTTP, TransportSecuritySettings
+httpx>=0.27
+numpy>=1.26
+pandas>=2.0
+scipy>=1.11
+pingouin>=0.5.4               # estat_* (t, Mann-Whitney, ANOVA, correlacao, qui-quadrado)
+PyMuPDF>=1.24                 # ler_pdf, biblioteca, resumir
+python-docx>=1.1              # docx_ler / docx_escrever
+psutil>=5.9                   # executar_* (mata a arvore de processos no timeout)
+chromadb>=1.0                 # biblioteca (indice vetorial em E:\data\lilo\biblioteca)
+sentence-transformers>=3.0    # biblioteca (bge-m3; CPU para consultar, GPU so para indexar)
+mcpo>=0.0.17                  # Desktop Commander atras de OpenAPI (lilo.ps1 desktop up)

@@ -12,8 +12,9 @@ v13 (agente de terminal) em `marco/v13.12-terminal`; legado v12 em `v12.15-legad
 
 ## Como rodar / medir
 ```powershell
-.\lilo.ps1 up | down | status | bench | smoke | presets | indexar | gateway up
-C:\Users\luizd\miniforge3\envs\datascience\python.exe -m pytest tests\test_host_*.py -q
+.\lilo.ps1 up | down | status | bench | smoke | presets | indexar | gateway up | desktop up
+C:\Users\luizd\miniforge3\envs\datascience\python.exe -m pytest tests -q   # ponte + filtros, sem GPU
+C:\Users\luizd\miniforge3\envs\datascience\python.exe scripts\check.py     # o que o CI roda
 ollama create lilo -f ollama\Modelfile.lilo      # depois de editar o Modelfile
 ```
 Python do projeto: `C:\Users\luizd\miniforge3\envs\datascience\python.exe` (nunca o Python do sistema).
@@ -37,6 +38,6 @@ Python do projeto: `C:\Users\luizd\miniforge3\envs\datascience\python.exe` (nunc
 
 ## Estrutura
 ```
-lilo.ps1  compose.yaml  ollama/Modelfile.*  lilo_host/  scripts/  tests/test_host_*.py
-lilo/  tests/test_v13*.py  scripts/{check,smoke_lilo,servir_mcp,...}   <- v13, a retirar (F5)
+lilo.ps1  compose.yaml  ollama/Modelfile.*  lilo_host/  owui_funcoes/  scripts/  tests/
+.github/workflows/tests.yml = CI (scripts/check.py). A v13 saiu na F5 (13/10): marco/v13.12-terminal.
 ```

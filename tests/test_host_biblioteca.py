@@ -53,6 +53,7 @@ def test_fatiar_janelas_e_paginas():
 
 @pytest.fixture
 def lib(tmp_path):
+    pytest.importorskip("chromadb")   # o CI nao instala o indice vetorial: pula em vez de falhar
     pdfs, indice = tmp_path / "pdfs", tmp_path / "indice"
     pdfs.mkdir()
     _pdf(pdfs / "mito.pdf", ["Mitochondrial respiration and ATP synthesis in muscle cells.\n" * 8])

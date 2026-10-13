@@ -165,11 +165,17 @@ compose.yaml        Open WebUI (lista de modelos, conexões MCP, presets via API
 ollama/             Modelfile.lilo (o seletor), Modelfile.lilo-gemma|30b|32b|oss (bases fora dele)
 lilo_host/          ponte MCP: servidor.py (3 grupos + proxy), biblioteca, estatistica,
                     execucao, skills, pastas, projetos, resumir, docx, bioparsers, comum
-scripts/            bench.py · owui_presets.py · lilo_host_serve.py · mcp_smoke.py ·
-                    indexar_biblioteca.py · avaliar_biblioteca.py · bakeoff_tools.py ·
-                    gateway_catalogo.py · convivencia.py · criar_atalho.py
-tests/              test_host_*.py (ponte, sem GPU)
-lilo/               núcleo da v13 (agente de terminal) — a retirar na F5
+owui_funcoes/       filtros da Open WebUI (controles da caixa: profundidade, pensar, modo, plano, pasta)
+scripts/            bench.py · owui_presets.py · owui_funcoes.py · lilo_host_serve.py · mcp_smoke.py ·
+                    indexar_biblioteca.py · avaliar_biblioteca.py · bakeoff_tools.py · bakeoff_codigo.py ·
+                    gateway_catalogo.py · convivencia.py · criar_atalho.py · check.py (CI) · claude_ollama.ps1
+tests/              test_host_*.py (ponte) e test_owui_funcoes.py (filtros): sem GPU nem Ollama
+docs/versoes/       CHANGELOG.md (histórico da v13 + entrada da v14)
 ```
+
+CI (GitHub Actions, `.github/workflows/tests.yml`): `python scripts/check.py` = sintaxe + pyflakes +
+pytest em máquina limpa; o que depende de R, WSL, Ollama, GPU ou do índice vetorial pula sozinho.
+O bench só roda aqui. A v13 (agente de terminal) saiu do branch em 13/10 (F5) e está no marco
+`marco/v13.12-terminal`.
 
 Memória viva do projeto (fora do repo): `OneDrive\...\Projetos\IA.agente\.project-memory\`.
