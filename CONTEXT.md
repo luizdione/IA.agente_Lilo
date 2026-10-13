@@ -1,71 +1,14 @@
-# CONTEXT.md — memoria do projeto LILO
+# CONTEXT.md — LILO v14 (ponteiro)
 
-> Secoes **AUTO** sao regeneradas por `python scripts/memoria_projeto.py`
-> (skill `/gerente_memoria`) — NAO edite dentro dos marcadores. Secoes
-> **MANUAL** sao suas: mantenha-as curtas (isto entra no contexto de sessoes).
+A memória viva deste projeto NÃO fica no repositório. Ela vive em
+`C:\Users\luizd\OneDrive\Data_Science\Projetos\IA.agente\.project-memory\`:
+`PROJECT_STATE.md` (estado atual), `TASKS.md`, `DECISIONS.md`, `KNOWLEDGE.md`,
+`ISSUES.md`, `CHANGELOG.md`.
 
-## Estado atual (AUTO)
-<!-- AUTO:estado -->
-- **Versao:** v13.12.0 | **branch:** arch-v12 | **commit:** 815d6e0 Merge PR #26: docs(memoria) — AUTO atualizado + poda das seções MANUAL
-- **Testes:** 139 funcoes de teste (rode `python scripts/check.py`)
-- **Atualizado em:** 2026-08-31
-<!-- /AUTO:estado -->
+Para retomar uma sessão: leia `PROJECT_STATE.md` e `TASKS.md` de lá. Aqui no repo,
+o `README.md` descreve a arquitetura, os controles da interface, a tabela "Qual LILO
+usar" e os portões medidos; o `CLAUDE.md` traz as regras de trabalho.
 
-## Ultimas entregas (AUTO — topo do CHANGELOG)
-<!-- AUTO:entregas -->
-- v13.12.0 — 2026-08-29 (delegar respeita o interruptor de GPU)
-- v13.11.0 — 2026-08-29 (o LILO no ambiente conda certo)
-- v13.10.0 — 2026-08-28 (o registro MCP à prova de shell)
-<!-- /AUTO:entregas -->
-
-## Pendencias (MANUAL)
-
-- [x] **Maquina do dono EM DIA (31/08)**: git pull, icone regravado
-      (`criar_atalho.py` -> `lilo web`) e PyMuPDF no env datascience.
-      Opcionais que sobram: LILO_OLLAMA_SWITCH no .env (motivo do
-      desligamento da GPU), `pip install -e .`, `limpar_mcp_claude.py`.
-- [x] **PONTE OPERACIONAL na maquina do dono (29/08)**: `lilo:
-      ...miniforge3\envs\datascience\python.exe ...\servir_mcp.py - Connected`
-      — comando sem hifens sobreviveu ao PowerShell 5.1 (v13.10) E no env
-      com os pacotes de bioinformatica (v13.11). Falta o teste de aceite:
-      delegar um `import Bio` e ver a versao, nao ModuleNotFoundError.
-- [x] DECIDIDO (29/08): manter os DOIS servidores — papeis distintos.
-      `ollama-local` = arbitragem da GPU (status/ligar/desligar com checagem
-      de VRAM, + embeddings); `lilo` = trabalho agentico (delegar com loop,
-      arquivos, shell, ler_pdf, memoria). So `ollama_delegar` x `delegar` se
-      sobrepoem, e o do LILO e mais capaz. v13.12 fecha a lacuna: o delegar
-      avisa quando a GPU foi liberada de proposito (LILO_OLLAMA_SWITCH).
-- [ ] **v13.13 = proximas friccoes de USO REAL** (terminal, web e Claude
-      Code) -> correcao + teste de regressao (padrao das v13.9-v13.12).
-- [ ] GATED ate caso de uso nomeado pelo dono: provider cloud plugavel;
-      cientificos alem do ler_pdf (Scholar/RAG).
-- [ ] Reavaliar qwen2.5-coder como LILO_MODEL_FAST se o Ollama corrigir o
-      template de tools (hoje: familia qwen3).
-- [x] Arco v13.0->v13.10 fechado e mergeado (PRs #6-#20, CI verde): loop,
-      portao, sessoes, memoria semantica, `lilo web`, ler_pdf, mcp-serve +
-      `delegar`. Detalhes NAO repetidos aqui — ver docs/versoes/CHANGELOG.md.
-
-## Decisoes-chave (MANUAL)
-
-- **Reset radical (24/08)**: legado v12.x (42k LOC) demolido; recuperavel em
-  `git show v12.15-legado:<caminho>`.
-- 100% offline: so Ollama; nuvem NAO existe no nucleo.
-- **Anti-inchaco**: funcionalidade nova = TOOL atras do loop/choke-point,
-  nunca entry point novo. Emenda do dono (26/08): interface web voltou como
-  SUBCOMANDO (`lilo web`), nao como servico separado — "um binario" de pe.
-- Permissoes: plan/ask/accept_edits/auto, grants escopados, sem replay;
-  default `ask`; never-commit-unless-asked. DBs em %LOCALAPPDATA%\LILO.
-- **Ponte MCP (licao v13.9+v13.10)**: no `claude mcp add`, `--env` e
-  variadico (precisa de outra opcao antes do nome) e o `--` nao sobrevive ao
-  PowerShell — por isso o comando registrado NAO pode ter hifens. Travado em
-  tests/test_mcp_ponte.py; `scripts/diagnosticar_mcp.py` da a causa exata.
-- **Versionamento**: minor = PR verde em `arch-v12` + CHANGELOG + validacao
-  viva; tags sao bloqueadas pelo proxy — marcos viram branch.
-
-## Como retomar uma sessao (MANUAL)
-
-```cmd
-python scripts\check.py             # saude do codigo
-python -m lilo                      # o agente (REPL; `lilo -c` retoma)
-python scripts\memoria_projeto.py   # atualiza esta memoria
-```
+Histórico: a v13 (agente de terminal em `lilo/`, com o `CONTEXT.md` gerado por
+`scripts/memoria_projeto.py`) saiu do branch `v14-docker` em 2026-10-13 (F5) e está
+íntegra no marco `marco/v13.12-terminal`; a v12 em `v12.15-legado`.

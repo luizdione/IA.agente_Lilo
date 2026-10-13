@@ -1,37 +1,43 @@
-# CLAUDE.md — LILO v13
+# CLAUDE.md — LILO v14
 
 Guia enxuto para o Claude trabalhar neste repositório. Mantenha curto — entra
-no contexto de toda sessão.
+no contexto de toda sessão. Memória viva (estado, decisões, tarefas) fica FORA
+do repo: `OneDrive\...\Projetos\IA.agente\.project-memory\` (PMM).
 
 ## O que é
-LILO v13 — agente de terminal **100% local** sobre **Ollama** (estilo Claude
-Code): um loop agêntico com tool-calling nativo que lê/escreve/edita arquivos e
-roda shell atrás de um portão de permissões. **Sem nuvem no núcleo.** Branch de
-desenvolvimento: `arch-v12`. Legado v12.x inteiro: branch `v12.15-legado`
-(`git show v12.15-legado:<caminho>` recupera qualquer arquivo).
+LILO v14 — assistente local de pesquisa: Ollama na RTX 3060 (modelo derivado `lilo`),
+Open WebUI em container (`compose.yaml`) e a ponte MCP `lilo_host/` no host (conda
+`datascience`), operados por `lilo.ps1`. Branch de desenvolvimento: `v14-docker`.
+v13 (agente de terminal) em `marco/v13.12-terminal`; legado v12 em `v12.15-legado`.
 
-## Como rodar
-```cmd
-python -m lilo "tarefa"             # one-shot (REPL: sem argumento)
-python scripts\check.py             # saude (sintaxe + pyflakes + pytest)
-python scripts\memoria_projeto.py   # atualiza CONTEXT.md (skill /gerente_memoria)
+## Como rodar / medir
+```powershell
+.\lilo.ps1 up | down | status | bench | smoke | presets | indexar | gateway up | desktop up
+C:\Users\luizd\miniforge3\envs\datascience\python.exe -m pytest tests -q   # ponte + filtros, sem GPU
+C:\Users\luizd\miniforge3\envs\datascience\python.exe scripts\check.py     # o que o CI roda
+ollama create lilo -f ollama\Modelfile.lilo      # depois de editar o Modelfile
 ```
+Python do projeto: `C:\Users\luizd\miniforge3\envs\datascience\python.exe` (nunca o Python do sistema).
 
-**Retomando?** Leia `CONTEXT.md` (raiz) antes de explorar.
+## Regras (critério do dono: "2+2" responde na hora)
+- **A GPU é do dono.** Antes de carregar QUALQUER modelo, ler `~/.ollama_delegate/switch.json`
+  (`lilo.ps1 status`); `off` = não carregar nem religar. Guardas falham FECHADAS.
+- **Um modelo de chat (`lilo`), chamado sem opções de runner** (`num_ctx`, `num_gpu`...): opção
+  diferente = recarga de 11 s. `think:false` por padrão. Nada roda escondido na GPU.
+- **Nada é "pronto" sem `lilo.ps1 bench`** (alvos `ollama` e `webui`), com a GPU quieta: o
+  plugin lumen do Claude Code reindexa na GPU por ~55 min a cada sessão e derruba a vazão pela
+  metade — conferir `/api/embed` no `%LOCALAPPDATA%\Ollama\server.log` antes de medir.
+- **Preferir peça pronta** (Open WebUI, catálogo MCP do Docker) a código próprio. Funcionalidade
+  nova entra como tool da ponte, não como serviço/dashboard novo.
+- **Segurança:** `exec` só com token; deny-lists de shell e git; conteúdo da internet nunca no
+  mesmo preset que executa código. `.env` nunca é impresso, movido ou versionado.
+- **`lilo.ps1` roda no Windows PowerShell 5.1:** só ASCII; nunca uma variável `$Switch`.
+- **Idioma:** PT-BR, inclusive no SYSTEM do modelo e nos presets. Push e PR são do autor.
+- Arquivos com `\` vão pela Write/Edit (o heredoc do Bash colapsa `\\`); validar `.py` com
+  `py_compile`; chamar `.ps1` pela ferramenta PowerShell.
 
-## Arquitetura (alvo ~2k linhas)
-`lilo/`: `cliente.py` (Ollama /api/chat + tools, num_ctx explícito) ·
-`agente.py` (o loop) · `tools.py` (11 tools + `executar_tool` = **choke-point
-único**) · `portao.py` (plan/ask/accept_edits/auto, grants escopados) ·
-`contexto.py` (LILO.md/CLAUDE.md/CONTEXT.md do cwd como bloco DADOS) ·
-`sessoes.py` (SQLite WAL em `%LOCALAPPDATA%\LILO`) · `cli.py` (REPL).
-
-## Regras (as lições do legado — não negociáveis)
-- **Anti-inchaço:** funcionalidade nova = TOOL atrás do loop e do choke-point.
-  Nunca novo entry point/serviço/dashboard/subagente. Um binário: `lilo`.
-- **Só `executar_tool` executa** — implementações de tool são privadas; nenhum
-  caminho de execução fora do portão.
-- **Sem replay:** aprovação de permissão continua a MESMA conversa.
-- **Quem decide executa** (nada de "decide-mas-não-obedece").
-- **Idioma:** PT-BR. **Testes:** herméticos (FakeOllama), `pytest` na raiz.
-- DBs sempre fora do repo/OneDrive (`%LOCALAPPDATA%\LILO`).
+## Estrutura
+```
+lilo.ps1  compose.yaml  ollama/Modelfile.*  lilo_host/  owui_funcoes/  scripts/  tests/
+.github/workflows/tests.yml = CI (scripts/check.py). A v13 saiu na F5 (13/10): marco/v13.12-terminal.
+```

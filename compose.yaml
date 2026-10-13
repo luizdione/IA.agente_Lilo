@@ -1,0 +1,97 @@
+# LILO v14 — interface em container. O motor (Ollama, modelo `lilo`) e a ponte
+# lilo-host rodam no HOST; aqui fica so o que e peca pronta do Docker.
+#
+#   .\lilo.ps1 up        (ou: docker compose up -d)
+#
+# A configuracao do Open WebUI vive NESTE arquivo: ENABLE_PERSISTENT_CONFIG=False
+# faz o ambiente vencer o banco, entao ajuste feito no painel de admin nao
+# sobrevive a um restart. Usuarios, conversas e presets ficam no volume.
+name: lilo
+
+services:
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:v0.11.4
+    container_name: lilo_openwebui
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:8080"        # so local; nada exposto na rede
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    mem_limit: 4g
+    volumes:
+      - openwebui_dados:/app/backend/data
+      # Bundle de CAs = certifi + raiz do Kaspersky (gerado pelo lilo.ps1 no `up`): sem ele a
+      # inspecao HTTPS do antivirus derruba a Claude com CERTIFICATE_VERIFY_FAILED.
+      - "${LOCALAPPDATA}/LILO/ca-bundle.pem:/etc/ssl/certs/lilo-ca-bundle.pem:ro"
+    environment:
+      WEBUI_NAME: "LILO"
+      SSL_CERT_FILE: "/etc/ssl/certs/lilo-ca-bundle.pem"
+      REQUESTS_CA_BUNDLE: "/etc/ssl/certs/lilo-ca-bundle.pem"
+      ENABLE_PERSISTENT_CONFIG: "False"
+      # --- motor: Ollama do host, unico dono da GPU -------------------------
+      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+      ENABLE_OLLAMA_API: "True"
+      # Claude pela API da Anthropic (compativel com OpenAI): base dos presets "LILO Orquestrador
+      # (Claude)" e "LILO Pesquisa (Claude)". A chave vem do .env do repo (ANTHROPIC_API_KEY),
+      # exportada pelo lilo.ps1 no `up`; sem chave valida a conexao simplesmente nao lista modelos.
+      # D-0022: so o Sonnet 5.5 na whitelist, e a base em si fica oculta (OCULTOS em owui_presets.py).
+      ENABLE_OPENAI_API: "True"
+      OPENAI_API_BASE_URLS: "https://api.anthropic.com/v1"
+      OPENAI_API_KEYS: "${ANTHROPIC_API_KEY:-}"
+      OPENAI_API_CONFIGS: '{"0": {"model_ids": ["claude-sonnet-5-5"]}}'
+      DEFAULT_MODELS: "lilo:latest"
+      # Seletor ENXUTO (D-0022, 12/10): so o `lilo` entra pela whitelist; os presets nascem dele pela
+      # API (scripts/owui_presets.py). Escolher `qwen3:14b` direto recarregaria o mesmo arquivo com
+      # outro contexto (I-0009), e os embedders nao sao chat. Chave "0" = 1a conexao Ollama.
+      # Fora do seletor, mas no disco para medicao: lilo-gemma, os hibridos lilo-30b/32b/oss (nao
+      # cabem nos 12 GB; escolher um descarrega o lilo), qwen2.5-coder:14b e os modelos de nuvem do
+      # Ollama. Uma base nova ("LILO Forte") so entra aqui depois de passar no bench.
+      OLLAMA_API_CONFIGS: '{"0": {"model_ids": ["lilo:latest"]}}'
+      # think:false = regra de velocidade 3 (com thinking o "2+2" leva 6,5 s).
+      # Nunca por aqui opcao de runner (num_ctx, num_gpu...): o contexto vem do
+      # Modelfile do `lilo`, e opcao diferente faz o Ollama recarregar o modelo.
+      DEFAULT_MODEL_PARAMS: '{"think": false}'
+      # --- regra de velocidade 4: nada roda escondido na GPU ----------------
+      # O Ollama atende 1 requisicao por vez; cada geracao de fundo entraria na
+      # fila na frente da proxima pergunta.
+      ENABLE_TITLE_GENERATION: "False"
+      ENABLE_TAGS_GENERATION: "False"
+      ENABLE_FOLLOW_UP_GENERATION: "False"
+      ENABLE_AUTOCOMPLETE_GENERATION: "False"
+      ENABLE_SEARCH_QUERY_GENERATION: "False"
+      ENABLE_RETRIEVAL_QUERY_GENERATION: "False"
+      ENABLE_EVALUATION_ARENA_MODELS: "False"
+      # --- ferramentas: ponte lilo-host no host (F2) --------------------------
+      # Tres servidores MCP (streamable HTTP) em 127.0.0.1:8790 do host, alcancados
+      # por host.docker.internal (o Docker Desktop encaminha ao loopback; medido).
+      # O preset escolhe os grupos por `server:mcp:<id>` (scripts\owui_presets.py).
+      # O token do grupo exec vem do ambiente: `lilo.ps1 up` exporta LILO_HOST_TOKEN
+      # (lido de %LOCALAPPDATA%\LILO\host_token.txt); sem ele o exec responde 401.
+      TOOL_SERVER_CONNECTIONS: >-
+        [{"type":"mcp","url":"http://host.docker.internal:8790/conhecimento/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"conhecimento","name":"LILO conhecimento","description":"Memoria dos projetos, PDF/texto, resumo"}},
+        {"type":"mcp","url":"http://host.docker.internal:8790/analise/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"analise","name":"LILO analise","description":"Estatistica, parsers bio, DOCX"}},
+        {"type":"mcp","url":"http://host.docker.internal:8790/exec/mcp","path":"","auth_type":"bearer","key":"${LILO_HOST_TOKEN:-}","config":{"enable":true},"info":{"id":"exec","name":"LILO exec","description":"Python, R e WSL no host"}},
+        {"type":"mcp","url":"http://host.docker.internal:8790/literatura/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"literatura","name":"LILO literatura","description":"PubMed, Europe PMC, bioRxiv, Crossref e Semantic Scholar (paper-search via Docker MCP Gateway)"}},
+        {"type":"openapi","url":"http://host.docker.internal:8795","path":"openapi.json","auth_type":"bearer","key":"${LILO_HOST_TOKEN:-}","config":{"enable":true},"info":{"id":"desktop","name":"LILO desktop","description":"Desktop Commander no host (arquivos, pastas, busca, processos e PowerShell) via mcpo; sobe com lilo.ps1 desktop up"}},
+        {"type":"mcp","url":"https://pubmed.mcp.claude.com/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"pubmed","name":"PubMed (plugin bio-research)","description":"MCP remoto do plugin bio-research do Claude: busca e leitura no PubMed"}},
+        {"type":"mcp","url":"https://hcls.mcp.claude.com/biorxiv/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"biorxiv","name":"bioRxiv (plugin bio-research)","description":"MCP remoto: preprints bioRxiv/medRxiv"}},
+        {"type":"mcp","url":"https://hcls.mcp.claude.com/chembl/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"chembl","name":"ChEMBL (plugin bio-research)","description":"MCP remoto: compostos, alvos, bioatividade, mecanismos, ADMET"}},
+        {"type":"mcp","url":"https://hcls.mcp.claude.com/clinical_trials/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"ensaios","name":"Ensaios clinicos (plugin bio-research)","description":"MCP remoto: ClinicalTrials.gov"}},
+        {"type":"mcp","url":"https://mcp.platform.opentargets.org/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"opentargets","name":"Open Targets","description":"MCP publico da plataforma Open Targets (gene-doenca-farmaco)"}}]
+      # --- acesso -----------------------------------------------------------
+      # Sem login nem chave (decisao do autor, 2026-10-05): servidor de uso proprio.
+      # O Open WebUI cria sozinho o usuario unico; os scripts pegam o token dele em
+      # /api/v1/auths/signin. Em troca, a porta NUNCA pode ser exposta na rede:
+      # manter o "127.0.0.1:" em ports, ainda mais com tools que executam no host.
+      WEBUI_AUTH: "False"
+      CORS_ALLOW_ORIGIN: "http://localhost:3000;http://127.0.0.1:3000"
+      DEFAULT_LOCALE: "pt-BR"
+      # --- nada sai da maquina sem pedido -----------------------------------
+      ENABLE_COMMUNITY_SHARING: "False"
+      ENABLE_VERSION_UPDATE_CHECK: "False"
+      ANONYMIZED_TELEMETRY: "False"
+      DO_NOT_TRACK: "True"
+      SCARF_NO_ANALYTICS: "True"
+
+volumes:
+  openwebui_dados:

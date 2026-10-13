@@ -1,30 +1,8 @@
-# pyproject.toml — LILO v13
-# Pacote instalavel (`pip install -e .` cria o comando `lilo`) + config do pytest.
-
-[build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "lilo"
-version = "13.12.0"
-description = "Agente de terminal 100% local sobre Ollama (estilo Claude Code)"
-requires-python = ">=3.11"
-dependencies = [
-    "requests>=2.31.0",
-    "python-dotenv>=1.0.0",
-]
-
-[project.scripts]
-lilo = "lilo.__main__:main"
-
-[tool.setuptools]
-packages = ["lilo"]
+# pyproject.toml — LILO v14: so a configuracao do pytest.
+# O repo deixou de ser pacote instalavel na F5 (13/10/2026): a v13 tinha `pip install -e .` e o
+# comando `lilo`; hoje a operacao e o lilo.ps1 e a ponte sobe por scripts/lilo_host_serve.py no
+# conda datascience (dependencias em requirements.txt).
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q -p no:cacheprovider"
-markers = [
-    "requires_ollama: precisa do Ollama local (localhost:11434); pula se ausente",
-    "requires_gpu: pesa na GPU (modelos grandes); pula sem backend ou com LILO_SKIP_GPU=1",
-]

@@ -3,6 +3,17 @@
 > **Numeração:** `vXX.Y` = versão do produto (esta série); `arch-vNN` = geração de
 > branch/arquitetura (atual: `arch-v12`).
 
+## v14.0 — 2026-10-13 (nova geração: Ollama + Open WebUI + ponte MCP no host)
+
+- A v13 (agente de terminal em `lilo/`, REPL, `python -m lilo mcp-serve`) saiu do branch
+  `v14-docker` nesta data (F5); continua íntegra no marco `marco/v13.12-terminal`.
+- O que existe agora: `lilo.ps1` (operação), `compose.yaml` (Open WebUI), `lilo_host/` (ponte MCP:
+  conhecimento 14 tools, análise 10, exec 5 com token), `owui_funcoes/` (controles da caixa de
+  mensagem), `ollama/Modelfile.*`. Critério do dono, medido com `lilo.ps1 bench`: "2+2" com
+  1º token < 1 s (ollama p95 0,094 s; interface 0,15 s em 12/10).
+- Histórico, decisões e tarefas da v14 vivem fora do repo, em `.project-memory` (OneDrive);
+  o detalhe de arquitetura está no README.
+
 ## v13.12.0 — 2026-08-29 (delegar respeita o interruptor de GPU)
 
 - **Convivência com o servidor de GPU do dono**: ele tem um MCP próprio
