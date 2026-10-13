@@ -379,6 +379,9 @@ function Invoke-Up {
     # A ponte sobe antes da interface e o token do exec entra no compose pelo ambiente.
     $null = Start-Ponte
     $null = Start-Gateway
+    # Desktop Commander (mcpo, so loopback, token da ponte) sobe junto: decisao do autor em 13/10
+    # (antes era so `lilo.ps1 desktop up`, manual; I-0018).
+    $null = Start-Desktop
     $env:LILO_HOST_TOKEN = Get-TokenPonte
     # Claude na interface (OPENAI_API_KEYS do compose): a chave sai do .env do repo, sem passar
     # por arquivo versionado nem pela tela.
@@ -414,6 +417,7 @@ function Invoke-Down {
     foreach ($m in (Get-Carregados)) { if ($m -like "${Modelo}*") { & ollama stop $m | Out-Null } }
     Stop-Ponte
     Stop-Gateway
+    Stop-Desktop
     Write-Host "Interface parada e modelo descarregado. O Ollama segue no ar para as outras ferramentas."
 }
 

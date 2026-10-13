@@ -24,7 +24,7 @@ o legado v12 em `v12.15-legado`.
 | **Motor** | Ollama 0.35+ com o modelo derivado `lilo` (`ollama/Modelfile.lilo`: qwen3:14b Q4_K_M, contexto 8192, SYSTEM em PT). Candidata a base forte: `lilo-30b` (qwen3:30b-a3b-instruct-2507, híbrido GPU+CPU), que só entra no seletor se passar no bench. | host, GPU |
 | **Interface** | Open WebUI em Docker Compose (`compose.yaml`), `127.0.0.1:3000`, sem login. Seletor enxuto (D-0022): só cinco presets, **LILO**, **LILO Pesquisa**, **LILO Desktop**, **LILO Orquestrador (Claude)** e **LILO Pesquisa (Claude)**; os modelos crus ficam fora pela whitelist do `compose.yaml` e a base `claude-sonnet-5-5` (API da Anthropic, chave no `.env`) por um registro inativo. Atalhos `/pasta` (abre o seletor de pasta), `/pasta_colada`, `/repo`, `/skill` e um `/<skill>` por skill do dono. | container |
 | **Ponte `lilo-host`** | Pacote `lilo_host/` (FastMCP, streamable HTTP) em `127.0.0.1:8790` com 3 grupos: `conhecimento` (14 tools), `analise` (10), `exec` (5, token obrigatório) e o proxy `/literatura/mcp` para o Docker MCP Gateway (`paper-search`, só busca). | host, conda `datascience` |
-| **Plugins do Claude** | MCPs remotos do plugin bio-research que aceitam conexão sem login, ligados direto na interface: PubMed, bioRxiv, ChEMBL, ensaios clínicos e Open Targets (só no preset Pesquisa (Claude): seus schemas somam 4 k tokens e são buscados a cada mensagem, o que custa 3,7 s de 1º token no modelo local). **Desktop Commander** (o mesmo do Claude) no host atrás do `mcpo`, só loopback, com token: `lilo.ps1 desktop up`. | container / host |
+| **Plugins do Claude** | MCPs remotos do plugin bio-research que aceitam conexão sem login, ligados direto na interface: PubMed, bioRxiv, ChEMBL, ensaios clínicos e Open Targets (só no preset Pesquisa (Claude): seus schemas somam 4 k tokens e são buscados a cada mensagem, o que custa 3,7 s de 1º token no modelo local). **Desktop Commander** (o mesmo do Claude) no host atrás do `mcpo`, só loopback, com token; sobe e para junto com `lilo.ps1 up|down` (`desktop up|down` para mexer só nele). | container / host |
 
 Regras de velocidade que o código obedece: um só modelo de chat, chamado **sem opções
 de runner** (opção diferente = recarga); `think:false` por padrão; nada roda escondido
@@ -42,7 +42,7 @@ impede qualquer carga (`lilo.ps1 gpu-livre` / `gpu-ok`).
 
 Outros comandos: `abrir` (navegador) · `warm` · `convivencia` (lilo + embeddings na GPU) ·
 `presets` · `inicio` (atalho de inicialização do Windows) · `ponte [up|down]` ·
-`gateway [up|down]` · `desktop [up|down]` (Desktop Commander via mcpo) · `smoke` (tools de
+`gateway [up|down]` · `desktop [up|down]` (Desktop Commander via mcpo; sobe junto com o `up`) · `smoke` (tools de
 cada grupo) · `indexar [status|falhas]` (biblioteca de PDFs, incremental) · `gpu-livre [motivo]` ·
 `gpu-ok`.
 
@@ -86,7 +86,7 @@ Pesquisa 18 tools = 1º token 0,37 s, 28 tools locais = 0,53 s).
 | Buscar artigos, conferir uma referência, qualquer coisa que precise de internet | **LILO Pesquisa** |
 | Revisão de literatura séria: PubMed, bioRxiv, ChEMBL, ensaios clínicos, Open Targets | **LILO Pesquisa (Claude)** |
 | Projeto em várias etapas, "faça a análise inteira", pipeline de ponta a ponta | **LILO Orquestrador (Claude)** |
-| Arquivos e processos do Windows fora das pastas de projeto (`lilo.ps1 desktop up` antes) | **LILO Desktop** |
+| Arquivos e processos do Windows fora das pastas de projeto | **LILO Desktop** |
 
 O "LILO que pensa e distribui" é o Orquestrador (Claude): planeja, divide em etapas e executa cada
 uma com as ferramentas locais. Nenhum preset delega a outro modelo (a ponte não tem tool de
