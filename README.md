@@ -147,7 +147,7 @@ Bases híbridas (12/10, GPU quieta; `bench --sem-portao`, `bakeoff_tools --camin
 | `lilo-32b` qwen2.5:32b, 20 GB | 2,68 s | 2,7 | 8/8 (49,6 s) | 3/3 em 35 s |
 | `lilo-oss` gpt-oss:20b, 14 GB | 3,61 s | 43,2 | 8/8 (28,3 s) | 3/3 em 12,9 s |
 
-Nota: a tag `qwen3:30b-a3b` do Ollama é a variante **pensante**: com `think:false` ela vaza o
+Nota: a tag `qwen3:30b-a3b` do Ollama (apagada em 13/10) é a variante **pensante**: com `think:false` ela vaza o
 raciocínio como texto em inglês antes da resposta (por isso o 0/3 no código, que é o extrator
 achando prosa); com o raciocínio ligado ("Pensar fundo") a resposta sai limpa, mas "2+2" leva
 9 s e um código 60 s. Para uma base 30B rápida e sem raciocínio a tag certa é
