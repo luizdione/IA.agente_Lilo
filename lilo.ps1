@@ -78,7 +78,7 @@ function Set-Interruptor([string]$Estado, [string]$Motivo) {
 
 function Show-Reservada($sw) {
     Write-Host "GPU reservada desde $($sw.em) ($($sw.motivo))."
-    Write-Host "O LILO fica em pausa. Para devolver a GPU a ele:  .\lilo.ps1 gpu-ok"
+    Write-Host "O LILO fica em pausa (a ponte MCP do Claude segue no ar). Para devolver a GPU a ele:  .\lilo.ps1 gpu-ok"
 }
 
 # -------------------------------------------------------------------- suporte
@@ -367,6 +367,10 @@ function Invoke-Warm {
 }
 
 function Invoke-Up {
+    # A ponte nao usa a GPU (le o interruptor antes de chamar o Ollama) e o Claude Code depende dela
+    # (MCP lilo-conhecimento e lilo-analise): sobe mesmo com a GPU reservada. Em 14/10 ela ficou fora
+    # porque o `up`/`inicio` paravam no interruptor OFF antes de chega-la.
+    $null = Start-Ponte
     $sw = Get-Interruptor
     if ($sw.estado -ne "on") { Show-Reservada $sw; return $false }
     # Sem GPU para o modelo a interface nao sobe: a 1a pergunta faria o Ollama
