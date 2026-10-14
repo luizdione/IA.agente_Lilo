@@ -78,7 +78,7 @@ function Set-Interruptor([string]$Estado, [string]$Motivo) {
 
 function Show-Reservada($sw) {
     Write-Host "GPU reservada desde $($sw.em) ($($sw.motivo))."
-    Write-Host "O LILO fica em pausa. Para devolver a GPU a ele:  .\lilo.ps1 gpu-ok"
+    Write-Host "O LILO fica em pausa (a ponte MCP do Claude segue no ar). Para devolver a GPU a ele:  .\lilo.ps1 gpu-ok"
 }
 
 # -------------------------------------------------------------------- suporte
@@ -367,6 +367,10 @@ function Invoke-Warm {
 }
 
 function Invoke-Up {
+    # A ponte nao usa a GPU (le o interruptor antes de chamar o Ollama) e o Claude Code depende dela
+    # (MCP lilo-conhecimento e lilo-analise): sobe mesmo com a GPU reservada. Em 14/10 ela ficou fora
+    # porque o `up`/`inicio` paravam no interruptor OFF antes de chega-la.
+    $null = Start-Ponte
     $sw = Get-Interruptor
     if ($sw.estado -ne "on") { Show-Reservada $sw; return $false }
     # Sem GPU para o modelo a interface nao sobe: a 1a pergunta faria o Ollama
@@ -379,6 +383,9 @@ function Invoke-Up {
     # A ponte sobe antes da interface e o token do exec entra no compose pelo ambiente.
     $null = Start-Ponte
     $null = Start-Gateway
+    # Desktop Commander (mcpo, so loopback, token da ponte) sobe junto: decisao do autor em 13/10
+    # (antes era so `lilo.ps1 desktop up`, manual; I-0018).
+    $null = Start-Desktop
     $env:LILO_HOST_TOKEN = Get-TokenPonte
     # Claude na interface (OPENAI_API_KEYS do compose): a chave sai do .env do repo, sem passar
     # por arquivo versionado nem pela tela.
@@ -414,6 +421,7 @@ function Invoke-Down {
     foreach ($m in (Get-Carregados)) { if ($m -like "${Modelo}*") { & ollama stop $m | Out-Null } }
     Stop-Ponte
     Stop-Gateway
+    Stop-Desktop
     Write-Host "Interface parada e modelo descarregado. O Ollama segue no ar para as outras ferramentas."
 }
 
