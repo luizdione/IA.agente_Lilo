@@ -1,6 +1,7 @@
 """Suporte comum da ponte: interruptor de GPU, caminhos, token e recortes."""
 from __future__ import annotations
 
+import difflib
 import json
 import os
 import re
@@ -110,6 +111,66 @@ def token_gateway(gerar: bool = True) -> str:
     ARQ_TOKEN_GATEWAY.parent.mkdir(parents=True, exist_ok=True)
     ARQ_TOKEN_GATEWAY.write_text(t, encoding="utf-8")
     return t
+
+
+# ------------------------------------------------------ raizes de escrita (grupo codigo)
+# Escrever, editar e usar como cwd so dentro destas raizes; leitura continua livre, salvo os
+# protegidos. O caminho e resolvido de verdade (juncoes e symlinks); UNC, nomes de dispositivo
+# (CON, NUL...) e fluxos alternativos (arq.txt:fluxo) ficam fora.
+_RAIZES_PADRAO = os.pathsep.join([str(TRABALHO), r"C:\GitHub",
+                                  str(Path.home() / "OneDrive" / "Data_Science" / "Projetos")])
+RAIZES = [Path(x) for x in os.environ.get("LILO_HOST_RAIZES", _RAIZES_PADRAO).split(os.pathsep)
+          if x.strip()]
+PROTEGIDOS_NOMES = {".env", "host_token.txt", "gateway_token.txt", "terminal_key.txt", "switch.json"}
+PROTEGIDOS_SUFIXOS = {".pem", ".key"}
+_DISPOSITIVOS = ({"con", "prn", "aux", "nul"} | {"com%d" % i for i in range(1, 10)}
+                 | {"lpt%d" % i for i in range(1, 10)})
+
+
+def _real(p: Path) -> Path:
+    return Path(os.path.realpath(str(p)))
+
+
+def dentro_das_raizes(p: Path) -> bool:
+    """True se `p` (resolvido) esta sob alguma das RAIZES."""
+    s = str(p)
+    if s.startswith("\\\\") or s.startswith("//"):
+        return False
+    nome = p.name
+    if not nome or nome.split(".")[0].lower() in _DISPOSITIVOS or ":" in nome:
+        return False
+    try:
+        r = _real(p)
+    except OSError:
+        return False
+    for raiz in RAIZES:
+        rr = _real(raiz)
+        if r == rr or rr in r.parents:
+            return True
+    return False
+
+
+def caminho_protegido(p: Path, escrita: bool = True) -> bool:
+    """Segredos nunca sao lidos nem escritos pela ponte; `.git/` so nao e escrito."""
+    nome = p.name.lower()
+    if nome in PROTEGIDOS_NOMES or p.suffix.lower() in PROTEGIDOS_SUFIXOS:
+        return True
+    if nome.startswith(".env") and nome != ".env.example":
+        return True
+    return escrita and ".git" in [x.lower() for x in p.parts]
+
+
+def diff_unificado(antigo: str, novo: str, nome: str, max_linhas: int = 80) -> str:
+    """Diff unificado (2 linhas de contexto), cortado em `max_linhas`."""
+    linhas = list(difflib.unified_diff(antigo.splitlines(keepends=True), novo.splitlines(keepends=True),
+                                       "a/" + nome, "b/" + nome, n=2))
+    if not linhas:
+        return "(sem diferencas)"
+    corte = ""
+    if len(linhas) > max_linhas:
+        corte = "\n... [diff cortado: %d de %d linhas]" % (max_linhas, len(linhas))
+        linhas = linhas[:max_linhas]
+    return "".join(x if x.endswith("\n") else x + "\n" for x in linhas).rstrip("\n") + corte
 
 
 def erro(msg: str) -> str:

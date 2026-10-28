@@ -23,7 +23,7 @@ o legado v12 em `v12.15-legado`.
 |---|---|---|
 | **Motor** | Ollama 0.35+ com o modelo derivado `lilo` (`ollama/Modelfile.lilo`: qwen3:14b Q4_K_M, contexto 8192, SYSTEM em PT). Candidata a base forte: `lilo-30b` (qwen3:30b-a3b-instruct-2507, híbrido GPU+CPU), que só entra no seletor se passar no bench. | host, GPU |
 | **Interface** | Open WebUI em Docker Compose (`compose.yaml`), `127.0.0.1:3000`, sem login. Seletor enxuto (D-0022): só cinco presets, **LILO**, **LILO Pesquisa**, **LILO Desktop**, **LILO Orquestrador (Claude)** e **LILO Pesquisa (Claude)**; os modelos crus ficam fora pela whitelist do `compose.yaml` e a base `claude-sonnet-5-5` (API da Anthropic, chave no `.env`) por um registro inativo. Atalhos `/pasta` (abre o seletor de pasta), `/pasta_colada`, `/repo`, `/skill` e um `/<skill>` por skill do dono. | container |
-| **Ponte `lilo-host`** | Pacote `lilo_host/` (FastMCP, streamable HTTP) em `127.0.0.1:8790` com 3 grupos: `conhecimento` (14 tools), `analise` (10), `exec` (5, token obrigatório) e o proxy `/literatura/mcp` para o Docker MCP Gateway (`paper-search`, só busca). | host, conda `datascience` |
+| **Ponte `lilo-host`** | Pacote `lilo_host/` (FastMCP, streamable HTTP) em `127.0.0.1:8790` com 4 grupos: `conhecimento` (14 tools), `analise` (10), `exec` (5) e `codigo` (6: ler, escrever, editar com diff, buscar, listar, PowerShell), os dois últimos com token obrigatório, e o proxy `/literatura/mcp` para o Docker MCP Gateway (`paper-search`, só busca). | host, conda `datascience` |
 | **Plugins do Claude** | MCPs remotos do plugin bio-research que aceitam conexão sem login, ligados direto na interface: PubMed, bioRxiv, ChEMBL, ensaios clínicos e Open Targets (só no preset Pesquisa (Claude): seus schemas somam 4 k tokens e são buscados a cada mensagem, o que custa 3,7 s de 1º token no modelo local). **Desktop Commander** (o mesmo do Claude) no host atrás do `mcpo`, só loopback, com token; sobe e para junto com `lilo.ps1 up|down` (`desktop up|down` para mexer só nele). | container / host |
 
 Regras de velocidade que o código obedece: um só modelo de chat, chamado **sem opções
@@ -42,7 +42,10 @@ impede qualquer carga (`lilo.ps1 gpu-livre` / `gpu-ok`).
 
 Outros comandos: `abrir` (navegador) · `warm` · `convivencia` (lilo + embeddings na GPU) ·
 `presets` · `inicio` (atalho de inicialização do Windows) · `ponte [up|down]` ·
-`gateway [up|down]` · `desktop [up|down]` (Desktop Commander via mcpo; sobe junto com o `up`) · `smoke` (tools de
+`gateway [up|down]` · `desktop [up|down]` (Desktop Commander via mcpo; sobe junto com o `up`) ·
+`code [pasta]` (LILO Code: OpenCode sobre o modelo local, ver abaixo) · `code-run <pasta> "<tarefa>"` (o
+mesmo sem interface, devolve resumo e diff) · `bench agente [...]` (bench agêntico, tarefas de ponta a
+ponta com ferramentas de verdade) · `terminal [up|down]` (Open Terminal no host, experimento) · `smoke` (tools de
 cada grupo) · `indexar [status|falhas]` (biblioteca de PDFs, incremental) · `gpu-livre [motivo]` ·
 `gpu-ok`.
 
@@ -82,9 +85,10 @@ decisão de segurança da ferramenta que escreveu o código: para rodar em todo 
 sem ferramentas o modelo só pode dizer que "não consegue acessar arquivos". Use o "Modo de agir"
 para restringir. Regra dos presets: **conteúdo da internet nunca fica no mesmo preset que executa
 código** (Pesquisa/Pesquisa-Claude não executam; os demais não têm web). Presets com muitas tools
-só sobre o Claude (contexto 200k); no `lilo` (8k) cada preset fica abaixo de ~30 tools locais,
-porque os schemas entram no prompt (o Ollama reaproveita o cache a partir da 2ª mensagem; medido:
-Pesquisa 18 tools = 1º token 0,37 s, 28 tools locais = 0,53 s).
+só sobre o Claude (contexto 200k); no `lilo` cada preset fica em até ~35 tools locais, porque os
+schemas entram no prompt (o Ollama reaproveita o cache a partir da 2ª mensagem; medido: Pesquisa
+18 tools = 1º token 0,37 s, 28 tools locais = 0,53 s). O que limita é o contexto da base (8 k hoje;
+32 k depois do bake-off de 28/10), não o número de tools.
 
 ### Qual LILO usar
 
@@ -95,11 +99,20 @@ Pesquisa 18 tools = 1º token 0,37 s, 28 tools locais = 0,53 s).
 | Revisão de literatura séria: PubMed, bioRxiv, ChEMBL, ensaios clínicos, Open Targets | **LILO Pesquisa (Claude)** |
 | Projeto em várias etapas, "faça a análise inteira", pipeline de ponta a ponta | **LILO Orquestrador (Claude)** |
 | Arquivos e processos do Windows fora das pastas de projeto | **LILO Desktop** |
+| Código de verdade num repositório: editar, testar e iterar como no Claude Code | **LILO Code** (`lilo.ps1 code <pasta>`, no terminal) |
 
 O "LILO que pensa e distribui" é o Orquestrador (Claude): planeja, divide em etapas e executa cada
-uma com as ferramentas locais. Nenhum preset delega a outro modelo (a ponte não tem tool de
-delegação). Os controles valem em todos: **Pensar fundo** para problema difícil, **Plano** para só
-planejar, **Modo de agir** como freio.
+uma com as ferramentas locais. Para delegar uma tarefa de código ao modelo local sem interface há o
+`lilo.ps1 code-run <pasta> "<tarefa>"`, que devolve o resumo e o `git diff`. Os controles valem em
+todos: **Pensar fundo** para problema difícil, **Plano** para só planejar, **Modo de agir** como
+freio (`manual` liga a aprovação por chamada da interface: cada ferramenta pede Allow/Deny).
+
+**LILO Code** = [OpenCode](https://opencode.ai) (agente de terminal com o mesmo jeito do Claude
+Code: lê, edita com diff, roda, pede permissão) apontado para o modelo local `lilo-code`
+(`ollama/Modelfile.lilo-code`, contexto 32 k) e para a ponte (memória, PDFs, estatística, exec via
+MCP). Configuração versionada em `opencode/opencode.json`; regras em `opencode/AGENTS.global.md`.
+Instalação única: `npm install -g opencode-ai@1.19.5`. O prompt inicial do OpenCode tem ~7 k
+tokens; o do Claude Code sobre o Ollama teria ~33 k, por isso a escolha.
 
 Requisitos: Windows 11, Docker Desktop, Ollama, conda `datascience` (Python 3.11 com
 `mcp`, `httpx`, `sentence-transformers`, `chromadb`, `pingouin`, `pymupdf`, `psutil`,
@@ -123,12 +136,19 @@ Claude falha com `CERTIFICATE_VERIFY_FAILED` de dentro do container.
   `C:\GitHub`, deny-list de comandos destrutivos), `skill_rodar`. Exige Bearer token,
   timeout e pasta própria (`E:\data\lilo\trabalho`); conteúdo da internet nunca fica
   no mesmo preset que executa código.
+- **codigo** (28/10, "LILO age") — `arquivo_ler` (linhas numeradas, paginado), `arquivo_escrever`,
+  `arquivo_editar` (trecho exato → diff unificado; erro ensina a próxima chamada), `arquivo_buscar`
+  (grep), `arquivo_listar` (glob) e `executar_powershell` (deny-list: destrutivos, codificados e
+  internet). Escrita, edição e cwd só dentro de `E:\data\lilo\trabalho`, `C:\GitHub` e
+  `OneDrive\...\Projetos` (`LILO_HOST_RAIZES`); `.env`, tokens e `.git/` nunca. Mesmo token do exec.
+  `resumir_arquivo` (chama o `lilo` na GPU por dentro) fica fora dos presets que agem.
 - **literatura** — `search_pubmed`, `search_europepmc`, `search_biorxiv`,
   `search_crossref`, `search_semantic` (Docker MCP Gateway, catálogo mínimo gerado por
   `scripts/gateway_catalogo.py`).
 
-O Claude Code também usa os grupos `conhecimento` e `analise` por HTTP
-(`scripts/conectar_claude_code.ps1`).
+O Claude Code também usa os grupos `conhecimento` e `analise` por HTTP (registrados em
+`~/.claude.json` como `lilo-conhecimento` e `lilo-analise`, tipo `http`); o LILO Code usa os três
+primeiros pelo `opencode/opencode.json`.
 
 ## Portões medidos (RTX 3060, GPU quieta)
 
@@ -140,6 +160,16 @@ O Claude Code também usa os grupos `conhecimento` e `analise` por HTTP
 | G3 ponte | 55 testes · interface executou Python, R e WSL |
 | G4 biblioteca | item conhecido no top-5: 97 % (EN) / 83 % (PT) · busca p95 0,56 s |
 | G5 literatura | 5 tools · 1ª busca PubMed 3,9 s · seguintes 1,1 s |
+| G-B agente (`bench agente`) | a medir (plano de 28/10): ≥ 9/12 tarefas, cache ≥ 80 %, ≤ 15 s por passo |
+| G-C LILO Code | a medir: tarefa de código de ponta a ponta < 5 min, 1º turno < 60 s |
+
+Diagnóstico de 28/10 (logs de 13 a 28/10): o LILO pareceu lento porque o uso real montava prompts de
+15–18 k tokens (PDFs anexados + 29 schemas + histórico + "Pensar fundo") num contexto de 8 k: o runner
+cortava para 4 k a cada turno (sem cache, sem prompt de sistema, sem ferramentas), metade do texto
+gerado era raciocínio, e em 14/10 a GPU estava dividida com uma dinâmica molecular. O plano "LILO
+age" responde com contexto 32 k numa base MoE 30B-A3B escolhida pelo `bench agente` (candidatas
+`cand-coder` = qwen3-coder:30b, `cand-2507` = qwen3:30b-a3b-instruct-2507, `cand-oss` = gpt-oss:20b,
+em `ollama/Modelfile.cand-*`), ferramentas de arquivo com diff, aprovação por chamada e o LILO Code.
 
 Bake-off (`scripts/bakeoff_tools.py` + `bench.py` + `avaliar_biblioteca.py --idioma pt`):
 qwen3:14b tem o 1º token 3× mais rápido e escolha de tool 16/16; gemma4:12b gera 40–55 %
@@ -170,14 +200,18 @@ nenhum híbrido aparece no seletor: continuam no Ollama só para medição.
 ```
 lilo.ps1            operação (up/down/status/bench/...), Windows PowerShell 5.1
 compose.yaml        Open WebUI (lista de modelos, conexões MCP, presets via API)
-ollama/             Modelfile.lilo (o seletor), Modelfile.lilo-gemma|30b|32b|oss (bases fora dele)
-lilo_host/          ponte MCP: servidor.py (3 grupos + proxy), biblioteca, estatistica,
-                    execucao, skills, pastas, projetos, resumir, docx, bioparsers, comum
+ollama/             Modelfile.lilo (o seletor), Modelfile.lilo-code (LILO Code), Modelfile.cand-* (bake-off),
+                    Modelfile.lilo-gemma|30b|32b|oss (bases antigas, fora do seletor)
+lilo_host/          ponte MCP: servidor.py (4 grupos + proxy), arquivos (grupo codigo), biblioteca,
+                    estatistica, execucao, skills, pastas, projetos, resumir, docx, bioparsers, comum
 owui_funcoes/       filtros da Open WebUI (controles da caixa: profundidade, pensar, modo, plano, pasta)
-scripts/            bench.py · owui_presets.py · owui_funcoes.py · lilo_host_serve.py · mcp_smoke.py ·
-                    indexar_biblioteca.py · avaliar_biblioteca.py · bakeoff_tools.py · bakeoff_codigo.py ·
-                    gateway_catalogo.py · convivencia.py · criar_atalho.py · check.py (CI) · claude_ollama.ps1
-tests/              test_host_*.py (ponte) e test_owui_funcoes.py (filtros): sem GPU nem Ollama
+opencode/           opencode.json (LILO Code: provider Ollama, MCP da ponte, permissões) · AGENTS.global.md
+scripts/            bench.py · bench_agente.py · code_run.py · owui_presets.py · owui_funcoes.py ·
+                    lilo_host_serve.py · mcp_smoke.py · indexar_biblioteca.py · avaliar_biblioteca.py ·
+                    bakeoff_tools.py · bakeoff_codigo.py · gateway_catalogo.py · convivencia.py ·
+                    criar_atalho.py · check.py (CI) · play_vigia.ps1
+tests/              test_host_*.py (ponte), test_owui_funcoes.py (filtros), test_bench_agente.py,
+                    test_opencode_config.py: sem GPU nem Ollama
 docs/versoes/       CHANGELOG.md (histórico da v13 + entrada da v14)
 ```
 

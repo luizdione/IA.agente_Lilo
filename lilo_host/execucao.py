@@ -12,11 +12,13 @@ from __future__ import annotations
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
 
+from . import comum
 from .comum import TRABALHO, comando_proibido, erro, recortar
 
 STDOUT_MAX = 8000
@@ -104,11 +106,11 @@ def rodar(argv: list[str], timeout: int = 120, cwd: str | None = None) -> str:
     return _fmt(proc.returncode, out, err, time.perf_counter() - t0)
 
 
-def _temporario(sufixo: str, conteudo: str, cwd: str | None) -> Path:
+def _temporario(sufixo: str, conteudo: str, cwd: str | None, encoding: str = "utf-8") -> Path:
     pasta = Path(cwd) if cwd else TRABALHO
     pasta.mkdir(parents=True, exist_ok=True)
     p = pasta / ("_lilo_%d_%d%s" % (os.getpid(), int(time.time() * 1000), sufixo))
-    p.write_text(conteudo, encoding="utf-8")
+    p.write_text(conteudo, encoding=encoding)
     return p
 
 
@@ -221,3 +223,63 @@ def rodar_script(script: Path, argumentos: str = "", cwd: str | None = None, tim
     else:
         return erro("extensao sem interprete: %s" % (ext or "(nenhuma)"))
     return rodar(base + args, timeout, cwd)
+
+
+# ------------------------------------------------------------ PowerShell (grupo codigo)
+# Defesa em profundidade, nao sandbox: o que destroi disco/sistema, o que esconde o comando
+# (iex, -EncodedCommand, base64) e o que vai a internet ("internet nunca onde executa").
+PADROES_PS_PROIBIDOS = (
+    r"\bFormat-Volume\b", r"\bClear-Disk\b", r"\bInitialize-Disk\b", r"\bRemove-Partition\b",
+    r"\bStop-Computer\b", r"\bRestart-Computer\b", r"\bSet-ExecutionPolicy\b", r"\bSet-MpPreference\b",
+    r"\bInvoke-Expression\b", r"(^|[\s|;(&])iex\b", r"-EncodedCommand\b", r"(^|\s)-e(nc)?\s+[A-Za-z0-9+/=]{20,}",
+    r"\bFromBase64String\b", r"\breg(\.exe)?\s+(delete|add|import)\b", r"\bschtasks(\.exe)?\s+/create\b",
+    r"\bnet(\.exe)?\s+(user|localgroup)\b", r"\bbcdedit\b", r"\bdiskpart\b",
+    r"\bRemove-Item\b[^\n]*-Recurse[^\n]*(\s['\"]?[A-Za-z]:\\?['\"]?(\s|$)|\$env:USERPROFILE|\$HOME|(\s|=)~(\s|$|[\\/]))",
+    r"\b(rd|rmdir)\s+/s\b",
+    r"\bInvoke-WebRequest\b", r"\bInvoke-RestMethod\b", r"(^|[\s|;(&])(iwr|irm)\b",
+    r"(^|[\s|;(&])(curl|wget)(\.exe)?\b", r"\bStart-BitsTransfer\b", r"\bNet\.WebClient\b", r"\bHttpClient\b",
+)
+PS_COMANDO_MAX = 4000
+
+
+def ps_proibido(texto: str) -> str | None:
+    for p in PADROES_PS_PROIBIDOS:
+        if re.search(p, texto, re.IGNORECASE):
+            return p
+    return None
+
+
+def powershell_exe() -> list[str]:
+    exe = shutil.which("pwsh") or shutil.which("powershell") or "powershell"
+    return [exe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File"]
+
+
+def executar_powershell(comando: str, timeout: int = 120, cwd: str | None = None) -> str:
+    """Roda `comando` no PowerShell (pwsh ou 5.1) a partir de um .ps1 temporario, com UTF-8,
+    deny-list e cwd obrigatoriamente dentro de comum.RAIZES."""
+    if not (comando or "").strip():
+        return erro("comando vazio")
+    if len(comando) > PS_COMANDO_MAX:
+        return erro("comando acima de %d caracteres: grave um .ps1 com arquivo_escrever e rode-o" % PS_COMANDO_MAX)
+    pad = comando_proibido(comando) or ps_proibido(comando)
+    if not pad and re.search(r"\bgit\b", comando, re.IGNORECASE):
+        pad = git_proibido(comando)
+    if pad:
+        return erro("comando bloqueado pela deny-list (%s)" % pad)
+    pasta = comum.resolver(cwd) if cwd else TRABALHO
+    if not comum.dentro_das_raizes(pasta):
+        return erro("cwd fora das raizes permitidas (%s): %s" % ("; ".join(str(r) for r in comum.RAIZES), pasta))
+    if cwd and not pasta.is_dir():
+        return erro("cwd nao existe: %s" % pasta)
+    conteudo = ("[Console]::OutputEncoding = [System.Text.Encoding]::UTF8\n"
+                "$OutputEncoding = [System.Text.Encoding]::UTF8\n"
+                "$ErrorActionPreference = 'Continue'\n"
+                + comando.rstrip() + "\n"
+                "if ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE }\n"
+                "if (-not $?) { exit 1 }\n")
+    # BOM: o Windows PowerShell 5.1 le .ps1 sem BOM como ANSI e estraga acentos.
+    arq = _temporario(".ps1", conteudo, str(pasta), encoding="utf-8-sig")
+    try:
+        return rodar(powershell_exe() + [str(arq)], timeout, str(pasta))
+    finally:
+        arq.unlink(missing_ok=True)

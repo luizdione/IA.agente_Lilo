@@ -1,0 +1,14 @@
+# LILO Code: base do agente de terminal (OpenCode em `lilo.ps1 code`). O FROM e a VENCEDORA do
+# bake-off (F1 do plano de 28/10); ate la, a instruct-2507 (ja no disco). SEM SYSTEM: o OpenCode
+# manda o prompt de sistema dele. num_ctx FIXO (o OpenCode nunca manda num_ctx; `limit.context` em
+# opencode/opencode.json tem de ser IGUAL a este valor - teste em tests/test_opencode_config.py).
+# Variante a medir na vencedora: num_ctx 65536 (KV q8 ~3,2 GB; menos camadas na GPU).
+# top_k e repeat_penalty so chegam por aqui (a API /v1 os ignora); temperature e top_p vao pelo
+# agente do OpenCode (o /v1 do Ollama 0.40 forca 1.0 quando o cliente nao manda os dois).
+#   ollama create lilo-code -f ollama\Modelfile.lilo-code
+FROM qwen3:30b-a3b-instruct-2507-q4_K_M
+PARAMETER num_ctx 32768
+PARAMETER temperature 0.7
+PARAMETER top_p 0.8
+PARAMETER top_k 20
+PARAMETER repeat_penalty 1.05

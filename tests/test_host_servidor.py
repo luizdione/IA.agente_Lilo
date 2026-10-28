@@ -47,7 +47,7 @@ def test_saude_e_grupos(app):
             r = await c.get("/saude")
             assert r.status_code == 200
             d = r.json()
-            assert d["ok"] and d["grupos"] == {"conhecimento": 14, "analise": 10, "exec": 5}
+            assert d["ok"] and d["grupos"] == {"conhecimento": 14, "analise": 10, "exec": 5, "codigo": 6}
             # regra de velocidade 5: grupos enxutos (medido 12/10: 18 tools no preset = 1o token 0,37 s)
             assert all(n <= 14 for n in d["grupos"].values())
     _rodar(go())
@@ -76,6 +76,31 @@ def test_exec_exige_token(app):
                                headers={**CAB, "Authorization": "Bearer " + TOKEN})
             assert set(_tools(com)) == {"executar_python", "executar_r", "executar_wsl",
                                         "executar_git", "skill_rodar"}
+            # o grupo codigo (escreve e roda PowerShell) exige o mesmo token
+            assert (await c.post("/codigo/mcp", json=RPC_LIST, headers=CAB)).status_code == 401
+            cod = await c.post("/codigo/mcp", json=RPC_LIST,
+                               headers={**CAB, "Authorization": "Bearer " + TOKEN})
+            assert set(_tools(cod)) == {"arquivo_ler", "arquivo_escrever", "arquivo_editar",
+                                        "arquivo_buscar", "arquivo_listar", "executar_powershell"}
+    _rodar(go())
+
+
+def test_chamada_real_arquivo_editar(app, tmp_path, monkeypatch):
+    from lilo_host import comum
+    monkeypatch.setattr(comum, "RAIZES", [tmp_path])
+    arq = tmp_path / "mod.py"
+    arq.write_text("def soma(a, b):\n    return a - b\n", encoding="utf-8")
+    corpo = {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
+             "params": {"name": "arquivo_editar",
+                        "arguments": {"caminho": str(arq), "antigo": "return a - b", "novo": "return a + b"}}}
+
+    async def go():
+        async with _cliente(app) as c:
+            r = await c.post("/codigo/mcp", json=corpo, headers={**CAB, "Authorization": "Bearer " + TOKEN})
+            assert r.status_code == 200, r.text[:300]
+            texto = r.json()["result"]["content"][0]["text"]
+            assert texto.startswith("[ok]") and "-    return a - b" in texto and "+    return a + b" in texto
+            assert arq.read_text(encoding="utf-8") == "def soma(a, b):\n    return a + b\n"
     _rodar(go())
 
 

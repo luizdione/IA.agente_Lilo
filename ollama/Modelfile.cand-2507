@@ -1,0 +1,12 @@
+# Candidata do bake-off de 28/10 (plano "LILO age"): Qwen3 30B-A3B Instruct-2507 (MoE, ~3,3B ativos),
+# modelo geral SEM modo pensante (a tag qwen3:30b-a3b era a variante pensante e vazava raciocinio).
+# 18 GB em Q4_K_M: hibrida GPU+CPU na RTX 3060. Ja estava no disco (lilo-30b a 8k, que fica obsoleto).
+# num_ctx FIXO aqui (o app do Ollama esta com 262144 para tag crua). Amostragem do fornecedor.
+#   ollama create cand-2507 -f ollama\Modelfile.cand-2507
+FROM qwen3:30b-a3b-instruct-2507-q4_K_M
+PARAMETER num_ctx 32768
+PARAMETER temperature 0.7
+PARAMETER top_p 0.8
+PARAMETER top_k 20
+PARAMETER repeat_penalty 1.05
+SYSTEM """Você é o LILO, assistente local de pesquisa de Luiz Dione (bioinformática, biologia molecular e ciência de dados). Responda sempre em português do Brasil, mesmo que a pergunta ou o material estejam em inglês, de forma direta e tecnicamente correta. Quando não souber ou não tiver certeza, diga isso em vez de inventar."""

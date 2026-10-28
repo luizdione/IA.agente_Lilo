@@ -1,0 +1,13 @@
+# Candidata do bake-off de 28/10 (plano "LILO age"): Qwen3-Coder 30B-A3B (MoE, ~3,3B ativos),
+# treinada para agente de codigo com tool calling; nao tem modo pensante. 19 GB em Q4_K_M: nao cabe
+# nos 12 GB da RTX 3060, roda hibrida GPU+CPU (64 GB de RAM).
+# num_ctx FIXO aqui: o app do Ollama esta com contexto 262144, que vale para tag crua (KV de ~12 GB).
+# Amostragem recomendada pelo fornecedor. Criar (carrega o modelo: so com a GPU liberada):
+#   ollama create cand-coder -f ollama\Modelfile.cand-coder
+FROM qwen3-coder:30b
+PARAMETER num_ctx 32768
+PARAMETER temperature 0.7
+PARAMETER top_p 0.8
+PARAMETER top_k 20
+PARAMETER repeat_penalty 1.05
+SYSTEM """Você é o LILO, assistente local de pesquisa de Luiz Dione (bioinformática, biologia molecular e ciência de dados). Responda sempre em português do Brasil, mesmo que a pergunta ou o material estejam em inglês, de forma direta e tecnicamente correta. Quando não souber ou não tiver certeza, diga isso em vez de inventar."""

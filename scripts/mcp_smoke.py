@@ -77,13 +77,16 @@ def main() -> int:
         from lilo_host.comum import token_exec
         token = token_exec(gerar=False)
     if token:
-        try:
-            nomes = asyncio.run(_tools(f"{a.url}/exec/mcp", token))
-            print(f"exec com token: {len(nomes)} tools -> {', '.join(nomes)}")
-        except Exception as e:  # noqa: BLE001
-            falhas.append(f"exec com token: {type(e).__name__}: {e}")
+        for grupo in ("exec", "codigo"):
+            try:
+                nomes = asyncio.run(_tools(f"{a.url}/{grupo}/mcp", token))
+                print(f"{grupo} com token: {len(nomes)} tools -> {', '.join(nomes)}")
+                if not nomes or len(nomes) > 14:
+                    falhas.append(f"{grupo}: {len(nomes)} tools (esperado 1..14)")
+            except Exception as e:  # noqa: BLE001
+                falhas.append(f"{grupo} com token: {type(e).__name__}: {e}")
     else:
-        print("exec com token: pulado (sem token local; passe --token)")
+        print("exec/codigo com token: pulado (sem token local; passe --token)")
 
     try:
         txt = asyncio.run(_chamar(f"{a.url}/conhecimento/mcp", "memoria_projetos_listar", {}))
