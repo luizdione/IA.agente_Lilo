@@ -283,3 +283,26 @@ def executar_powershell(comando: str, timeout: int = 120, cwd: str | None = None
         return rodar(powershell_exe() + [str(arq)], timeout, str(pasta))
     finally:
         arq.unlink(missing_ok=True)
+
+
+# ------------------------------------------------------- delegar ao LILO Code (F4)
+CODE_RUN = Path(__file__).resolve().parent.parent / "scripts" / "code_run.py"
+
+
+def delegar_codigo(tarefa: str, pasta: str, auto: bool = False, timeout: int = 900) -> str:
+    """`scripts/code_run.py` (OpenCode headless) numa pasta permitida; o proprio script checa o
+    interruptor da GPU (exit 3) e as raizes. Sem `auto`: edita e roda pytest/git diff, nada mais."""
+    if not (tarefa or "").strip():
+        return erro("tarefa vazia")
+    p = comum.resolver(pasta)
+    if not p.is_dir():
+        return erro("pasta nao existe: %s" % p)
+    if not comum.dentro_das_raizes(p):
+        return erro("pasta fora das raizes permitidas (%s): %s" % ("; ".join(str(r) for r in comum.RAIZES), p))
+    pad = comando_proibido(tarefa) or ps_proibido(tarefa)
+    if pad:
+        return erro("tarefa bloqueada pela deny-list (%s)" % pad)
+    argv = [python_exe(), "-X", "utf8", str(CODE_RUN), str(p), tarefa, "--timeout", str(int(timeout))]
+    if auto:
+        argv.append("--auto")
+    return rodar(argv, min(TIMEOUT_MAX, int(timeout) + 30), str(p))

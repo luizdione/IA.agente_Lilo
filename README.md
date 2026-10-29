@@ -23,7 +23,7 @@ o legado v12 em `v12.15-legado`.
 |---|---|---|
 | **Motor** | Ollama 0.35+ com o modelo derivado `lilo` (`ollama/Modelfile.lilo`: qwen3:14b Q4_K_M, contexto 8192, SYSTEM em PT). Candidata a base forte: `lilo-30b` (qwen3:30b-a3b-instruct-2507, híbrido GPU+CPU), que só entra no seletor se passar no bench. | host, GPU |
 | **Interface** | Open WebUI em Docker Compose (`compose.yaml`), `127.0.0.1:3000`, sem login. Seletor enxuto (D-0022): só cinco presets, **LILO**, **LILO Pesquisa**, **LILO Desktop**, **LILO Orquestrador (Claude)** e **LILO Pesquisa (Claude)**; os modelos crus ficam fora pela whitelist do `compose.yaml` e a base `claude-sonnet-5-5` (API da Anthropic, chave no `.env`) por um registro inativo. Atalhos `/pasta` (abre o seletor de pasta), `/pasta_colada`, `/repo`, `/skill` e um `/<skill>` por skill do dono. | container |
-| **Ponte `lilo-host`** | Pacote `lilo_host/` (FastMCP, streamable HTTP) em `127.0.0.1:8790` com 4 grupos: `conhecimento` (14 tools), `analise` (10), `exec` (5) e `codigo` (6: ler, escrever, editar com diff, buscar, listar, PowerShell), os dois últimos com token obrigatório, e o proxy `/literatura/mcp` para o Docker MCP Gateway (`paper-search`, só busca). | host, conda `datascience` |
+| **Ponte `lilo-host`** | Pacote `lilo_host/` (FastMCP, streamable HTTP) em `127.0.0.1:8790` com 4 grupos: `conhecimento` (14 tools), `analise` (10), `exec` (5) e `codigo` (7: ler, escrever, editar com diff, buscar, listar, PowerShell e delegar ao LILO Code), os dois últimos com token obrigatório, e o proxy `/literatura/mcp` para o Docker MCP Gateway (`paper-search`, só busca). | host, conda `datascience` |
 | **Plugins do Claude** | MCPs remotos do plugin bio-research que aceitam conexão sem login, ligados direto na interface: PubMed, bioRxiv, ChEMBL, ensaios clínicos e Open Targets (só no preset Pesquisa (Claude): seus schemas somam 4 k tokens e são buscados a cada mensagem, o que custa 3,7 s de 1º token no modelo local). **Desktop Commander** (o mesmo do Claude) no host atrás do `mcpo`, só loopback, com token; sobe e para junto com `lilo.ps1 up|down` (`desktop up|down` para mexer só nele). | container / host |
 
 Regras de velocidade que o código obedece: um só modelo de chat, chamado **sem opções
@@ -103,7 +103,8 @@ schemas entram no prompt (o Ollama reaproveita o cache a partir da 2ª mensagem;
 
 O "LILO que pensa e distribui" é o Orquestrador (Claude): planeja, divide em etapas e executa cada
 uma com as ferramentas locais. Para delegar uma tarefa de código ao modelo local sem interface há o
-`lilo.ps1 code-run <pasta> "<tarefa>"`, que devolve o resumo e o `git diff`. Os controles valem em
+`lilo.ps1 code-run <pasta> "<tarefa>"`, que devolve o resumo e o `git diff`; no chat, a mesma coisa é a
+ferramenta `codigo_delegar` ("delegue ao LILO Code: ..."), o "LILO que pensa e distribui". Os controles valem em
 todos: **Pensar fundo** para problema difícil, **Plano** para só planejar, **Modo de agir** como
 freio (`manual` liga a aprovação por chamada da interface: cada ferramenta pede Allow/Deny).
 
@@ -138,8 +139,10 @@ Claude falha com `CERTIFICATE_VERIFY_FAILED` de dentro do container.
   no mesmo preset que executa código.
 - **codigo** (28/10, "LILO age") — `arquivo_ler` (linhas numeradas, paginado), `arquivo_escrever`,
   `arquivo_editar` (trecho exato → diff unificado; erro ensina a próxima chamada), `arquivo_buscar`
-  (grep), `arquivo_listar` (glob) e `executar_powershell` (deny-list: destrutivos, codificados e
-  internet). Escrita, edição e cwd só dentro de `E:\data\lilo\trabalho`, `C:\GitHub` e
+  (grep), `arquivo_listar` (glob), `executar_powershell` (deny-list: destrutivos, codificados e
+  internet) e `codigo_delegar` (entrega uma tarefa de vários passos ao LILO Code sem interface e
+  devolve resumo + `git diff --stat`; só nos modos `automatico`/`ignorar_permissoes`). Escrita,
+  edição e cwd só dentro de `E:\data\lilo\trabalho`, `C:\GitHub` e
   `OneDrive\...\Projetos` (`LILO_HOST_RAIZES`); `.env`, tokens e `.git/` nunca. Mesmo token do exec.
   `resumir_arquivo` (chama o `lilo` na GPU por dentro) fica fora dos presets que agem.
 - **literatura** — `search_pubmed`, `search_europepmc`, `search_biorxiv`,

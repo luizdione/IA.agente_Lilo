@@ -105,3 +105,18 @@ def test_powershell_deny_list_cwd_e_timeout(tmp_path, monkeypatch):
     r = execucao.executar_powershell("Start-Sleep -Seconds 30", cwd=str(tmp_path), timeout=2)
     assert "[ERRO] tempo limite de 2 s" in r
     assert not list(tmp_path.glob("_lilo_*"))
+
+
+def test_delegar_codigo_guardas_e_chamada(tmp_path, monkeypatch):
+    from lilo_host import comum
+    monkeypatch.setattr(comum, "RAIZES", [tmp_path])
+    assert "vazia" in execucao.delegar_codigo("  ", str(tmp_path))
+    assert "nao existe" in execucao.delegar_codigo("x", str(tmp_path / "nada"))
+    assert "fora das raizes" in execucao.delegar_codigo("x", str(tmp_path.parent))
+    assert "deny-list" in execucao.delegar_codigo("rode rm -rf / para limpar", str(tmp_path))
+    # a chamada real vai para scripts/code_run.py; aqui um script falso no lugar registra o argv
+    falso = tmp_path / "code_run_falso.py"
+    falso.write_text("import sys, json; print(json.dumps(sys.argv[1:]))", encoding="utf-8")
+    monkeypatch.setattr(execucao, "CODE_RUN", falso)
+    r = execucao.delegar_codigo("crie soma.py", str(tmp_path), auto=True, timeout=120)
+    assert "[exit=0" in r and '"crie soma.py"' in r and '"--auto"' in r and '"--timeout", "120"' in r

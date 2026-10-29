@@ -47,7 +47,7 @@ def test_saude_e_grupos(app):
             r = await c.get("/saude")
             assert r.status_code == 200
             d = r.json()
-            assert d["ok"] and d["grupos"] == {"conhecimento": 14, "analise": 10, "exec": 5, "codigo": 6}
+            assert d["ok"] and d["grupos"] == {"conhecimento": 14, "analise": 10, "exec": 5, "codigo": 7}
             # regra de velocidade 5: grupos enxutos (medido 12/10: 18 tools no preset = 1o token 0,37 s)
             assert all(n <= 14 for n in d["grupos"].values())
     _rodar(go())
@@ -81,7 +81,7 @@ def test_exec_exige_token(app):
             cod = await c.post("/codigo/mcp", json=RPC_LIST,
                                headers={**CAB, "Authorization": "Bearer " + TOKEN})
             assert set(_tools(cod)) == {"arquivo_ler", "arquivo_escrever", "arquivo_editar",
-                                        "arquivo_buscar", "arquivo_listar", "executar_powershell"}
+                                        "arquivo_buscar", "arquivo_listar", "executar_powershell", "codigo_delegar"}
     _rodar(go())
 
 

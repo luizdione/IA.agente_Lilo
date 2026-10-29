@@ -324,6 +324,15 @@ def grupo_codigo() -> FastMCP:
         destrutivos, codificados ou de internet sao bloqueados."""
         return execucao.executar_powershell(comando, timeout, cwd or None)
 
+    @srv.tool()
+    def codigo_delegar(tarefa: str, pasta: str, auto: bool = False, timeout: int = 900) -> str:
+        """Delega uma tarefa de CODIGO ao LILO Code (OpenCode sobre o modelo local, sem interface)
+        numa pasta de C:\\GitHub ou E:\\data: ele le, edita e testa sozinho e devolve o resumo, os
+        arquivos tocados e o `git diff --stat`. Sem `auto`, ele pode editar e rodar pytest/git diff,
+        mas nao outros comandos. Use para tarefas de varios passos num repositorio; para um
+        comando so, use executar_powershell."""
+        return execucao.delegar_codigo(tarefa, pasta, auto, timeout)
+
     return srv
 
 
