@@ -52,10 +52,17 @@ VAZAO = "Explique em um parágrafo de cerca de 150 palavras o que é PCR."
 
 
 def _interruptor() -> dict:
-    try:
-        return json.loads(SWITCH.read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001
+    """Falha FECHADA (regra do dono): arquivo ilegivel ou sem campo = reservada."""
+    sys.path.insert(0, str(ROOT))
+    from lilo_host.comum import gpu_reservada
+    motivo = gpu_reservada()
+    if motivo is None:
         return {"estado": "on"}
+    try:
+        d = json.loads(SWITCH.read_text(encoding="utf-8-sig"))
+    except Exception:  # noqa: BLE001
+        d = {}
+    return {"estado": "off", "motivo": d.get("motivo") or motivo, "em": d.get("em", "?")}
 
 
 def _env(chave: str) -> str:
@@ -112,6 +119,8 @@ def _ollama(cli: httpx.Client, base: str, modelo: str, pergunta: str,
     return {"ttft": ttft if ttft is not None else total, "total": total,
             "carga": fim.get("load_duration", 0) / 1e9,
             "tok_prompt": fim.get("prompt_eval_count", 0),
+            # so os tokens NAO cacheados contam aqui: 2a pergunta com prefixo igual -> ~0 s
+            "prompt_eval_s": fim.get("prompt_eval_duration", 0) / 1e9,
             "tok_saida": ev, "tps": (ev / (evd / 1e9)) if evd else 0.0,
             "pensou": pensou}
 
@@ -160,6 +169,7 @@ def _webui(cli: httpx.Client, base: str, modelo: str, pergunta: str,
     return {"ttft": ttft if ttft is not None else total, "total": total,
             "carga": uso.get("load_duration", 0) / 1e9,
             "tok_prompt": uso.get("prompt_eval_count") or uso.get("prompt_tokens") or 0,
+            "prompt_eval_s": uso.get("prompt_eval_duration", 0) / 1e9,
             "tok_saida": ev, "tps": tps, "pensou": pensou}
 
 
@@ -236,6 +246,8 @@ def main() -> int:
         "ttft_p95": round(_pct(ttfts, 0.95), 3),
         "ttft_max": round(max(ttfts), 3),
         "tok_prompt_max": max(m["tok_prompt"] for m in linhas),
+        # prompt eval da 2a pergunta: com o prefixo (system + tools) em cache fica bem abaixo de 1 s
+        "prompt_eval_2a_s": round(linhas[1]["prompt_eval_s"], 3) if len(linhas) > 1 else None,
         "tps": round(vz["tps"], 1), "tok_vazao": vz["tok_saida"],
         "pensou": any(m["pensou"] for m in linhas),
         "recargas": sum(1 for m in linhas if m["carga"] > 1.0),
@@ -243,6 +255,8 @@ def main() -> int:
     falhas = []
     if resumo["ttft_p95"] >= a.limite_ttft:
         falhas.append(f"TTFT p95 {resumo['ttft_p95']}s >= {a.limite_ttft}s")
+    if (resumo["prompt_eval_2a_s"] or 0) >= 1.0:
+        falhas.append(f"prompt eval da 2a pergunta {resumo['prompt_eval_2a_s']}s (cache de prefixo nao reusado)")
     if resumo["tps"] < a.min_tps:
         falhas.append(f"vazao {resumo['tps']} tok/s < {a.min_tps}")
     if resumo["pensou"]:
@@ -259,7 +273,7 @@ def main() -> int:
 
     print(f"\n{a.alvo}/{a.modelo}: TTFT p50 {resumo['ttft_p50']}s  p95 {resumo['ttft_p95']}s  "
           f"max {resumo['ttft_max']}s | {resumo['tps']} tok/s | "
-          f"prompt max {resumo['tok_prompt_max']} tok")
+          f"prompt max {resumo['tok_prompt_max']} tok | prompt eval 2a {resumo['prompt_eval_2a_s']}s")
     print("PORTAO: " + ("PASSOU" if not falhas else "FALHOU — " + "; ".join(falhas)))
     return 0 if (a.sem_portao or not falhas) else 1
 

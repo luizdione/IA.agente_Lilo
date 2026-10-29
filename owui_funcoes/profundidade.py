@@ -41,15 +41,29 @@ def injetar_system(body: dict, texto: str) -> None:
         msgs.insert(0, {"role": "system", "content": texto})
 
 
-def aplicar_nivel(body: dict, nivel: str, modelo: Optional[dict]) -> dict:
+AGENTE_MIN_TOKENS = 4096   # com tools, um arquivo_escrever de 200 linhas nao pode ser cortado
+
+
+def _com_tools(body: dict, metadata: Optional[dict]) -> bool:
+    for alvo in (metadata, body):
+        if isinstance(alvo, dict) and alvo.get("tool_ids"):
+            return True
+    return False
+
+
+def aplicar_nivel(body: dict, nivel: str, modelo: Optional[dict], metadata: Optional[dict] = None) -> dict:
     p = NIVEIS.get(nivel, NIVEIS["medio"])
     dono = str((modelo or {}).get("owned_by", "")).lower()
+    # Niveis rapidos (baixo/medio) limitam a resposta; num preset que AGE o teto sobe para o
+    # modelo conseguir gravar um arquivo inteiro numa chamada (o ganho de velocidade vem de nao
+    # pensar, nao do teto de tokens).
+    max_tokens = max(p["max_tokens"], AGENTE_MIN_TOKENS) if _com_tools(body, metadata) else p["max_tokens"]
     if dono == "openai":
         # Claude pela API compativel com OpenAI: a Anthropic recusa temperature+top_p juntos (e
         # temperature != 1 com raciocinio ligado) -> so o esforco de raciocinio e o teto de saida.
         body.pop("temperature", None)
         body.pop("top_p", None)
-        body["max_tokens"] = p["max_tokens"]
+        body["max_tokens"] = max_tokens
         body["reasoning_effort"] = p["esforco"]
     else:
         # Ollama: a interface ja montou `options` a partir dos params do modelo; os valores de
@@ -62,7 +76,7 @@ def aplicar_nivel(body: dict, nivel: str, modelo: Optional[dict]) -> dict:
         think = p["think"]
         if "oss" in alvo.lower():
             think = {"low": "low", "medium": "low", "high": "high"}[p["esforco"]]
-        opts.update({"temperature": p["temperature"], "top_p": p["top_p"], "num_predict": p["max_tokens"],
+        opts.update({"temperature": p["temperature"], "top_p": p["top_p"], "num_predict": max_tokens,
                      "think": think})
         body["options"] = opts
         body["think"] = think               # lilo = qwen3, gemma4 pensam; qwen2.5 ignora
@@ -87,7 +101,8 @@ class Filter:
         self.toggle = True
         self.icon = "data:image/svg+xml;base64," + base64.b64encode(SVG.encode()).decode()
 
-    def inlet(self, body: dict, __user__: Optional[dict] = None, __model__: Optional[dict] = None) -> dict:
+    def inlet(self, body: dict, __user__: Optional[dict] = None, __model__: Optional[dict] = None,
+              __metadata__: Optional[dict] = None) -> dict:
         valves = (__user__ or {}).get("valves")
         nivel = getattr(valves, "nivel", None) or "medio"
-        return aplicar_nivel(body, nivel, __model__)
+        return aplicar_nivel(body, nivel, __model__, __metadata__)

@@ -10,7 +10,10 @@ name: lilo
 
 services:
   openwebui:
-    image: ghcr.io/open-webui/open-webui:v0.11.4
+    # 0.12.4 (28/10, plano "LILO age"): corrige o system prompt perdido apos tool result (#30375) e o
+    # cache de prompt entre tool calls (#31593); traz compactacao entre rodadas de tools, aprovacao
+    # por chamada e terminal integrado. Rollback = voltar a v0.11.4 (o volume e o mesmo).
+    image: ghcr.io/open-webui/open-webui:v0.12.4
     container_name: lilo_openwebui
     restart: unless-stopped
     ports:
@@ -51,6 +54,21 @@ services:
       # Nunca por aqui opcao de runner (num_ctx, num_gpu...): o contexto vem do
       # Modelfile do `lilo`, e opcao diferente faz o Ollama recarregar o modelo.
       DEFAULT_MODEL_PARAMS: '{"think": false}'
+      # --- agente (28/10, "LILO age") ----------------------------------------
+      # Aprovacao por chamada: com isto ligado, `params.tool_approval_mode = "ask"` (o Modo de agir
+      # `manual` grava isso no pedido) pausa a resposta em cada tool com Allow/Deny; "full" executa direto.
+      ENABLE_TOOL_PERMISSIONS: "True"
+      # Freio ao laco de tools (padrao 256): 40 passos ja e muito para uma tarefa.
+      CHAT_RESPONSE_MAX_TOOL_CALL_ITERATIONS: "40"
+      # Compactacao entre rodadas de tools (0.12.1+), abaixo do contexto de 32 k da base nova (F1);
+      # enquanto o `lilo` for o qwen3:14b a 8 k o limiar nao chega a valer.
+      ENABLE_CONTEXT_COMPACTION: "True"
+      CONTEXT_COMPACTION_TOKEN_THRESHOLD: "24000"
+      # PDFs anexados no chat: 5 trechos de ~800 caracteres (~1,2 k tokens), nunca o arquivo inteiro.
+      # Em 16/10, 12 PDFs anexados + 29 tools = 15-18 k tokens num contexto de 8 k (truncado a 4 k).
+      RAG_TOP_K: "5"
+      CHUNK_SIZE: "800"
+      RAG_FULL_CONTEXT: "False"
       # --- regra de velocidade 4: nada roda escondido na GPU ----------------
       # O Ollama atende 1 requisicao por vez; cada geracao de fundo entraria na
       # fila na frente da proxima pergunta.
@@ -62,15 +80,16 @@ services:
       ENABLE_RETRIEVAL_QUERY_GENERATION: "False"
       ENABLE_EVALUATION_ARENA_MODELS: "False"
       # --- ferramentas: ponte lilo-host no host (F2) --------------------------
-      # Tres servidores MCP (streamable HTTP) em 127.0.0.1:8790 do host, alcancados
+      # Quatro servidores MCP (streamable HTTP) em 127.0.0.1:8790 do host, alcancados
       # por host.docker.internal (o Docker Desktop encaminha ao loopback; medido).
       # O preset escolhe os grupos por `server:mcp:<id>` (scripts\owui_presets.py).
-      # O token do grupo exec vem do ambiente: `lilo.ps1 up` exporta LILO_HOST_TOKEN
-      # (lido de %LOCALAPPDATA%\LILO\host_token.txt); sem ele o exec responde 401.
+      # O token dos grupos exec e codigo vem do ambiente: `lilo.ps1 up` exporta LILO_HOST_TOKEN
+      # (lido de %LOCALAPPDATA%\LILO\host_token.txt); sem ele eles respondem 401.
       TOOL_SERVER_CONNECTIONS: >-
         [{"type":"mcp","url":"http://host.docker.internal:8790/conhecimento/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"conhecimento","name":"LILO conhecimento","description":"Memoria dos projetos, PDF/texto, resumo"}},
         {"type":"mcp","url":"http://host.docker.internal:8790/analise/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"analise","name":"LILO analise","description":"Estatistica, parsers bio, DOCX"}},
         {"type":"mcp","url":"http://host.docker.internal:8790/exec/mcp","path":"","auth_type":"bearer","key":"${LILO_HOST_TOKEN:-}","config":{"enable":true},"info":{"id":"exec","name":"LILO exec","description":"Python, R e WSL no host"}},
+        {"type":"mcp","url":"http://host.docker.internal:8790/codigo/mcp","path":"","auth_type":"bearer","key":"${LILO_HOST_TOKEN:-}","config":{"enable":true},"info":{"id":"codigo","name":"LILO codigo","description":"Arquivos de texto/codigo (ler, escrever, editar com diff, buscar, listar) e PowerShell no host"}},
         {"type":"mcp","url":"http://host.docker.internal:8790/literatura/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"literatura","name":"LILO literatura","description":"PubMed, Europe PMC, bioRxiv, Crossref e Semantic Scholar (paper-search via Docker MCP Gateway)"}},
         {"type":"openapi","url":"http://host.docker.internal:8795","path":"openapi.json","auth_type":"bearer","key":"${LILO_HOST_TOKEN:-}","config":{"enable":true},"info":{"id":"desktop","name":"LILO desktop","description":"Desktop Commander no host (arquivos, pastas, busca, processos e PowerShell) via mcpo; sobe com lilo.ps1 desktop up"}},
         {"type":"mcp","url":"https://pubmed.mcp.claude.com/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"pubmed","name":"PubMed (plugin bio-research)","description":"MCP remoto do plugin bio-research do Claude: busca e leitura no PubMed"}},
@@ -78,6 +97,12 @@ services:
         {"type":"mcp","url":"https://hcls.mcp.claude.com/chembl/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"chembl","name":"ChEMBL (plugin bio-research)","description":"MCP remoto: compostos, alvos, bioatividade, mecanismos, ADMET"}},
         {"type":"mcp","url":"https://hcls.mcp.claude.com/clinical_trials/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"ensaios","name":"Ensaios clinicos (plugin bio-research)","description":"MCP remoto: ClinicalTrials.gov"}},
         {"type":"mcp","url":"https://mcp.platform.opentargets.org/mcp","path":"","auth_type":"none","key":"","config":{"enable":true},"info":{"id":"opentargets","name":"Open Targets","description":"MCP publico da plataforma Open Targets (gene-doenca-farmaco)"}}]
+      # --- terminal integrado (F2b, EXPERIMENTO; desligado) ------------------------------
+      # Open Terminal no host (lilo.ps1 terminal up; chave em %LOCALAPPDATA%\LILO\terminal_key.txt,
+      # exportada como LILO_TERMINAL_KEY pelo `up`). Shell completo sem deny-list: so entra quando o
+      # autor decidir, descomentando as linhas abaixo e criando o preset com meta.terminalId="host".
+      # TERMINAL_SERVER_CONNECTIONS: >-
+      #   [{"id":"host","name":"LILO Terminal (host)","enabled":true,"url":"http://host.docker.internal:8796","path":"/openapi.json","key":"${LILO_TERMINAL_KEY:-}","auth_type":"bearer","forward_cookies":false,"config":{"chat_uploads":"filesystem"}}]
       # --- acesso -----------------------------------------------------------
       # Sem login nem chave (decisao do autor, 2026-10-05): servidor de uso proprio.
       # O Open WebUI cria sozinho o usuario unico; os scripts pegam o token dele em

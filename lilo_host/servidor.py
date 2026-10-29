@@ -4,11 +4,12 @@
   POST /conhecimento/mcp      memoria dos projetos, PDF/texto, resumo
   POST /analise/mcp           estatistica, parsers bio, DOCX
   POST /exec/mcp              Python, R, WSL — exige `Authorization: Bearer <token>`
+  POST /codigo/mcp            arquivos (ler/escrever/editar/buscar/listar) e PowerShell — mesmo token
 
 Transporte streamable HTTP sem estado e com resposta JSON (o que a Open WebUI e o
 Claude Code consomem sem SSE). Protecao contra DNS rebinding ligada, com
 `host.docker.internal` na lista: e assim que o container chega ao 127.0.0.1 do host.
-Regra de velocidade 5: no maximo 13 tools por grupo.
+Regra de velocidade 5: no maximo 14 tools por grupo.
 """
 from __future__ import annotations
 
@@ -25,8 +26,8 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Mount, Route
 
-from . import (__version__, biblioteca, bioparsers, docx, estatistica, execucao, pastas, projetos,
-               resumir, skills)
+from . import (__version__, arquivos, biblioteca, bioparsers, docx, estatistica, execucao, pastas,
+               projetos, resumir, skills)
 from .comum import PORTA, TRABALHO, gpu_reservada
 
 HOSTS = ["127.0.0.1:*", "localhost:*", "[::1]:*", "host.docker.internal:*"]
@@ -275,22 +276,82 @@ def grupo_exec() -> FastMCP:
     return srv
 
 
+# ------------------------------------------------------------------- codigo
+def grupo_codigo() -> FastMCP:
+    srv = _novo("lilo-codigo",
+                "Arquivos de texto/codigo do host: ler numerado, escrever, editar com diff, buscar "
+                "(grep), listar (glob) e PowerShell. Escrita e cwd so em E:\\data\\lilo\\trabalho, "
+                "C:\\GitHub e OneDrive\\Data_Science\\Projetos. Mostre o diff e a saida como vieram.")
+
+    @srv.tool()
+    def arquivo_ler(caminho: str, inicio: int = 1, linhas: int = 200) -> str:
+        """Le texto/codigo com linhas numeradas (N<TAB>texto; os numeros nao fazem parte do
+        arquivo). Ate 400 linhas ou 16000 caracteres por chamada; para mais, chame de novo com
+        inicio maior. PDF/DOCX: use ler_pdf / ler_texto."""
+        return arquivos.ler(caminho, inicio, linhas)
+
+    @srv.tool()
+    def arquivo_escrever(caminho: str, conteudo: str, sobrescrever: bool = False) -> str:
+        """Cria um arquivo UTF-8 (cria as pastas). Se ja existe, so grava com sobrescrever=true e
+        devolve o diff. Para mudar parte de um arquivo use arquivo_editar."""
+        return arquivos.escrever(caminho, conteudo, sobrescrever)
+
+    @srv.tool()
+    def arquivo_editar(caminho: str, antigo: str, novo: str, todas: bool = False) -> str:
+        """Troca o trecho EXATO `antigo` por `novo` (inclua 2-3 linhas de contexto para ser unico).
+        Devolve o diff unificado. Falha se `antigo` nao existe ou aparece mais de uma vez (use
+        todas=true para trocar todas)."""
+        return arquivos.editar(caminho, antigo, novo, todas)
+
+    @srv.tool()
+    def arquivo_buscar(padrao: str, caminho: str = ".", glob: str = "", regex: bool = False,
+                       contexto: int = 0, max_resultados: int = 40) -> str:
+        """Procura texto nos arquivos (como grep -rn): `arquivo:linha: texto`. glob='*.py'
+        restringe; contexto=2 mostra linhas ao redor. Ignora .git, node_modules, __pycache__,
+        .venv, binarios e arquivos > 2 MB."""
+        return arquivos.buscar(padrao, caminho, glob, regex, contexto, max_resultados)
+
+    @srv.tool()
+    def arquivo_listar(padrao: str = "**/*", caminho: str = ".", max_resultados: int = 200) -> str:
+        """Lista arquivos por glob ('**/*.py'), caminho relativo e tamanho. Para a arvore de uma
+        pasta use pasta_listar."""
+        return arquivos.listar(padrao, caminho, max_resultados)
+
+    @srv.tool()
+    def executar_powershell(comando: str, cwd: str = "", timeout: int = 120) -> str:
+        """Roda um comando PowerShell no Windows (pytest, git, python -m ...). cwd dentro das
+        pastas permitidas. Saida: [exit=N em S s] + STDOUT/STDERR recortados. Comandos
+        destrutivos, codificados ou de internet sao bloqueados."""
+        return execucao.executar_powershell(comando, timeout, cwd or None)
+
+    @srv.tool()
+    def codigo_delegar(tarefa: str, pasta: str, auto: bool = False, timeout: int = 900) -> str:
+        """Delega uma tarefa de CODIGO ao LILO Code (OpenCode sobre o modelo local, sem interface)
+        numa pasta de C:\\GitHub ou E:\\data: ele le, edita e testa sozinho e devolve o resumo, os
+        arquivos tocados e o `git diff --stat`. Sem `auto`, ele pode editar e rodar pytest/git diff,
+        mas nao outros comandos. Use para tarefas de varios passos num repositorio; para um
+        comando so, use executar_powershell."""
+        return execucao.delegar_codigo(tarefa, pasta, auto, timeout)
+
+    return srv
+
+
 # ---------------------------------------------------------------------- app
 class _TokenExec:
-    """Middleware ASGI: /exec/* so com `Authorization: Bearer <token>` (401 caso contrario)."""
+    """Middleware ASGI: /exec/* e /codigo/* so com `Authorization: Bearer <token>` (401 caso contrario)."""
 
     def __init__(self, app, token: str):
         self.app, self.token = app, token
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] == "http" and scope.get("path", "").startswith("/exec"):
+        if scope["type"] == "http" and scope.get("path", "").startswith(("/exec", "/codigo")):
             auth = ""
             for k, v in scope.get("headers", []):
                 if k == b"authorization":
                     auth = v.decode("latin-1")
             ok = bool(self.token) and hmac.compare_digest(auth, "Bearer " + self.token)
             if not ok:
-                resp = JSONResponse({"erro": "grupo exec exige Authorization: Bearer <token>"},
+                resp = JSONResponse({"erro": "grupos exec e codigo exigem Authorization: Bearer <token>"},
                                     status_code=401)
                 await resp(scope, receive, send)
                 return
@@ -335,7 +396,8 @@ async def literatura(request: Request) -> Response:
 
 
 def criar_app(token: str) -> Starlette:
-    grupos = {"conhecimento": grupo_conhecimento(), "analise": grupo_analise(), "exec": grupo_exec()}
+    grupos = {"conhecimento": grupo_conhecimento(), "analise": grupo_analise(), "exec": grupo_exec(),
+              "codigo": grupo_codigo()}
     subapps = {nome: srv.streamable_http_app() for nome, srv in grupos.items()}
 
     async def saude(_: Request) -> JSONResponse:

@@ -74,3 +74,49 @@ def test_rscript_ao_lado_do_python():
     rs = execucao.rscript_exe()
     if rs:
         assert rs.lower().startswith(os.path.dirname(sys.executable).lower())
+
+
+_PS = shutil.which("pwsh") or shutil.which("powershell")
+
+
+@pytest.mark.skipif(not _PS, reason="sem PowerShell")
+def test_powershell_basico_utf8_e_exit(tmp_path, monkeypatch):
+    from lilo_host import comum
+    monkeypatch.setattr(comum, "RAIZES", [tmp_path])
+    r = execucao.executar_powershell("Write-Output 'ola ação'; (Get-Location).Path", cwd=str(tmp_path))
+    assert "[exit=0" in r and "ola ação" in r and tmp_path.name in r
+    assert "[exit=3" in execucao.executar_powershell("exit 3", cwd=str(tmp_path))
+    r2 = execucao.executar_powershell('python -c "import sys; print(sys.executable)"', cwd=str(tmp_path))
+    assert "[exit=0" in r2 and "python" in r2.lower()
+    assert not list(tmp_path.glob("_lilo_*"))   # .ps1 temporario removido
+
+
+@pytest.mark.skipif(not _PS, reason="sem PowerShell")
+def test_powershell_deny_list_cwd_e_timeout(tmp_path, monkeypatch):
+    from lilo_host import comum
+    monkeypatch.setattr(comum, "RAIZES", [tmp_path])
+    for cmd in ("Invoke-WebRequest https://x", "curl https://x", "iex 'x'", "Remove-Item -Recurse -Force C:\\",
+                "powershell -enc AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "git push --force", "shutdown /s",
+                "reg delete HKCU\\x", "Set-MpPreference -DisableRealtimeMonitoring 1"):
+        r = execucao.executar_powershell(cmd, cwd=str(tmp_path))
+        assert r.startswith("[ERRO]") and "deny-list" in r, cmd
+    assert "fora das raizes" in execucao.executar_powershell("Write-Output 1", cwd=str(tmp_path.parent))
+    assert "vazio" in execucao.executar_powershell("  ")
+    r = execucao.executar_powershell("Start-Sleep -Seconds 30", cwd=str(tmp_path), timeout=2)
+    assert "[ERRO] tempo limite de 2 s" in r
+    assert not list(tmp_path.glob("_lilo_*"))
+
+
+def test_delegar_codigo_guardas_e_chamada(tmp_path, monkeypatch):
+    from lilo_host import comum
+    monkeypatch.setattr(comum, "RAIZES", [tmp_path])
+    assert "vazia" in execucao.delegar_codigo("  ", str(tmp_path))
+    assert "nao existe" in execucao.delegar_codigo("x", str(tmp_path / "nada"))
+    assert "fora das raizes" in execucao.delegar_codigo("x", str(tmp_path.parent))
+    assert "deny-list" in execucao.delegar_codigo("rode rm -rf / para limpar", str(tmp_path))
+    # a chamada real vai para scripts/code_run.py; aqui um script falso no lugar registra o argv
+    falso = tmp_path / "code_run_falso.py"
+    falso.write_text("import sys, json; print(json.dumps(sys.argv[1:]))", encoding="utf-8")
+    monkeypatch.setattr(execucao, "CODE_RUN", falso)
+    r = execucao.delegar_codigo("crie soma.py", str(tmp_path), auto=True, timeout=120)
+    assert "[exit=0" in r and '"crie soma.py"' in r and '"--auto"' in r and '"--timeout", "120"' in r

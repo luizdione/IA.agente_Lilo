@@ -29,6 +29,7 @@ class Filter:
         for alvo in (__metadata__, body):
             if isinstance(alvo, dict) and alvo.get("tool_ids") is not None:
                 alvo["tool_ids"] = []
+        body.pop("terminal_id", None)    # sem terminal integrado no modo plano
         msgs = body.setdefault("messages", [])
         if msgs and msgs[0].get("role") == "system":
             if TEXTO not in str(msgs[0].get("content", "")):

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "ollama/lilo-code",
+  "small_model": "ollama/lilo-code",
+  "default_agent": "build",
+  "autoupdate": false,
+  "share": "disabled",
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama (local)",
+      "options": { "baseURL": "http://127.0.0.1:11434/v1" },
+      "models": {
+        "lilo-code": {
+          "name": "LILO Code (30B-A3B, 32k)",
+          "tool_call": true,
+          "temperature": true,
+          "reasoning": false,
+          "limit": { "context": 32768, "output": 8192 }
+        }
+      }
+    }
+  },
+  "agent": {
+    "build": { "temperature": 0.7, "top_p": 0.8, "steps": 40 },
+    "plan": { "temperature": 0.7, "top_p": 0.8, "steps": 15 },
+    "ciencia": {
+      "description": "build + ferramentas da ponte lilo-host (memoria, PDFs, estatistica, exec)",
+      "mode": "primary",
+      "temperature": 0.7,
+      "top_p": 0.8,
+      "steps": 40,
+      "permission": {
+        "conhecimento_*": "allow",
+        "conhecimento_resumir_arquivo": "deny",
+        "conhecimento_pasta_escolher": "deny",
+        "analise_*": "allow",
+        "exec_*": "ask"
+      }
+    }
+  },
+  "permission": {
+    "edit": "ask",
+    "bash": {
+      "*": "ask",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "pytest*": "allow",
+      "python -m pytest*": "allow",
+      "git push*": "deny"
+    },
+    "webfetch": "deny",
+    "websearch": "deny",
+    "task": "deny",
+    "todowrite": "deny",
+    "skill": "deny",
+    "lsp": "deny",
+    "list_mcp_resources": "deny",
+    "list_mcp_resource_templates": "deny",
+    "read_mcp_resource": "deny",
+    "conhecimento_*": "deny",
+    "analise_*": "deny",
+    "exec_*": "deny"
+  },
+  "mcp": {
+    "conhecimento": { "type": "remote", "url": "http://127.0.0.1:8790/conhecimento/mcp", "oauth": false, "timeout": 30000 },
+    "analise": { "type": "remote", "url": "http://127.0.0.1:8790/analise/mcp", "oauth": false, "timeout": 30000 },
+    "exec": {
+      "type": "remote",
+      "url": "http://127.0.0.1:8790/exec/mcp",
+      "oauth": false,
+      "timeout": 30000,
+      "headers": { "Authorization": "Bearer {env:LILO_HOST_TOKEN}" }
+    }
+  },
+  "instructions": ["C:/GitHub/LILO/opencode/AGENTS.global.md"]
+}

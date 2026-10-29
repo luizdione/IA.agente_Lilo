@@ -15,6 +15,10 @@
 #   .\lilo.ps1 gateway [up|down]    Docker MCP Gateway (paper-search, 127.0.0.1:8811) via `docker mcp gateway run`
 #   .\lilo.ps1 gpu-livre [motivo]   reserva a GPU p/ MD, Boltz ou render
 #   .\lilo.ps1 gpu-ok [forcar]      devolve a GPU ao LILO e aquece
+#   .\lilo.ps1 code [pasta] [...]   LILO Code: OpenCode (terminal) sobre o modelo local `lilo-code` + MCP da ponte
+#   .\lilo.ps1 code-run <pasta> "<tarefa>"   o mesmo sem interface (scripts\code_run.py): resumo + diff
+#   .\lilo.ps1 bench agente [...]   bench AGENTICO: laco de tools de verdade (scripts\bench_agente.py)
+#   .\lilo.ps1 terminal [up|down]   Open Terminal da Open WebUI no host (experimento F2b; manual)
 #
 # Compativel com Windows PowerShell 5.1 (o atalho usa powershell.exe): so ASCII.
 param(
@@ -49,6 +53,15 @@ $ArqCatalogoGateway = Join-Path $HOME ".docker\mcp\catalogs\lilo.yaml"   # scrip
 $Desktop = "http://127.0.0.1:8795"
 $ArqPidDesktop = Join-Path $env:LOCALAPPDATA "LILO\desktop.pid"
 $DesktopCmd = @("npx", "-y", "@wonderwhy-er/desktop-commander@latest")
+# Open Terminal (open-terminal, PyPI) no host: camada de acao da Open WebUI (abas de terminal, arquivos,
+# diffs). Shell completo SEM deny-list: so manual (`terminal up`), nunca no `up` (decisao do autor).
+$Terminal = "http://127.0.0.1:8796"
+$ArqPidTerminal = Join-Path $env:LOCALAPPDATA "LILO\terminal.pid"
+$ArqChaveTerminal = Join-Path $env:LOCALAPPDATA "LILO\terminal_key.txt"
+# LILO Code: OpenCode (terminal) sobre o modelo local `lilo-code` (ollama\Modelfile.lilo-code).
+$ModeloCode = "lilo-code"
+$ConfigOpenCode = Join-Path $Raiz "opencode\opencode.json"
+$RaizesCode = @("C:\GitHub", "E:\data", (Join-Path $HOME "OneDrive\Data_Science\Projetos"))
 
 # ---------------------------------------------------------------- interruptor
 # Mesmo arquivo do MCP ollama-local: um interruptor so para toda a GPU.
@@ -78,7 +91,7 @@ function Set-Interruptor([string]$Estado, [string]$Motivo) {
 
 function Show-Reservada($sw) {
     Write-Host "GPU reservada desde $($sw.em) ($($sw.motivo))."
-    Write-Host "O LILO fica em pausa. Para devolver a GPU a ele:  .\lilo.ps1 gpu-ok"
+    Write-Host "O LILO fica em pausa (a ponte MCP do Claude segue no ar). Para devolver a GPU a ele:  .\lilo.ps1 gpu-ok"
 }
 
 # -------------------------------------------------------------------- suporte
@@ -326,6 +339,112 @@ function Show-Ponte {
     if (Test-Ponte) { Write-Host "Ponte lilo-host: $Ponte respondendo" } else { Write-Host "Ponte lilo-host: parada" }
 }
 
+# ------------------------------------------------------ Open Terminal (F2b, manual)
+function Get-ChaveTerminal {
+    if (Test-Path $ArqChaveTerminal) { $k = (Get-Content $ArqChaveTerminal -Raw).Trim(); if ($k) { return $k } }
+    $bytes = New-Object byte[] 32
+    [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+    $k = ([Convert]::ToBase64String($bytes)).Replace("+", "-").Replace("/", "_").TrimEnd("=")
+    New-Item -ItemType Directory -Force -Path (Split-Path $ArqChaveTerminal) | Out-Null
+    Set-Content -Path $ArqChaveTerminal -Value $k -NoNewline
+    return $k
+}
+
+function Test-Terminal {
+    try {
+        $r = Invoke-WebRequest -Uri "$Terminal/health" -UseBasicParsing -TimeoutSec 3
+        return ($r.StatusCode -eq 200)
+    } catch { return $false }
+}
+
+function Start-Terminal {
+    if (Test-Terminal) { return $true }
+    $exe = Get-Command open-terminal -ErrorAction SilentlyContinue
+    if (-not $exe) { Write-Host "open-terminal nao encontrado. Instale (uma vez):  uv tool install open-terminal==0.14.6"; return $false }
+    New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+    $null = Get-ChaveTerminal
+    # PS 5.1 nao tem Start-Process -Environment: o filho herda o ambiente do processo.
+    $antes = @{}
+    $novo = @{ OPEN_TERMINAL_API_KEY_FILE = $ArqChaveTerminal; PYTHONUTF8 = "1";
+               OPEN_TERMINAL_EXECUTE_TIMEOUT = "30"; OPEN_TERMINAL_CORS_ALLOWED_ORIGINS = "http://127.0.0.1:3000";
+               OPEN_TERMINAL_SYSTEM_PROMPT = "Terminal do host Windows do dono. O shell e o cmd.exe: para PowerShell use `powershell -NoProfile -Command ...`. Python e o do conda datascience (no PATH), R e Rscript, WSL e wsl. Saidas longas: use tail. Responda em portugues." }
+    foreach ($k in $novo.Keys) { $antes[$k] = [Environment]::GetEnvironmentVariable($k); [Environment]::SetEnvironmentVariable($k, $novo[$k]) }
+    try {
+        $p = Start-Process -FilePath $exe.Source -ArgumentList @("run", "--host", "127.0.0.1", "--port", "8796", "--cwd", "C:\GitHub") `
+            -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $LogDir "terminal.log") -RedirectStandardError (Join-Path $LogDir "terminal.err.log")
+        Set-Content -Path $ArqPidTerminal -Value $p.Id
+    } finally {
+        foreach ($k in $novo.Keys) { [Environment]::SetEnvironmentVariable($k, $antes[$k]) }
+    }
+    if (Wait-Ate { Test-Terminal } 60) { Write-Host "Open Terminal no ar em $Terminal (chave em $ArqChaveTerminal)"; return $true }
+    Write-Host "O Open Terminal nao respondeu em $Terminal (ver $LogDir\terminal.err.log)."
+    return $false
+}
+
+function Stop-Terminal {
+    if (Test-Path $ArqPidTerminal) {
+        try { & taskkill /PID ([int](Get-Content $ArqPidTerminal -Raw).Trim()) /T /F 2>$null | Out-Null } catch { }
+        Remove-Item $ArqPidTerminal -ErrorAction SilentlyContinue
+    }
+    Write-Host "Open Terminal parado."
+}
+
+function Show-Terminal {
+    if (Test-Terminal) { Write-Host "Open Terminal: $Terminal respondendo" } else { Write-Host "Open Terminal: parado (experimento; lilo.ps1 terminal up)" }
+}
+
+# ------------------------------------------------------------- LILO Code
+function Invoke-Code([string[]]$ArgsOC) {
+    # OpenCode sobre o modelo local: falha fechada no interruptor, ponte + token, troca o modelo da
+    # GPU (lilo -> lilo-code) e devolve o lilo ao sair.
+    $sw = Get-Interruptor
+    if ($sw.estado -ne "on") { Show-Reservada $sw; exit 3 }
+    if (-not (Start-Motor)) { Write-Host "Ollama nao subiu."; exit 2 }
+    $oc = Get-Command opencode -ErrorAction SilentlyContinue
+    if (-not $oc) { Write-Host "OpenCode nao encontrado. Instale (uma vez):  npm install -g opencode-ai@1.19.5"; exit 2 }
+    $pasta = (Get-Location).Path
+    $resto = @()
+    if ($ArgsOC -and $ArgsOC.Count -gt 0) {
+        if ($ArgsOC[0] -and -not $ArgsOC[0].StartsWith("-")) { $pasta = $ArgsOC[0]; if ($ArgsOC.Count -gt 1) { $resto = $ArgsOC[1..($ArgsOC.Count - 1)] } }
+        else { $resto = $ArgsOC }
+    }
+    try { $pasta = (Resolve-Path $pasta -ErrorAction Stop).Path } catch { Write-Host "pasta nao existe: $pasta"; exit 2 }
+    $dentro = $false
+    foreach ($r in $RaizesCode) { if ($pasta.ToLower().StartsWith($r.ToLower())) { $dentro = $true } }
+    if (-not $dentro) { Write-Host "Pasta fora de $($RaizesCode -join ', '): $pasta"; exit 2 }
+    $tem = (& ollama show $ModeloCode 2>$null)
+    if (-not $tem) {
+        Write-Host "Criando o modelo $ModeloCode (ollama\Modelfile.lilo-code)..."
+        & ollama create $ModeloCode -f (Join-Path $Raiz "ollama\Modelfile.lilo-code") | Out-Host
+    }
+    $null = Start-Ponte
+    $env:LILO_HOST_TOKEN = Get-TokenPonte
+    foreach ($m in (Get-Carregados)) { if ($m -like "${Modelo}:*" -or $m -eq $Modelo) { & ollama stop $m | Out-Null } }
+    Write-Host "Aquecendo $ModeloCode..."
+    try {
+        $null = Invoke-RestMethod -Method Post -Uri "$Ollama/api/chat" -ContentType "application/json" -TimeoutSec 300 `
+            -Body (@{ model = $ModeloCode; stream = $false; messages = @(@{ role = "user"; content = "Responda apenas: pronto" }) } | ConvertTo-Json -Depth 5)
+        $ps = Invoke-RestMethod -Uri "$Ollama/api/ps" -TimeoutSec 10
+        foreach ($m in $ps.models) { if ("$($m.name)".StartsWith($ModeloCode)) { Write-Host ("  contexto {0} | VRAM {1:N1} de {2:N1} GB" -f $m.context_length, ($m.size_vram / 1GB), ($m.size / 1GB)) } }
+    } catch { Write-Host "Aquecimento falhou: $_" }
+    $env:OPENCODE_CONFIG = $ConfigOpenCode
+    $env:OPENCODE_DISABLE_AUTOUPDATE = "1"
+    $env:OPENCODE_DISABLE_CLAUDE_CODE_PROMPT = "1"      # senao importa ~/.claude/CLAUDE.md (13 KB) no prompt
+    $env:OPENCODE_DISABLE_CLAUDE_CODE_SKILLS = "1"
+    $env:OPENCODE_DISABLE_MODELS_FETCH = "1"           # sem isto o 1o `run` travou 120 s buscando models.dev
+    $env:OPENCODE_DISABLE_LSP_DOWNLOAD = "1"
+    $env:PYTHONUTF8 = "1"
+    $env:PATH = (Split-Path $Py) + ";" + (Join-Path (Split-Path $Py) "Scripts") + ";" + $env:PATH
+    Push-Location $pasta
+    try { & $oc.Source @resto }
+    finally {
+        Pop-Location
+        Remove-Item Env:\LILO_HOST_TOKEN -ErrorAction SilentlyContinue
+        & ollama stop $ModeloCode 2>$null | Out-Null
+        $null = Invoke-Warm      # devolve o `lilo` a GPU
+    }
+}
+
 # ------------------------------------------------------------------- comandos
 function Invoke-Warm {
     $sw = Get-Interruptor
@@ -367,6 +486,10 @@ function Invoke-Warm {
 }
 
 function Invoke-Up {
+    # A ponte nao usa a GPU (le o interruptor antes de chamar o Ollama) e o Claude Code depende dela
+    # (MCP lilo-conhecimento e lilo-analise): sobe mesmo com a GPU reservada. Em 14/10 ela ficou fora
+    # porque o `up`/`inicio` paravam no interruptor OFF antes de chega-la.
+    $null = Start-Ponte
     $sw = Get-Interruptor
     if ($sw.estado -ne "on") { Show-Reservada $sw; return $false }
     # Sem GPU para o modelo a interface nao sobe: a 1a pergunta faria o Ollama
@@ -379,6 +502,9 @@ function Invoke-Up {
     # A ponte sobe antes da interface e o token do exec entra no compose pelo ambiente.
     $null = Start-Ponte
     $null = Start-Gateway
+    # Desktop Commander (mcpo, so loopback, token da ponte) sobe junto: decisao do autor em 13/10
+    # (antes era so `lilo.ps1 desktop up`, manual; I-0018).
+    $null = Start-Desktop
     $env:LILO_HOST_TOKEN = Get-TokenPonte
     # Claude na interface (OPENAI_API_KEYS do compose): a chave sai do .env do repo, sem passar
     # por arquivo versionado nem pela tela.
@@ -414,6 +540,7 @@ function Invoke-Down {
     foreach ($m in (Get-Carregados)) { if ($m -like "${Modelo}*") { & ollama stop $m | Out-Null } }
     Stop-Ponte
     Stop-Gateway
+    Stop-Desktop
     Write-Host "Interface parada e modelo descarregado. O Ollama segue no ar para as outras ferramentas."
 }
 
@@ -433,8 +560,11 @@ function Show-Status {
     Show-Ponte
     Show-Gateway
     Show-Desktop
+    Show-Terminal
     $b = Join-Path $LogDir "bench.jsonl"
     if (Test-Path $b) { Write-Host "Ultimo bench: $(Get-Content $b -Tail 1)" }
+    $ag = Join-Path $LogDir "agente.jsonl"
+    if (Test-Path $ag) { Write-Host "Ultimo bench agente: $(Get-Content $ag -Tail 1)" }
 }
 
 function Invoke-GpuLivre([string]$Motivo) {
@@ -471,7 +601,20 @@ switch ($Comando.ToLower()) {
     "down"      { Invoke-Down }
     "status"    { Show-Status }
     "warm"      { $null = Invoke-Warm }
-    "bench"     { & $Py (Join-Path $Raiz "scripts\bench.py") @Resto; exit $LASTEXITCODE }
+    "bench"     {
+        $o = "$($Resto | Select-Object -First 1)".ToLower()
+        if ($o -eq "agente") {
+            $r2 = @(); if ($Resto.Count -gt 1) { $r2 = $Resto[1..($Resto.Count - 1)] }
+            & $Py (Join-Path $Raiz "scripts\bench_agente.py") @r2; exit $LASTEXITCODE
+        }
+        & $Py (Join-Path $Raiz "scripts\bench.py") @Resto; exit $LASTEXITCODE
+    }
+    "code"      { Invoke-Code $Resto }
+    "code-run"  { & $Py (Join-Path $Raiz "scripts\code_run.py") @Resto; exit $LASTEXITCODE }
+    "terminal"  {
+        $o = "$($Resto | Select-Object -First 1)".ToLower()
+        if ($o -eq "up") { $null = Start-Terminal } elseif ($o -eq "down") { Stop-Terminal } else { Show-Terminal }
+    }
     "convivencia" { & $Py (Join-Path $Raiz "scripts\convivencia.py") @Resto; exit $LASTEXITCODE }
     "presets"   {
         & $Py (Join-Path $Raiz "scripts\owui_presets.py") @Resto
@@ -497,7 +640,7 @@ switch ($Comando.ToLower()) {
     "gpu-ok"    { Invoke-GpuOk ("$($Resto | Select-Object -First 1)") }
     default {
         Write-Host "Comando desconhecido: $Comando"
-        Write-Host "Use: abrir | up | down | status | warm | bench | convivencia | presets | inicio | ponte [up|down] | gateway [up|down] | desktop [up|down] | smoke | indexar [status|falhas|...] | gpu-livre [motivo] | gpu-ok [forcar]"
+        Write-Host "Use: abrir | up | down | status | warm | bench [agente] | convivencia | presets | inicio | ponte [up|down] | gateway [up|down] | desktop [up|down] | terminal [up|down] | smoke | indexar [status|falhas|...] | gpu-livre [motivo] | gpu-ok [forcar] | code [pasta] | code-run <pasta> <tarefa>"
         exit 2
     }
 }

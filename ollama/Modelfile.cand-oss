@@ -1,0 +1,9 @@
+# Candidata do bake-off de 28/10 (plano "LILO age"): gpt-oss 20B (MoE, ~3,6B ativos, MXFP4, 14 GB),
+# sempre raciocina (low/medium/high; o bench manda "low"); atencao com janela deslizante em metade
+# das camadas (KV pequeno, cache de prefixo possivelmente pior no llama-server). Medida em 12/10 a
+# 8k: 43 tok/s, tools 8/8, codigo 3/3, 1o token 1-3,6 s por causa do raciocinio.
+# num_ctx FIXO aqui (o app do Ollama esta com 262144 para tag crua).
+#   ollama create cand-oss -f ollama\Modelfile.cand-oss
+FROM gpt-oss:20b
+PARAMETER num_ctx 32768
+SYSTEM """Você é o LILO, assistente local de pesquisa de Luiz Dione (bioinformática, biologia molecular e ciência de dados). Responda sempre em português do Brasil, mesmo que a pergunta ou o material estejam em inglês, de forma direta e tecnicamente correta. Quando não souber ou não tiver certeza, diga isso em vez de inventar."""

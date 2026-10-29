@@ -33,11 +33,19 @@ BASE = os.environ.get("LILO_WEBUI", "http://127.0.0.1:3000")
 # Tools por preset: `server:mcp:<id>` = conexao MCP de TOOL_SERVER_CONNECTIONS
 # (compose.yaml); a Open WebUI expoe cada tool como `<id>_<nome>`. A F4 acrescenta
 # o paper-search ao Pesquisa. Conteudo da internet nunca no mesmo preset que executa.
-AGENTE = ["server:mcp:analise", "server:mcp:exec", "server:mcp:conhecimento"]   # age no host, sem internet
+# `resumir_arquivo` chama o `lilo` na GPU por dentro de uma tool (derrubaria a base de codigo e
+# entra na fila do Ollama): fora dos presets que agem. A sintaxe `server:mcp:<id>|f1,f2` lista as
+# funcoes permitidas (as 13 restantes do conhecimento).
+CONHECIMENTO_AGENTE = ("server:mcp:conhecimento|memoria_projetos_listar,memoria_projeto_ler,memoria_buscar,"
+                       "ler_pdf,ler_texto,biblioteca_buscar,biblioteca_status,skills_listar,skill_ler,"
+                       "pasta_listar,pasta_buscar,repos_listar,pasta_escolher")
+# Quem AGE no host, sem internet (plano de 28/10, "LILO age"): arquivos com diff + PowerShell (codigo),
+# Python/R/WSL/git (exec), estatistica (analise) e memoria/PDFs/skills (conhecimento) = 35 tools.
+AGENTE = ["server:mcp:codigo", "server:mcp:exec", "server:mcp:analise", CONHECIMENTO_AGENTE]
 
 TOOLS: dict[str, list[str]] = {
     # 2026-10-12 (queixa do autor: "LILO 32B disse que nao pode executar nada"): TODO preset local
-    # age por padrao - mesmas tools do Analise. Sem tool o modelo so pode dizer que nao consegue.
+    # age por padrao. Sem tool o modelo so pode dizer que nao consegue.
     # O "Modo de agir" (filtro) restringe quando o dono quiser; Pesquisa e o unico com internet.
     "lilo:latest": AGENTE,
     "lilo-pesquisa": ["server:mcp:conhecimento", "server:mcp:literatura"],
@@ -46,9 +54,9 @@ TOOLS: dict[str, list[str]] = {
     # MCPs remotos dos plugins bio-research do Claude (PubMed, bioRxiv, ChEMBL, ensaios clinicos,
     # Open Targets) so no Claude: no `lilo` um preset com 3 deles media TTFT p50 3,7 s (schemas de
     # 4.098 tokens buscados nos servidores remotos a cada mensagem) e reprovou no bench de 12/10.
-    # Orquestrador na nuvem (Claude Sonnet 5.5 pela API da Anthropic): mesmas tools do Analise.
+    # Orquestrador na nuvem (Claude Sonnet 5.5 pela API da Anthropic): mesmas tools do LILO.
     # Regra mantida: conteudo da internet nunca no mesmo preset que executa codigo.
-    "lilo-orquestrador": ["server:mcp:conhecimento", "server:mcp:analise", "server:mcp:exec"],
+    "lilo-orquestrador": AGENTE,
     # Pesquisa com o Claude: biblioteca + literatura + os MCPs bio dos plugins (contexto de 200k).
     "lilo-pesquisa-claude": ["server:mcp:conhecimento", "server:mcp:literatura", "server:mcp:pubmed",
                              "server:mcp:biorxiv", "server:mcp:chembl", "server:mcp:ensaios",
@@ -71,22 +79,24 @@ PRESETS_SYSTEM_PT = ("Você é o LILO, assistente local de pesquisa de Luiz Dion
                      "português do Brasil, mesmo que a pergunta ou o material estejam em inglês, de forma "
                      "direta e tecnicamente correta. Quando não souber, diga isso em vez de inventar.")
 
-# System de quem AGE: o modelo tem ferramentas e deve usa-las em vez de dizer que nao consegue.
+# System de quem AGE (28/10, fluxo como no Claude Code, <= 250 tokens): o modelo tem ferramentas e as
+# usa em vez de dizer que nao consegue; edita com diff, verifica rodando e responde curto.
 SYSTEM_AGENTE = (PRESETS_SYSTEM_PT +
-                 " Você TEM ferramentas e deve usá-las: executar_python, executar_r e executar_wsl rodam "
-                 "código no computador do dono; executar_git age nos repositórios de C:\\GitHub (status, log, "
-                 "diff antes de alterar; commit só com o ok dele); pasta_escolher abre o seletor de pasta, "
-                 "pasta_listar/pasta_buscar/ler_texto leem pastas e arquivos; biblioteca_buscar consulta os "
-                 "PDFs; estat_* faz estatística; skills_listar -> skill_ler -> skill_rodar seguem as skills "
-                 "do dono. Quando ele pedir uma tarefa, execute-a passo a passo com as ferramentas, mostrando "
-                 "cada comando e saída tal como vieram; nunca responda que não pode acessar arquivos ou rodar "
-                 "código. Só o que exige internet está fora deste preset (use o LILO Pesquisa).")
+                 " Você age no computador do dono com ferramentas. Fluxo: 1) explore com arquivo_buscar, "
+                 "arquivo_listar e arquivo_ler (nunca adivinhe o conteúdo de um arquivo); 2) diga o plano em "
+                 "até 3 linhas; 3) aja: arquivo_editar para mudar um trecho (devolve o diff), arquivo_escrever "
+                 "para criar, executar_python/executar_r/executar_powershell para rodar, executar_git para "
+                 "repositórios (commit só com o ok dele), estat_* para estatística, memoria_* e biblioteca_buscar "
+                 "para o que o dono já tem; 4) verifique rodando o teste ou o script e corrija até passar; "
+                 "5) relate curto, com o diff e a saída tal como vieram. Use caminhos absolutos. Nunca diga que "
+                 "não pode acessar arquivos ou rodar código. Só o que exige internet fica fora (LILO Pesquisa).")
 
 PRESETS = (
     {
         "id": "lilo:latest", "base_model_id": None, "name": "LILO",
-        "meta": {"description": "qwen3:14b, contexto 8192, rápido. Age no computador: Python, R, WSL, git, "
-                                "pastas, PDFs, estatística e skills. Para pensar, ligue 'Pensar fundo'.",
+        "meta": {"description": "Modelo local. Age no computador: lê, escreve e edita arquivos (com diff), "
+                                "roda Python, R, PowerShell e git, estatística, memória dos projetos e PDFs. "
+                                "Para pensar, ligue 'Pensar fundo'; para aprovar cada ação, Modo de agir = manual.",
                  "tags": [{"name": "local"}]},
         # O SYSTEM do Modelfile ja pede portugues; o preset repete porque, na interface, um
         # system do preset substitui o do modelo (e o dono quer PT sempre, mesmo com material em ingles).
