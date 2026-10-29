@@ -170,6 +170,10 @@ gerado era raciocínio, e em 14/10 a GPU estava dividida com uma dinâmica molec
 age" responde com contexto 32 k numa base MoE 30B-A3B escolhida pelo `bench agente` (candidatas
 `cand-coder` = qwen3-coder:30b, `cand-2507` = qwen3:30b-a3b-instruct-2507, `cand-oss` = gpt-oss:20b,
 em `ollama/Modelfile.cand-*`), ferramentas de arquivo com diff, aprovação por chamada e o LILO Code.
+A F1 inteira roda num comando, no dia em que a GPU for liberada: `.\scripts\f1_bakeoff.ps1` (cria as
+candidatas, `bench agente`, bench de chat e `bakeoff_tools`; resultados em `%LOCALAPPDATA%\LILO\bench`).
+A migração para a 0.12.4 foi validada em 28/10 com o container no ar sem modelo (presets, filtros e
+10 servidores de ferramentas conferidos pela API; backup do banco em `%LOCALAPPDATA%\LILO\backup`).
 
 Bake-off (`scripts/bakeoff_tools.py` + `bench.py` + `avaliar_biblioteca.py --idioma pt`):
 qwen3:14b tem o 1º token 3× mais rápido e escolha de tool 16/16; gemma4:12b gera 40–55 %
