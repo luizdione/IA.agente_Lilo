@@ -431,6 +431,8 @@ function Invoke-Code([string[]]$ArgsOC) {
     $env:OPENCODE_DISABLE_AUTOUPDATE = "1"
     $env:OPENCODE_DISABLE_CLAUDE_CODE_PROMPT = "1"      # senao importa ~/.claude/CLAUDE.md (13 KB) no prompt
     $env:OPENCODE_DISABLE_CLAUDE_CODE_SKILLS = "1"
+    $env:OPENCODE_DISABLE_MODELS_FETCH = "1"           # sem isto o 1o `run` travou 120 s buscando models.dev
+    $env:OPENCODE_DISABLE_LSP_DOWNLOAD = "1"
     $env:PYTHONUTF8 = "1"
     $env:PATH = (Split-Path $Py) + ";" + (Join-Path (Split-Path $Py) "Scripts") + ";" + $env:PATH
     Push-Location $pasta

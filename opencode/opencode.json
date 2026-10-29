@@ -56,6 +56,9 @@
     "todowrite": "deny",
     "skill": "deny",
     "lsp": "deny",
+    "list_mcp_resources": "deny",
+    "list_mcp_resource_templates": "deny",
+    "read_mcp_resource": "deny",
     "conhecimento_*": "deny",
     "analise_*": "deny",
     "exec_*": "deny"

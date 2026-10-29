@@ -123,6 +123,8 @@ def main() -> int:
     env.update({"OPENCODE_CONFIG": str(ROOT / "opencode" / "opencode.json"),
                 "OPENCODE_DISABLE_AUTOUPDATE": "1", "OPENCODE_DISABLE_CLAUDE_CODE_PROMPT": "1",
                 "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS": "1", "PYTHONUTF8": "1",
+                # medido 28/10: sem estas duas o primeiro `opencode run` travou 120 s (models.dev / LSP)
+                "OPENCODE_DISABLE_MODELS_FETCH": "1", "OPENCODE_DISABLE_LSP_DOWNLOAD": "1",
                 "OPENCODE_PERMISSION": json.dumps(PERMISSAO_AUTO if a.auto else PERMISSAO_PADRAO),
                 "LILO_HOST_TOKEN": comum.token_exec(gerar=False)})
     base = Path(sys.executable).parent
