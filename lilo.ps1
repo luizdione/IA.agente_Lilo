@@ -30,7 +30,7 @@ param(
 $env:PYTHONIOENCODING = "utf-8"
 $Raiz    = $PSScriptRoot
 $Compose = Join-Path $Raiz "compose.yaml"
-$Py      = if ($env:LILO_PY) { $env:LILO_PY } else { "C:\Users\luizd\miniforge3\envs\datascience\python.exe" }
+$Py      = if ($env:LILO_PY) { $env:LILO_PY } else { Join-Path $env:USERPROFILE "miniforge3\envs\datascience\python.exe" }
 $Ollama  = "http://127.0.0.1:11434"
 $WebUI   = "http://127.0.0.1:3000"
 $Modelo  = "lilo"

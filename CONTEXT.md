@@ -1,7 +1,7 @@
 # CONTEXT.md — LILO v14 (ponteiro)
 
 A memória viva deste projeto NÃO fica no repositório. Ela vive em
-`C:\Users\luizd\OneDrive\Data_Science\Projetos\IA.agente\.project-memory\`:
+`%USERPROFILE%\OneDrive\Data_Science\Projetos\IA.agente\.project-memory\`:
 `PROJECT_STATE.md` (estado atual), `TASKS.md`, `DECISIONS.md`, `KNOWLEDGE.md`,
 `ISSUES.md`, `CHANGELOG.md`.
 

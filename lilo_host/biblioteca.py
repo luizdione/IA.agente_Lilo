@@ -1,6 +1,6 @@
 """Biblioteca de PDFs do dono (grupo conhecimento): indice proprio, incremental e sob demanda.
 
-Fonte   LILO_BIBLIOTECA_PDFS  (padrao: C:\\Users\\luizd\\OneDrive\\Documentos\\Workaholics\\Artigos PDF)
+Fonte   LILO_BIBLIOTECA_PDFS  (padrao: ~\\OneDrive\\Documentos\\Workaholics\\Artigos PDF)
 Indice  LILO_BIBLIOTECA       (padrao: E:\\data\\lilo\\biblioteca, fora do OneDrive)
   chroma\\          vetores (cosseno) da colecao `trechos`
   biblioteca.db    SQLite: `docs` (hash, caminho, titulo, estado) + FTS5 `trechos` (BM25)
@@ -25,7 +25,7 @@ from pathlib import Path
 from .comum import erro
 
 PDFS = Path(os.environ.get("LILO_BIBLIOTECA_PDFS",
-                           r"C:\Users\luizd\OneDrive\Documentos\Workaholics\Artigos PDF"))
+                           str(Path.home() / "OneDrive" / "Documentos" / "Workaholics" / "Artigos PDF")))
 INDICE = Path(os.environ.get("LILO_BIBLIOTECA", r"E:\data\lilo\biblioteca"))
 # Pesos locais em safetensors (transformers >= 5.5 recusa pytorch_model.bin com torch < 2.6):
 # pasta montada a partir do cache do HF (modelo + tokenizer). Sem ela, cai no nome do hub.

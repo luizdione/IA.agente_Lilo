@@ -13,11 +13,12 @@ v13 (agente de terminal) em `marco/v13.12-terminal`; legado v12 em `v12.15-legad
 ## Como rodar / medir
 ```powershell
 .\lilo.ps1 up | down | status | bench [agente] | smoke | presets | indexar | gateway up | desktop up | code [pasta]
-C:\Users\luizd\miniforge3\envs\datascience\python.exe -m pytest tests -q   # ponte + filtros, sem GPU
-C:\Users\luizd\miniforge3\envs\datascience\python.exe scripts\check.py     # o que o CI roda
+%USERPROFILE%\miniforge3\envs\datascience\python.exe -m pytest tests -q   # ponte + filtros, sem GPU
+%USERPROFILE%\miniforge3\envs\datascience\python.exe scripts\check.py     # o que o CI roda
 ollama create lilo -f ollama\Modelfile.lilo      # depois de editar o Modelfile
 ```
-Python do projeto: `C:\Users\luizd\miniforge3\envs\datascience\python.exe` (nunca o Python do sistema).
+Python do projeto: `%USERPROFILE%\miniforge3\envs\datascience\python.exe` (nunca o Python do sistema;
+`LILO_PY` no `.env` sobrepoe).
 
 ## Regras (critério do dono: "2+2" responde na hora)
 - **A GPU é do dono.** Antes de carregar QUALQUER modelo, ler `~/.ollama_delegate/switch.json`
