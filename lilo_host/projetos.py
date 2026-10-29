@@ -14,7 +14,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-RAIZES_PADRAO = (r"C:\Users\luizd\OneDrive\Data_Science\Projetos", r"C:\github")
+RAIZES_PADRAO = (str(Path.home() / "OneDrive" / "Data_Science" / "Projetos"), r"C:\github")
 PROFUNDIDADE = 3
 SUBDIR = ".project-memory"
 # Arquivos de memoria na raiz do projeto (skill salvar_contexto e convencoes antigas).

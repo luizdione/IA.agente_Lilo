@@ -16,7 +16,7 @@ param(
 $ErrorActionPreference = "Continue"
 $Raiz = Split-Path $PSScriptRoot
 $Lilo = Join-Path $Raiz "lilo.ps1"
-$Py = if ($env:LILO_PY) { $env:LILO_PY } else { "C:\Users\luizd\miniforge3\envs\datascience\python.exe" }
+$Py = if ($env:LILO_PY) { $env:LILO_PY } else { Join-Path $env:USERPROFILE "miniforge3\envs\datascience\python.exe" }
 $Sw = Join-Path $env:USERPROFILE ".ollama_delegate\switch.json"
 $Log = Join-Path $env:LOCALAPPDATA "LILO\bench"
 
