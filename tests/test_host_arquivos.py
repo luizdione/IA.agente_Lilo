@@ -136,7 +136,8 @@ def test_raizes_e_protegidos(tmp_path):
     assert "fora das raizes" in arquivos.escrever(str(fora), "x")
     assert "fora das raizes" in arquivos.escrever(str(tmp_path / ".." / fora.name), "x")
     assert not fora.exists()
-    assert "fora das raizes" in arquivos.escrever(r"\\servidor\share\x.txt", "x")
+    if os.name == "nt":   # no Linux (CI) a barra invertida nao separa: a string vira um nome de arquivo comum
+        assert "fora das raizes" in arquivos.escrever(r"\\servidor\share\x.txt", "x")
     assert "fora das raizes" in arquivos.escrever(str(tmp_path / "CON"), "x")
     assert "fora das raizes" in arquivos.escrever(str(tmp_path / "a.txt:fluxo"), "x")
     assert "protegido" in arquivos.escrever(str(tmp_path / ".env"), "x")
